@@ -1,3 +1,9 @@
+variable "slack_api_url" {
+  type        = string
+  description = "Slack Webhook URL or API URL"
+  default     = ""
+}
+
 resource "kubernetes_namespace" "observability" {
   metadata {
     name = "observability"
@@ -10,6 +16,7 @@ resource "helm_release" "kube_prometheus_stack" {
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "kube-prometheus-stack"
   version    = "69.6.0" # Check for a recent version if this fails
+  wait       = false    # Avoid timeouts during large chart updates
 
   # Enable Grafana without password for local development
   set {
@@ -20,6 +27,96 @@ resource "helm_release" "kube_prometheus_stack" {
     name  = "grafana.grafana\\.ini.auth\\.anonymous.org_role"
     value = "Admin"
   }
+
+  # Enable Sidecars to auto-load Loki DataSources and SRE Dashboards
+  set {
+    name  = "grafana.sidecar.datasources.enabled"
+    value = "true"
+  }
+  set {
+    name  = "grafana.sidecar.dashboards.enabled"
+    value = "true"
+  }
+
+  # AlertManager Configuration
+  set {
+    name  = "alertmanager.config.global.resolve_timeout"
+    value = "5m"
+  }
+
+  set {
+    name  = "alertmanager.config.route.group_by"
+    value = "{alertname,job}"
+  }
+
+  set {
+    name  = "alertmanager.config.route.group_wait"
+    value = "30s"
+  }
+
+  set {
+    name  = "alertmanager.config.route.group_interval"
+    value = "5m"
+  }
+
+  set {
+    name  = "alertmanager.config.route.repeat_interval"
+    value = "12h"
+  }
+
+  set {
+    name  = "alertmanager.config.route.receiver"
+    value = "goalert"
+  }
+
+  set {
+    name  = "alertmanager.config.receivers[0].name"
+    value = "goalert"
+  }
+
+  set {
+    name  = "alertmanager.config.receivers[0].webhook_configs[0].url"
+    value = "http://goalert.incident-management.svc.cluster.local/api/v2/generic/incoming?token=eb5f27f0-d62f-4c54-99a4-7d3be96fa943"
+  }
+
+  set {
+    name  = "alertmanager.config.receivers[1].name"
+    value = "ai-agent"
+  }
+
+  set {
+    name  = "alertmanager.config.receivers[1].webhook_configs[0].url"
+    value = "http://ai-agent.observability.svc.cluster.local/webhook"
+  }
+
+  # Ensure all alerts also go to the AI Agent
+  set {
+    name  = "alertmanager.config.route.routes[0].receiver"
+    value = "ai-agent"
+  }
+  
+  set {
+    name  = "alertmanager.config.route.routes[0].match.severity"
+    value = "critical"
+  }
+
+  # Prometheus Resource Limits
+  set {
+    name  = "prometheus.prometheusSpec.resources.limits.cpu"
+    value = "1000m"
+  }
+  set {
+    name  = "prometheus.prometheusSpec.resources.limits.memory"
+    value = "1Gi"
+  }
+  set {
+    name  = "prometheus.prometheusSpec.resources.requests.cpu"
+    value = "500m"
+  }
+  set {
+    name  = "prometheus.prometheusSpec.resources.requests.memory"
+    value = "512Mi"
+  }
 }
 
 resource "helm_release" "opentelemetry_collector" {
@@ -27,7 +124,7 @@ resource "helm_release" "opentelemetry_collector" {
   namespace  = kubernetes_namespace.observability.metadata[0].name
   repository = "https://open-telemetry.github.io/opentelemetry-helm-charts"
   chart      = "opentelemetry-collector"
-  version    = "0.146.0" 
+  version    = "0.146.0"
 
   # Required configuration for image repository
   set {
@@ -95,7 +192,7 @@ resource "kubernetes_cluster_role" "ai_agent_healing" {
     resources  = ["deployments", "pods", "services", "replicasets"]
     verbs      = ["get", "list", "watch", "patch", "update", "delete"]
   }
-  
+
   rule {
     api_groups = [""]
     resources  = ["pods/log"]
@@ -159,11 +256,11 @@ resource "kubernetes_deployment" "ai_agent" {
 
       spec {
         service_account_name = kubernetes_service_account.ai_agent.metadata[0].name
-        
+
         container {
           name  = "ai-agent"
           image = "python:3.11-slim"
-          
+
           command = ["/bin/sh", "-c"]
           args = [
             "pip install requests fastapi uvicorn kubernetes && python /app/ai_agent.py"
@@ -304,9 +401,9 @@ resource "kubernetes_config_map" "loki_dashboard" {
           title = "Live Pod Logs"
           type  = "logs"
           targets = [
-            { 
-                expr = "{namespace=~\"online-boutique|observability|incident-management\"}" 
-                refId = "A"
+            {
+              expr  = "{namespace=~\"online-boutique|observability|incident-management\"}"
+              refId = "A"
             }
           ]
           gridPos = { h = 20, w = 24, x = 0, y = 0 }

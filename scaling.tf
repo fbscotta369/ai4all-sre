@@ -19,7 +19,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "frontend" {
       resource {
         name = "cpu"
         target {
-          type               = "Utilization"
+          type                = "Utilization"
           average_utilization = 50
         }
       }
@@ -48,7 +48,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "productcatalogservice" {
       resource {
         name = "cpu"
         target {
-          type               = "Utilization"
+          type                = "Utilization"
           average_utilization = 50
         }
       }

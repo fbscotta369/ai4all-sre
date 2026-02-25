@@ -38,11 +38,11 @@ resource "kubernetes_deployment" "behavioral_loadgen" {
         container {
           name  = "loadgen"
           image = "python:3.11-slim"
-          
+
           security_context {
             privileged = false
           }
-          
+
           command = ["/bin/sh", "-c"]
           args = [
             "pip install requests && python /app/behavioral_loadgen.py"

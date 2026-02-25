@@ -1,42 +1,67 @@
 # AI-Driven SRE Laboratory: Autonomous Resilience Control Plane 🚀
 
-## 📋 Mission Card
-| Feature | Specification |
-| :--- | :--- |
-| **System Goal** | Autonomous detection, diagnosis, and remediation of AI-native workloads. |
-| **Pillars** | Intelligent Observability, Agentic Remediation, Zero-Trust Governance. |
-| **Scalability** | Optimized for high-concurrency M2M (Machine-to-Machine) telemetry bursts. |
-| **Sovereignty** | 100% Local Inference (LLM) and Telemetry Persistence. |
+The **AI4ALL-SRE Laboratory** is an industrial-grade autonomous control plane designed for the next generation of AI-native workloads. It bridges the gap between raw telemetry and corrective action using a sophisticated **Multi-Agent System (MAS)**, ensuring machine-speed resilience for 2026-scale infrastructure.
 
 ---
 
-## 🎯 Problem Statement
-Modern AI infrastructure in 2026 faces an unprecedented **Operational Complexity Gap**. Standard SRE practices fail when M2M traffic surges by 100x and decision-making must happen at machine speed. Legacy monitoring provides data; it does not provide **agency**.
+## ⚡ Quick Start: Zero to Healthy in 5 Minutes
 
-## 💡 Value Proposition (Mission Control)
-The AI4ALL-SRE Laboratory provides an **Autonomous Control Plane** that bridging the gap between raw telemetry and corrective action.
-- **Intelligent Observability**: Automated log-to-context synthesis using specialized LLMs.
-- **Agentic Remediation**: LLMs executing dynamic runbooks via non-idempotent M2M APIs with built-in safety guardrails.
-- **Zero-Trust Resilience**: Cryptographic identity verification for every autonomous action via Linkerd Service Mesh.
-
-## 📈 Service Level Objectives (SLOs)
-We monitor the "Performance of the Machine" with high-fidelity indicators:
-
-| Service Level Objective | SLI (Service Level Indicator) | Target |
-| :--- | :--- | :--- |
-| **Remediation Latency (p95)** | Alert-to-Mitigation duration | < 120s |
-| **Decision Fidelity** | % of RCA accuracy vs Human Baseline | > 90% |
-| **Control Plane Integrity** | API Priority & Fairness Reject Rate | < 0.01% |
-| **Economic Efficiency** | Tokens consumed per successful Mitigation | < 2.5k |
-
-## 🚀 Self-Bootstrapping Environment (Pro)
-Optimized for developer velocity. Run the mission control in one command:
+Experience the autonomous SRE lifecycle with a single command. This bootstraps the entire environment: K3s Cluster, Linkerd Mesh, Full Observability Stack (LGTM), and the AI Remediation Agent.
 
 ```bash
-# Deploys Cluster, Mesh, Observability, and Agentic Loop
+# 1. Clone and Initialize
+git clone <your-repo-url> && cd ai4all-sre
+
+# 2. Deployment (Everything Everywhere)
 ./setup-all.sh
+
+# 3. Expose Dashboards
+./start-dashboards.sh
 ```
 
+> [!IMPORTANT]
+> **Manual Steps Required**: To enable Slack notifications and fine-tune your incident policies, refer to the [Manual Configuration Guide](./docs/MANUAL_CONFIG.md).
+
 ---
-*For technical specifications, causal tracing details, and C4 Models, see [ARCHITECTURE.md](./ARCHITECTURE.md).*
-*For operational onboarding and hardware requirements, see [docs/onboarding.md](./docs/onboarding.md).*
+
+## 🏗️ Core Technology Stack
+
+The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
+
+| Component | Technology | Documentation |
+| :--- | :--- | :--- |
+| **Service Mesh** | Linkerd | [Official Docs](https://linkerd.io/) |
+| **GitOps** | ArgoCD | [Official Docs](https://argoproj.github.io/cd/) |
+| **Chaos Engine** | Chaos Mesh | [Official Docs](https://chaos-mesh.org/) |
+| **Observability** | Prometheus / Grafana / Loki | [OSS Stack](https://prometheus.io/) |
+| **Incident Management**| GoAlert | [Official Docs](https://goalert.org/) |
+| **Policy Governance** | Kyverno | [Official Docs](https://kyverno.io/) |
+| **Local Inference** | Ollama (Llama 3) | [GitHub](https://ollama.com/) |
+
+---
+
+## 💡 System Pillars
+
+- **Intelligent Observability**: Automated log-to-context synthesis using specialized LLMs.
+- **Agentic Remediation**: A Director LLM executing dynamic runbooks via non-idempotent M2M APIs.
+- **Zero-Trust Resilience**: Cryptographic identity verification for every autonomous action via Linkerd.
+- **Economic Efficiency**: Optimized for low-token consumption and local-first inference.
+
+## 🕹️ Operational Pulse (The Internal Loop)
+1.  **Adversary (Chaos Mesh)**: Injects cascading failure scenarios.
+2.  **Observer (Prometheus/Loki)**: Detects anomalies and fires structured alerts.
+3.  **Orchestrator (GoAlert)**: Aggregates alerts into Incidents and notifies the Agent.
+4.  **Remediator (Autonomous Agent)**: Reaches consensus via MAS and executes `kubectl` fixes.
+
+## 📂 Repository Navigation Map
+- `ai_agent.py`: The core Multi-Agent System reasoning engine.
+- `chaos.tf`: Infrastructure-as-Code for 5+ failure experiments and workflows.
+- `observability.tf`: Helm-based configuration for the full Grafana/Loki/Prom stack.
+- `docs/`: In-depth guides for hardware, manual setup, and onboarding.
+- `scripts/`: Operational automation and health-check validation.
+
+---
+
+*For technical specifications and C4 Models, see [ARCHITECTURE.md](./ARCHITECTURE.md).*
+*For hardware requirements and environment optimization, see [docs/onboarding.md](./docs/onboarding.md).*
+*For **manual configuration** (Slack, GoAlert tuning), see [docs/MANUAL_CONFIG.md](./docs/MANUAL_CONFIG.md).*

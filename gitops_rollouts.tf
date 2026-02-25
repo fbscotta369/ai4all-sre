@@ -1,10 +1,14 @@
 resource "helm_release" "argo_rollouts" {
-  name       = "argo-rollouts"
-  repository = "https://argoproj.github.io/argo-helm"
-  chart      = "argo-rollouts"
-  namespace  = "argo-rollouts"
+  name             = "argo-rollouts"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-rollouts"
+  namespace        = "argo-rollouts"
   create_namespace = true
-  version    = "2.35.1"
+  version          = "2.35.1"
+  set {
+    name  = "controller.podLabels.sre-privileged-access"
+    value = "true"
+  }
 }
 
 # Note: We will transform the frontend deployment in a later step 

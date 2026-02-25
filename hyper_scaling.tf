@@ -33,7 +33,7 @@ resource "kubernetes_manifest" "m2m_flow_schema" {
         {
           resourceRules = [
             {
-              apiGroups = ["*"]
+              apiGroups  = ["*"]
               resources  = ["*"]
               verbs      = ["*"]
               namespaces = ["*"]
@@ -42,7 +42,7 @@ resource "kubernetes_manifest" "m2m_flow_schema" {
           subjects = [
             {
               kind = "ServiceAccount"
-              service_account = {
+              serviceAccount = {
                 name      = "ai-agent"
                 namespace = "observability"
               }

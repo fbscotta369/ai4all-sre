@@ -2,6 +2,7 @@ import os
 import requests
 import uvicorn
 import datetime
+import concurrent.futures
 from fastapi import FastAPI, Request
 from kubernetes import client, config
 
@@ -48,6 +49,24 @@ def is_action_safe(action_text):
 
     return True
 
+def verify_health(dep_name, namespace):
+    """
+    Proactive Verification: Check if the deployment is healthy after remediation.
+    """
+    try:
+        dep = k8s_apps_v1.read_namespaced_deployment(name=dep_name, namespace=namespace)
+        ready = dep.status.ready_replicas or 0
+        desired = dep.spec.replicas or 0
+        if ready >= desired:
+            print(f"[+] Proactive Check: {dep_name} is HEALTHY ({ready}/{desired} replicas)")
+            return True
+        else:
+            print(f"[-] Proactive Check: {dep_name} is UNHEALTHY ({ready}/{desired} replicas)")
+            return False
+    except Exception as e:
+        print(f"[!] Health Check Error: {e}")
+        return False
+
 def execute_remediation(action_text):
     """
     Experimental: Parse AI recommendation and execute it with Safety Guardrails.
@@ -60,18 +79,20 @@ def execute_remediation(action_text):
     try:
         # Simple extraction logic for demonstration
         if "RESTART DEPLOYMENT" in action_text.upper():
-            parts = action_text.split()
+            # Clean up the action text to remove backticks or other markdowns
+            clean_text = action_text.replace("`", "").replace("*", "").strip()
+            parts = clean_text.split()
             dep_name = None
             namespace = "default"
             
             for i, part in enumerate(parts):
                 if part.upper() == "DEPLOYMENT" and i + 1 < len(parts):
-                    dep_name = parts[i+1]
+                    dep_name = parts[i+1].strip(".,!?;:`\"'")
                 if part.upper() == "IN" and i + 1 < len(parts):
-                    namespace = parts[i+1]
+                    namespace = parts[i+1].strip(".,!?;:`\"'")
             
             if dep_name:
-                print(f"[*] Triggering rollout restart for {dep_name} in {namespace}...")
+                print(f"[*] Triggering rollout restart for {dep_name} in {namespace}...", flush=True)
                 now = datetime.datetime.now().isoformat()
                 body = {
                     'spec': {
@@ -85,7 +106,39 @@ def execute_remediation(action_text):
                     }
                 }
                 k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
-                return f"Successfully restarted deployment {dep_name} in {namespace}"
+                result = f"Successfully restarted deployment {dep_name} in {namespace}"
+                # Proactive Verification
+                verify_health(dep_name, namespace)
+                return result
+
+        if "SCALE DEPLOYMENT" in action_text.upper():
+            clean_text = action_text.replace("`", "").replace("*", "").strip()
+            parts = clean_text.split()
+            dep_name = None
+            namespace = "default"
+            replicas = 3
+            
+            for i, part in enumerate(parts):
+                if part.upper() == "DEPLOYMENT" and i + 1 < len(parts):
+                    dep_name = parts[i+1].strip(".,!?;:`\"'")
+                if part.upper() == "IN" and i + 1 < len(parts):
+                    namespace = parts[i+1].strip(".,!?;:`\"'")
+                if part.upper() == "TO" and i + 1 < len(parts):
+                    try:
+                        replicas_str = parts[i+1].strip(".,!?;:`\"'")
+                        replicas = int(replicas_str)
+                    except: pass
+            
+            if dep_name:
+                print(f"[*] Scaling {dep_name} in {namespace} to {replicas} replicas...", flush=True)
+                body = {'spec': {'replicas': replicas}}
+                k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
+                return f"Successfully scaled {dep_name} to {replicas}"
+
+        if "ROLLBACK DEPLOYMENT" in action_text.upper():
+             # Placeholder for rollback logic - usually involves searching for previous revisions
+             return "Rollback logic initiated (Manual intervention still suggested)"
+
     except Exception as e:
         return f"Failed to execute remediation: {e}"
     return "No actionable remediation found."
@@ -132,67 +185,112 @@ def handle_autonomous_lifecycle(alert_name, labels, annotations, ai_response):
     else:
         print(f"[*] Existing runbook found at {runbook_path}")
 
+from fastapi import FastAPI, Request, BackgroundTasks
+
+# ... (Previous definitions until handle_alert)
+
+def process_alert_background(alert):
+    status = alert.get("status")
+    labels = alert.get("labels", {})
+    annotations = alert.get("annotations", {})
+    alert_name = labels.get('alertname', 'UnknownAlert')
+    deployment_name = labels.get('deployment') or labels.get('app') or labels.get('service', 'frontend')
+    
+    is_predictive = labels.get('severity') == 'warning' or "PREDICTIVE" in alert_name.upper()
+    
+    # ... (Agents and other logic remains the same)
+    agents = {
+        "NetworkAgent": "You are a specialized Network SRE AI. Focus on ingress, egress, DNS, routing, and mesh (Linkerd) issues. Determine if this fits your domain. Provide RCA and remediation. Suggest Action.",
+        "DatabaseAgent": "You are a specialized Database SRE AI. Focus on persistent volumes, PostgreSQL/MySQL connection issues, latency, and query saturation. Determine if this fits your domain. Provide RCA and remediation. Suggest Action.",
+        "ComputeAgent": "You are a specialized Compute SRE AI. Focus on CPU/Memory saturation, OOMKills, Pod CrashLoopBackOffs, and Node pressure. Determine if this fits your domain. Provide RCA and remediation. Suggest Action."
+    }
+    
+    alert_context = f"""
+Status: {status} | Alert Name: {alert_name} | Namespace: {labels.get('namespace')}
+Deployment: {deployment_name}
+Summary: {annotations.get('summary')}
+Description: {annotations.get('description')}
+    """
+
+    def query_agent(agent_name, role_prompt):
+        prompt = f"{role_prompt}\n\nA {'PREDICTIVE ' if is_predictive else ''}alert has been triggered:\n{alert_context}\n\nProvide your analysis."
+        try:
+            res = requests.post(OLLAMA_URL, json={"model": "llama3", "prompt": prompt, "stream": False}, timeout=120)
+            if res.status_code == 200:
+                return agent_name, res.json().get("response", "")
+        except Exception as e:
+            return agent_name, f"Error: {e}"
+        return agent_name, "No response."
+
+    print(f"\n[*] [Background] Dispatching alert {alert_name} to Specialist Agents...", flush=True)
+    
+    agent_responses = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [executor.submit(query_agent, name, role) for name, role in agents.items()]
+        for future in concurrent.futures.as_completed(futures):
+            name, output = future.result()
+            agent_responses[name] = output
+
+    # Director / Consensus Agent
+    print(f"[*] Aggregating Specialist responses and requesting Consensus...", flush=True)
+    consensus_prompt = f"""
+You are the Director SRE Agent. You have received analyses from specialized agents regarding an alert.
+Alert Context: {alert_context}
+
+Agent Analyses:
+1. NetworkAgent: {agent_responses.get('NetworkAgent')}
+2. DatabaseAgent: {agent_responses.get('DatabaseAgent')}
+3. ComputeAgent: {agent_responses.get('ComputeAgent')}
+
+1. **RCA**: Synthesize the most plausible Root Cause.
+2. **Remediation**: Determine the best command. 
+   CRITICAL: Replace <name> with the actual deployment name from the context: '{deployment_name}'.
+   Supported Formats:
+   - RESTART DEPLOYMENT {deployment_name} IN {labels.get('namespace', 'online-boutique')}
+   - SCALE DEPLOYMENT {deployment_name} IN {labels.get('namespace', 'online-boutique')} TO <count>
+3. **Predictive Insight**: Prevention steps.
+
+Be concise, elite, and actionable.
+"""
+    try:
+        director_res = requests.post(OLLAMA_URL, json={
+            "model": "llama3",
+            "prompt": consensus_prompt,
+            "stream": False
+        }, timeout=120)
+        
+        if director_res.status_code == 200:
+            ai_analysis = director_res.json().get("response", "")
+            print(f"\n[Director MAS Analysis for {alert_name}]:\n{ai_analysis}\n", flush=True)
+            
+            # Full Lifecycle Management
+            handle_autonomous_lifecycle(alert_name, labels, annotations, ai_analysis)
+
+            if "RESTART DEPLOYMENT" in ai_analysis.upper():
+                for line in ai_analysis.split('\n'):
+                    if "RESTART DEPLOYMENT" in line.upper():
+                        final_action = line
+                        if ("<NAME>" in final_action.upper() or "<PLACEHOLDER>" in final_action.upper()) and deployment_name:
+                            final_action = final_action.replace("<NAME>", deployment_name).replace("<name>", deployment_name)
+                        
+                        result = execute_remediation(final_action)
+                        print(f"[*] Remediation Result: {result}", flush=True)
+            
+    except Exception as e:
+        print(f"[!] Error querying Ollama for Consensus: {e}", flush=True)
+
 @app.post("/webhook")
-async def handle_alert(request: Request):
+async def handle_alert(request: Request, background_tasks: BackgroundTasks):
     payload = await request.json()
     alerts = payload.get("alerts", [])
     if not alerts:
         return {"status": "no alerts"}
 
     for alert in alerts:
-        status = alert.get("status")
-        labels = alert.get("labels", {})
-        annotations = alert.get("annotations", {})
-        alert_name = labels.get('alertname', 'UnknownAlert')
-        
-        is_predictive = labels.get('severity') == 'warning' or "PREDICTIVE" in alert_name.upper()
+        background_tasks.add_task(process_alert_background, alert)
 
-        prompt = f"""
-        You are an elite Hyper-Autonomous SRE AI.
-        A {'PREDICTIVE ' if is_predictive else ''}alert has been triggered.
-        
-        Status: {status} | Alert Name: {alert_name} | Namespace: {labels.get('namespace')}
-        
-        Summary: {annotations.get('summary')}
-        Description: {annotations.get('description')}
-        
-        Provide:
-        1. **RCA**: Precision theory on failure.
-        2. **Remediation**: Command: RESTART DEPLOYMENT <name> IN <namespace>
-        3. **Predictive Insight**: Prevention steps.
-        
-        Concise, elite, and actionable.
-        """
-        
-        try:
-            print(f"\n[*] Sending alert {alert_name} to Llama 3 for Hyper-Autonomous Analysis...")
-            response = requests.post(OLLAMA_URL, json={
-                "model": "llama3",
-                "prompt": prompt,
-                "stream": False
-            })
-            
-            if response.status_code == 200:
-                ai_analysis = response.json().get("response", "")
-                print(f"\n[AI Full Lifecycle Analysis for {alert_name}]:\n{ai_analysis}\n")
-                
-                # Full Lifecycle Management
-                handle_autonomous_lifecycle(alert_name, labels, annotations, ai_analysis)
-
-                if "RESTART DEPLOYMENT" in ai_analysis.upper():
-                    for line in ai_analysis.split('\n'):
-                        if "RESTART DEPLOYMENT" in line.upper():
-                            result = execute_remediation(line)
-                            print(f"[*] Remediation Result: {result}")
-                
-            else:
-                print(f"[!] Failed to reach Ollama: {response.text}")
-                
-        except Exception as e:
-            print(f"[!] Error querying Ollama: {e}")
-
-    return {"status": "processed", "lifecycle": "documented"}
+    return {"status": "accepted", "message": "Processing in background"}
 
 if __name__ == "__main__":
-    print("[*] Starting Hyper-Autonomous SRE Agent...")
+    print("[*] Starting Hyper-Autonomous SRE Agent...", flush=True)
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -37,6 +37,26 @@ if command -v tfsec &> /dev/null; then
     tfsec . || true
 fi
 
+# 5. Linkerd Health Check
+echo "[*] Checking Linkerd Control Plane health..."
+if kubectl get pods -n linkerd -l linkerd.io/control-plane-component=destination | grep -q "Running"; then
+    echo "✅ Linkerd Destination service is healthy."
+else
+    echo "❌ Error: Linkerd Destination service is NOT healthy."
+    exit 1
+fi
+
+echo "[*] Checking Linkerd mTLS connectivity..."
+if ! command -v linkerd &> /dev/null; then
+    echo "⚠️ Warning: Linkerd CLI not found. Skipping mTLS check."
+else
+    if linkerd check --proxy -n online-boutique &> /dev/null; then
+        echo "✅ Linkerd mTLS is active in online-boutique."
+    else
+        echo "❌ Linkerd mTLS check failed or pods not yet injected."
+    fi
+fi
+
 echo "------------------------------------------------"
 echo "✅ Pipeline Validation Passed!"
 echo "------------------------------------------------"

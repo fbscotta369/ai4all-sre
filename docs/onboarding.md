@@ -1,50 +1,60 @@
-# Onboarding & Operational Setup 🛠️
+# Onboarding & System Optimization 🛠️
 
-This document covers the baseline requirements and "Getting Started" procedures for the AI4ALL-SRE Laboratory. 
+The AI4ALL-SRE Laboratory is a high-performance environment. This document ensures your underlying infrastructure is tuned for machine-speed autonomous operations.
 
-## 📋 Prerequisites
+---
 
-### Hardware Optimization
-For optimal performance (especially for Phase 6 Fine-Tuning):
-- **OS**: Linux (Kubuntu 22.04 optimized) or Windows 11 with WSL2.
-- **CPU**: Multi-core (Ryzen 9 5950X recommended).
-- **RAM**: 32GB Minimum (128GB for local fine-tuning).
-- **GPU**: NVIDIA RTX 3060 (12GB VRAM) or higher for local AI execution.
+## 📋 Hardware Specialization Tiers
 
-### Software Dependencies
-- **Kubernetes**: k3s or similar lightweight distribution.
-- **Terraform**: v1.5+ for Infrastructure-as-Code.
-- **Helm**: v3+ for package management.
-- **Ollama**: Local LLM runner for Llama 3 modules.
+Select the tier that matches your operational goals.
 
-## 🚀 Deployment (One-Click Setup)
+| Tier | Specifications | Use Case |
+| :--- | :--- | :--- |
+| **Developer** | 16GB RAM, 8-Core CPU | Exploring the control plane and running basic simulations. |
+| **SRE Pro** | 32GB RAM, 16-Core CPU, RTX 3060+ | Full Multi-Agent (MAS) residency and high-concurrency chaos testing. |
+| **ML Researcher**| 128GB RAM, Ryzen 9, Dual RTX 4090 | Local fine-tuning and massive-scale telemetry persistence. |
 
-The laboratory is designed for rapid instantiation:
+---
 
-### 1. Initialize Infrastructure
+## 🐧 Environment Optimization
+
+### Linux (Native)
+Optimized for Kubuntu 22.04+ or Fedora 38+.
+- **Inotify Limits**: Required for high-concurrency logging (Loki).
+  ```bash
+  echo fs.inotify.max_user_instances=512 | sudo tee -a /etc/sysctl.conf
+  echo fs.inotify.max_user_watches=128000 | sudo tee -a /etc/sysctl.conf
+  sudo sysctl -p
+  ```
+- **GPU Acceleration**: Ensure `nvidia-container-toolkit` is installed for Ollama hardware acceleration.
+
+### Windows (WSL2)
+- **Memory Allocation**: Create/edit `%USERPROFILE%\.wslconfig`:
+  ```ini
+  [wsl2]
+  memory=24GB
+  processors=8
+  ```
+- **Networking**: Use `mirrored` networking mode in WSL2 for the most stable Ingress resolution.
+
+---
+
+## 🚀 Immediate Deployment
+
+The laboratory follows a "One-Click" philosophy. If you have the prerequisites installed (Terraform, Helm, K3s, Ollama), run:
+
 ```bash
-# Deploys Cluster + Observability + Apps
 ./setup-all.sh
 ```
 
-### 2. Expose Operational Dashboards
-```bash
-# Starts port-forwards for Grafana, Loki, and ArgoCD
-./start-dashboards.sh
-```
-
-### 3. Continuous Validation
-Run the local validation script to ensure all SRE layers (Zero Trust, APF, HPA) are healthy:
+### Post-Deployment Check (Success Verification)
+Verify your laboratory integrity using the industrial validation suite:
 ```bash
 ./scripts/validate.sh
 ```
 
-## 📂 Project Structure
-- `apps/`: Microservices manifests (Kustomize).
-- `ai-lab/`: Local LLM fine-tuning scripts and templates.
-- `adr/`: Architecture Decision Records (The "Why").
-- `scripts/`: Operational automation and health-checks.
-- `terraform/`: Multi-provider infrastructure definitions.
+> [!TIP]
+> **What's Next?**: After validation, head over to the [Manual Configuration Guide](./MANUAL_CONFIG.md) to enable external integrations like Slack.
 
 ---
-*For a deep-dive into system decisions and scaling patterns, refer to [ARCHITECTURE.md](../ARCHITECTURE.md).*
+*Document Version: 2.1.0 (Performance Tuning Edition)*

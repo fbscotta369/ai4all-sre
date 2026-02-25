@@ -1,10 +1,46 @@
 resource "helm_release" "kyverno" {
-  name       = "kyverno"
-  repository = "https://kyverno.github.io/kyverno"
-  chart      = "kyverno"
-  namespace  = "kyverno"
+  name             = "kyverno"
+  repository       = "https://kyverno.github.io/kyverno"
+  chart            = "kyverno"
+  namespace        = "kyverno"
   create_namespace = true
-  version    = "3.1.4"
+  version          = "3.1.4"
+
+  # bitnami/kubectl:1.28.5 was removed from Docker Hub; use alpine/k8s instead.
+  # alpine/k8s runs as root, so runAsNonRoot must be disabled for both cleanup jobs.
+  set {
+    name  = "cleanupJobs.admissionReports.image.registry"
+    value = ""
+  }
+  set {
+    name  = "cleanupJobs.admissionReports.image.repository"
+    value = "alpine/k8s"
+  }
+  set {
+    name  = "cleanupJobs.admissionReports.image.tag"
+    value = "1.28.13"
+  }
+  set {
+    name  = "cleanupJobs.admissionReports.securityContext.runAsNonRoot"
+    value = "false"
+  }
+
+  set {
+    name  = "cleanupJobs.clusterAdmissionReports.image.registry"
+    value = ""
+  }
+  set {
+    name  = "cleanupJobs.clusterAdmissionReports.image.repository"
+    value = "alpine/k8s"
+  }
+  set {
+    name  = "cleanupJobs.clusterAdmissionReports.image.tag"
+    value = "1.28.13"
+  }
+  set {
+    name  = "cleanupJobs.clusterAdmissionReports.securityContext.runAsNonRoot"
+    value = "false"
+  }
 }
 
 # Sample Policy: Disallow Privileged Containers
@@ -34,7 +70,30 @@ resource "kubernetes_manifest" "policy_disallow_privileged" {
             any = [
               {
                 resources = {
-                  namespaces = ["kube-system", "kyverno", "linkerd", "argocd", "observability"]
+                  # Exclude pods that have been explicitly granted privileged access
+                  selector = {
+                    matchLabels = {
+                      "sre-privileged-access" = "true"
+                    }
+                  }
+                }
+              },
+              {
+                resources = {
+                  # Exclude all system and SRE lab namespaces from this policy
+                  namespaces = [
+                    "kube-system",
+                    "kyverno",
+                    "observability",
+                    "incident-management",
+                    "chaos-testing",
+                    "online-boutique",
+                    "argocd",
+                    "argo-rollouts",
+                    "linkerd",
+                    "linkerd-viz",
+                    "monitoring",
+                  ]
                 }
               }
             ]
@@ -92,6 +151,49 @@ resource "kubernetes_manifest" "policy_require_limits" {
                       limits = {
                         memory = "?*"
                         cpu    = "?*"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+  depends_on = [helm_release.kyverno]
+}
+# Proactive Policy: Inject Resource Limits if missing (Mutation)
+resource "kubernetes_manifest" "policy_mutate_limits" {
+  manifest = {
+    apiVersion = "kyverno.io/v1"
+    kind       = "ClusterPolicy"
+    metadata = {
+      name = "mutate-resource-limits"
+    }
+    spec = {
+      validationFailureAction = "Audit"
+      background              = true
+      rules = [
+        {
+          name = "inject-default-limits"
+          match = {
+            any = [{ resources = { kinds = ["Pod"] } }]
+          }
+          exclude = {
+            any = [{ resources = { namespaces = ["kube-system", "kyverno", "observability"] } }]
+          }
+          mutate = {
+            patchStrategicMerge = {
+              spec = {
+                containers = [
+                  {
+                    "(name)" : "*",
+                    resources = {
+                      limits = {
+                        cpu    = "500m"
+                        memory = "256Mi"
                       }
                     }
                   }
