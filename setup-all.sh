@@ -65,8 +65,11 @@ echo "------------------------------------------------"
 echo "Initializing Terraform..."
 terraform init
 
-# 5. Terraform Apply
-echo "Applying Infrastructure..."
+# 5. Terraform Apply (Two-Stage to resolve CRD dependencies)
+echo "Applying Base Helm Charts (CRDs)..."
+terraform apply -target=helm_release.chaos_mesh -target=helm_release.kyverno -target=helm_release.argo_rollouts -auto-approve
+
+echo "Applying full Infrastructure..."
 terraform apply -auto-approve
 
 echo "------------------------------------------------"

@@ -1,7 +1,7 @@
 resource "kubernetes_horizontal_pod_autoscaler_v2" "frontend" {
   metadata {
     name      = "frontend"
-    namespace = "online-boutique"
+    namespace = kubernetes_namespace.boutique.metadata[0].name
   }
 
   spec {
@@ -30,7 +30,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "frontend" {
 resource "kubernetes_horizontal_pod_autoscaler_v2" "productcatalogservice" {
   metadata {
     name      = "productcatalogservice"
-    namespace = "online-boutique"
+    namespace = kubernetes_namespace.boutique.metadata[0].name
   }
 
   spec {
