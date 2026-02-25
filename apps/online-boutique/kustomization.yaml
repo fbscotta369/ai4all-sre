@@ -6,11 +6,13 @@ resources:
 
 # Patch all deployments to include the OpenTelemetry Endpoint pointing to our collector
 patches:
-  - patch: |-
+  - target:
+      kind: Deployment
+    patch: |-
       apiVersion: apps/v1
       kind: Deployment
       metadata:
-        name: all
+        name: placeholder
       spec:
         template:
           spec:
@@ -27,5 +29,3 @@ patches:
                     value: "http://otel-collector-opentelemetry-collector.observability:4317"
                   - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
                     value: "http://otel-collector-opentelemetry-collector.observability:4317"
-    target:
-      kind: Deployment
