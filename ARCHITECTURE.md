@@ -1,84 +1,95 @@
-# Architecture Specification: AI4ALL-SRE 🏗️
+# Architecture Specification: AI4ALL-SRE Autonomous Control Plane 🏗️
 
-This document defines the high-fidelity technical architecture of the AI4ALL-SRE Laboratory. It is structured to provide a "Staff-level" view of system boundaries, failure modes, and data lineage.
+This document defines the high-fidelity technical architecture of the AI4ALL-SRE Laboratory. It is structured according to the **C4 Model** for architectural visualization and focuses on system resilience, data lineage, and failure mode antifragility.
 
-## 🗺️ System Boundary & Context (C4 Model - Level 1)
+## 🗺️ C4 Model - Level 1: System Context
 
-The laboratory operates as an autonomous enclave. Our responsibility ends at the **Provisioning Boundary** (Local Hypervisor) and the **Inference API Boundary** (Local Ollama/LLM).
+The AI4ALL-SRE Laboratory operates as an autonomous enclave that bridges the gap between raw telemetry and corrective action.
 
 ```mermaid
 graph TD
-    subgraph "External World"
-        GitHub["GitHub (Managed Source)"]
+    subgraph "External Constraints"
+        GH["GitHub (Source of Truth)"]
     end
 
-    subgraph "AI4ALL-SRE (Secure Enclave)"
-        K8s["Kubernetes Control Plane (k3s)"]
-        Mesh["Zero-Trust Mesh (Linkerd)"]
+    subgraph "AI4ALL-SRE Ecosystem"
+        CP["Autonomous Control Plane (K8s/Linkerd)"]
         Agent["Autonomous SRE Agent"]
-        Stack["Observability Stack (Loki/Prom/OTel)"]
+        Sink["Telemetry Sink (Loki/Prom/OTel)"]
     end
 
-    subgraph "Hardware Boundary"
-        GPU["RTX 3060 (Local Inference)"]
-        Disk["2TB NVMe (Data Mesh)"]
+    subgraph "Hardware Plane"
+        Inference["Local Inference Engine (Ollama/GPU)"]
     end
 
-    GitHub -->|Desired State| K8s
-    Agent -->|RCA Loop| Stack
-    Agent -->|Compute Request| GPU
-    Stack -->|Metric Persistence| Disk
+    GH -->|Desired State| CP
+    CP -->|Telemetry| Sink
+    Sink -->|Incident Context| Agent
+    Agent -->|Remediation Request| CP
+    Agent -->|Reasoning Request| Inference
 ```
 
-## 🔄 Data Mesh & Lineage
+## 📦 C4 Model - Level 2: Container (Data Mesh)
 
-State synchronization across asynchronous agents is handled via a **Distributed State Mesh**:
-1.  **Metric Ingestion**: OTel Collectors scrape system state and propagate `TraceIDs` globally.
-2.  **State Consolidation**: Prometheus and Loki correlate these traces into a unified "Incident Context".
-3.  **Agent Memory**: Asynchronous agents retrieve this context from the **Vector Memory** (ADR-001) to ensure historical lineage is preserved during reasoning.
+The system is a distributed **Data Mesh** where state is synchronized across asynchronous observers.
 
-## 🧬 Causal Tracing (Global Propagation)
+- **Telemetry Sink**: Prometheus (Metrics) and Loki (Logs).
+- **Messaging Hub**: Kubernetes API Server (Serving as the Global State Orchestrator).
+- **Agent Memory**: FAISS-powered Vector Store (Context retrieval).
 
-To achieve "Science-Fiction" level observability, we implement **Global TraceID Propagation**. A single `TraceID` travels across:
-- **Terminal (Input)**: Every automated script execution is tagged.
-- **Microservices (Network)**: Linkerd sidecars inject headers (`X-B3-TraceId`) into all gRPC/HTTP traffic.
-- **Agent Reasoning (AIOps)**: The LLM output is appended with the parent `TraceID`, allowing us to trace a self-healing action back to the specific line of code or user request that triggered it.
+## 🧩 C4 Model - Level 3: Component (Agent Reasoning)
+
+The Autonomous SRE Agent is composed of three primary functional blocks:
+1.  **Context Collector**: Aggregates logs, metrics, and K8s events into a unified Trace-bound context.
+2.  **Reasoning Engine**: Uses Llama 3 (optimized via QLoRA) for causal inference and Root Cause Analysis.
+3.  **Executor**: Validates actions against whitelisted namespaces and executes non-idempotent API calls.
+
+## ⚡ Automatic Incident Response (Sequence Diagram)
+
+This diagram illustrates the lifecycle of a "Predictive Saturation" alert, from detection to automated artifact generation.
+
+```mermaid
+sequenceDiagram
+    participant S as Telemetry Sink (Prom/Loki)
+    participant A as Autonomous SRE Agent
+    participant L as LLM (Llama 3 Local)
+    participant K as Kubernetes API
+    participant D as Documentation (MD Artifacts)
+
+    S->>A: Trigger High-Latency Alert (Threshold Violation)
+    A->>A: Correlate Context (TraceID Propagation)
+    A->>L: Request Root Cause Analysis (Logs + Metrics)
+    L-->>A: Suggestion: CPU Throttling detected. Action: Scale ReplicaSet.
+    A->>A: Validate Action (Kyverno Policy Check)
+    A->>K: Execute 'kubectl scale' (Desired State)
+    K-->>A: Success (Ready Status)
+    A->>D: Generate Post-Mortem & Runbook
+    A->>S: Verify Alert Resolution
+```
+
+## 🧬 Causal Tracing & Lineage
+
+We implement **Global TraceID Propagation** to ensure observability across the entire decision loop:
+- **Injection**: Every fired alert is assigned a unique `Incident-UID`.
+- **Propagation**: This ID is injected into every LLM prompt and every subsequent Kubernetes API call metadata.
+- **Auditability**: We can trace an automated $50 scaling event back to the exact Log Line that triggered the reasoning engine.
 
 ## 🛡️ Failure Modes & Antifragility
 
-We assume the system *will* fail. Our goal is **Antifragility**—improving the system through failures.
+We follow the principle of **Fail-Safe Autonomy**:
 
-### 1. LLM Backpressure & Rate-Limiting
-When the local LLM (Ollama) is saturated:
-- **Pattern**: **Jittered Exponential Backoff**.
-- **Implementation**: The AI Agent retries with a base delay of 2s, doubling with a 10% jitter until a 5-retry limit is reached.
-- **Circuit Breaker**: If the LLM error rate exceeds 20% in the last 60 seconds, the "Autonomous Remediation" layer is **tripped (opened)**, defaulting the system to "Human-Operator" mode.
+### 1. LLM Saturation (Backpressure)
+- **Problem**: Local inference becomes a bottleneck.
+- **Remediation**: Jittered Exponential Backoff (ADR-002).
+- **Hardwired Fallback**: If inference latency (p99) exceeds 60s, the Agent enters **"Watchtower Mode"**—it continues to log and analyze, but suspends all automated write-actions, alerting the human operator.
 
-### 2. Zero-Trust Partitioning (Linkerd Fault-Tolerance)
-- **Failure Mode**: Control Plane failure.
-- **Antifragility**: Current proxy identities are cached. The system continues to operate in mTLS mode using the last known secure state, ensuring that a Mesh failure doesn't result in a total blackout.
+### 2. Mesh Partitioning
+- **Problem**: Sidecar identity failure.
+- **Antifragility**: The Linkerd proxy caches identities. The "Data Plane" continues mTLS enforcement even if the "Control Plane" is temporarily partitioned.
 
-## 🧩 Component Interaction (C4 Model - Level 2)
-
-The interaction between the **Global State Orchestrator** and our local resources:
-
-```mermaid
-graph LR
-    subgraph "Management Horizon"
-        AG["Global State Orchestrator"]
-    end
-
-    subgraph "Local Cluster (Online Boutique)"
-        Relay["Local Relay Station (API Bridge)"]
-        K8s_API["K8s API Server"]
-        Agent_Pod["SRE Agent Pod"]
-    end
-
-    AG -->|Instruction| Relay
-    Relay -->|Deployment| K8s_API
-    Relay -->|Context Request| Agent_Pod
-    Agent_Pod -->|Health Feedback| Relay
-```
+## 📈 Scalability & Bottlenecks
+- **Vector Search**: Current FAISS indexing is optimized for **p99 Query Latency** over write-throughput.
+- **Telemetry Sink**: Loki buffer sizes are tuned for "Burst Handling" to prevent log loss during high-concurrency simulation.
 
 ---
-*Document Version: 2.0.0 (Elite Edition)*
+*Document Version: 3.0.0 (Principal Architect Edition)*
