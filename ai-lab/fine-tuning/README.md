@@ -34,23 +34,57 @@ The model learns from your **Post-Mortems** and **Kubernetes logs**.
 2.  Format them into the `dataset_template.jsonl` structure.
 3.  Standardize the instruction: `"Analyze the following Kubernetes incident and provide a Root Cause Analysis (RCA)."`.
 
-## 🏗️ Training Execution
+## 🚀 Phase-by-Phase Execution
 
-Run the provided `train_sre.py` script:
+Follow these exact steps to begin your first training run.
+
+### 1. Environment Initialization
 ```bash
-python train_sre.py --dataset ./my_sre_data.jsonl --output ./sre-kernel-adapter
+# Ensure NVIDIA drivers and CUDA 12.1+ are active
+nvidia-smi
+
+# Create and activate the specialized environment
+conda create --name sre-ai-lab python=3.10 -y
+conda activate sre-ai-lab
+
+# Install the high-performance Unsloth stack
+pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers
 ```
 
-### What happens during training?
-- **QLoRA**: The model is quantized to 4-bit to fit in your 12GB VRAM.
-- **Gradient Checkpointing**: Reduces memory usage so you can use larger context windows.
-- **Rank/Alpha**: We use a Rank of 16 to balance learning capacity and memory.
+### 2. Dataset Synthesis
+The model requires a `.jsonl` file. You can generate this from your existing post-mortems:
+```bash
+# Example: Convert a markdown post-mortem into a training pair
+# Instruction: "Analyze the incident context and provide a technical RCA."
+# Input: [Raw Log/Post-Mortem Content]
+# Output: [The expected RCA outcome]
 
-## 🤖 Deployment
+# Verify your dataset format
+head -n 1 dataset_template.jsonl
+```
 
-Once training is complete, you can:
-1.  **Merge**: Save the model as a a "Fixed" GGUF file for use in **Ollama**.
-2.  **Inference**: Point your `ai_agent.py` to your new specialized model for higher-fidelity RCA.
+### 3. Training Execution (Managed via Unsloth)
+Run the training script with optimized settings for the RTX 3060:
+```bash
+python train_sre.py \
+    --dataset ./dataset_template.jsonl \
+    --output ./sre-kernel-adapter \
+    --max_steps 500
+```
+
+### 4. Model Export & Ollama Integration
+Once training completes, export the adapter and merge it for local inference:
+```bash
+# Merge the LoRA adapter into a GGUF file for Ollama
+# (Add this logic to train_sre.py if you want automated export)
+python -c "from unsloth import FastLanguageModel; \
+model, tokenizer = FastLanguageModel.from_pretrained('./sre-kernel-adapter'); \
+model.save_pretrained_gguf('sre-kernel-v1', tokenizer, quantization_method = 'q4_k_m')"
+
+# Load into Ollama
+ollama create sre-kernel -f Modelfile
+```
 
 ---
 *By training locally, you ensure that sensitive infrastructure data never leaves your environment.*

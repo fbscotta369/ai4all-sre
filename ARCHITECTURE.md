@@ -60,12 +60,12 @@ When the local LLM (Ollama) is saturated:
 
 ## 🧩 Component Interaction (C4 Model - Level 2)
 
-The interaction between the **Antigravity Manager** and our local resources:
+The interaction between the **Global State Orchestrator** and our local resources:
 
 ```mermaid
 graph LR
     subgraph "Management Horizon"
-        AG["Antigravity Manager (State Orchestrator)"]
+        AG["Global State Orchestrator"]
     end
 
     subgraph "Local Cluster (Online Boutique)"
