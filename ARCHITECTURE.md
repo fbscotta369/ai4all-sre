@@ -1,0 +1,72 @@
+# System Architecture: AI4ALL-SRE Laboratory 🏗️
+
+This document provides a deep-tech dive into the architectural patterns and engineering standards implemented in the AI4ALL-SRE laboratory. These patterns reflect the operational excellence standards of **Tier-1 Tech Organizations** (Google, OpenAI, Meta).
+
+## 🔒 Zero Trust Networking (ZTN)
+
+The laboratory implements a **Zero Trust** security model using the **Linkerd Service Mesh**. 
+
+### Identity-Based Security
+Unlike traditional perimeter-based security, our laboratory assumes a "breach-ready" state:
+- **mTLS by Default**: Every microservice connection is encrypted and authenticated via mutual TLS.
+- **Service Identity**: Linkerd provides a cryptographically secure identity to every pod using Kubernetes ServiceAccounts as the root of trust.
+- **Policy-as-Code**: Traffic is strictly governed by `NetworkPolicies` and Linkerd `ServiceProfiles`.
+
+```mermaid
+graph LR
+    subgraph "Trust Anchor (OpenSSL)"
+        TA[Identity Trust Anchor]
+    end
+    subgraph "Service Mesh (Linkerd)"
+        A[Frontend Pod] -- mTLS --> B[ProductCatalog Pod]
+        B -- mTLS --> C[CurrencyService]
+    end
+    TA -->|Signs| B
+    TA -->|Signs| A
+```
+
+## 📈 Machine-to-Machine (M2M) Resilience
+
+In a world governed by AI agents, **M2M traffic** can surge by 100x in milliseconds. We protect the Kubernetes Control Plane using **API Priority & Fairness (APF)**.
+
+### APF Implementation
+We've implemented custom `FlowSchemas` and `PriorityLevelConfigurations` to categorize AI-driven traffic:
+- **m2m-ai-agents**: A dedicated flow for autonomous agents.
+- **m2m-low-priority**: A priority level that ensures AI-driven bursts do not starve critical system components (e.g., Kubelet, Controllers).
+- **Hand-shaking & Hand-size**: Advanced queuing algorithms to ensure fairness across multiple concurrent AI agents.
+
+## 🤖 Hyper-Autonomous SRE Lifecycle
+
+The "Heart" of the laboratory is the **Autonomous AI SRE Agent**, which follows the **"Zero-Touch" Operations** standard.
+
+### The Feedback Loop
+1. **Saturation Prediction**: The agent analyzes metrics to predict failures *before* they happen (e.g., CPU trending toward saturation).
+2. **Root Cause Analysis (RCA)**: Powered by **Llama 3**, the agent correlates metrics, logs, and events.
+3. **Artifact Generation**:
+    - **Post-Mortems**: Instant markdown generation documenting the timeline and impact.
+    - **Runbooks**: Dynamic, context-aware troubleshooting guides.
+4. **Auto-Remediation**: Controlled execution of safe, whitelisted operations (e.g., `Rollout Restart`).
+
+```mermaid
+sequenceDiagram
+    participant K8s as Kubernetes API
+    participant Agent as AI SRE Agent
+    participant LLM as Llama 3 (Ollama)
+    participant Dev as Portfolio / SRE
+    
+    K8s->>Agent: Predictive Alert (Saturation)
+    Agent->>LLM: Why is this happening? (Context: Logs/Metrics)
+    LLM->>Agent: RCA: Missing Resource Limits + Traffic Burst
+    Agent->>Agent: Generate Post-Mortem & Runbook
+    Agent->>K8s: Execute Safe Remediation (Scaling/Restart)
+    Agent->>Dev: Notify via Slack/Logs
+```
+
+## 🛡️ Shift-Left Security & Governance
+
+The laboratory adheres to the **"Secure by Design"** principle:
+- **SBOM Generation**: Automated Software Bill of Materials via **Trivy**.
+- **Kyverno Policy-as-Code**: Enforces best practices (no root, resource limits required) at the admission controller level.
+
+---
+*This laboratory isn't just a project; it's a blueprint for the future of hyper-resilient, AI-native infrastructure.*
