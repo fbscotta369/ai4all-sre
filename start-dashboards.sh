@@ -38,6 +38,9 @@ start_port_forward "chaos-testing" "chaos-dashboard" 2333 2333 "Chaos Mesh Dashb
 # 6. Prometheus Dashboard
 start_port_forward "observability" "kube-prometheus-kube-prome-prometheus" 9090 9090 "Prometheus Dashboard"
 
+# 7. AlertManager Dashboard
+start_port_forward "observability" "kube-prometheus-kube-prome-alertmanager" 9093 9093 "AlertManager Dashboard"
+
 echo ""
 echo "✅ All dashboards and apps are now accessible!"
 echo "------------------------------------------------"
@@ -47,6 +50,7 @@ echo "Grafana:         http://localhost:8082"
 echo "GoAlert:         http://localhost:8083 (or http://goalert.local)"
 echo "Chaos Mesh:      http://localhost:2333 (or http://chaos.local)"
 echo "Prometheus:      http://localhost:9090"
+echo "AlertManager:    http://localhost:9093"
 echo "------------------------------------------------"
 echo "Press Ctrl+C to stop all port-forwards."
 

@@ -20,6 +20,17 @@ check_dep "terraform"
 check_dep "helm"
 check_dep "docker"
 
+# 2. k9s Installation (Optional but highly recommended)
+if ! command -v k9s &> /dev/null; then
+    echo "⚠️ k9s is not installed. Installing k9s for cluster observability..."
+    curl -sS https://webi.sh/k9s | sh
+    source ~/.config/envman/PATH.env || true
+    echo "✅ k9s installed successfully."
+else
+    echo "✅ k9s is installed."
+fi
+
+
 # 3. K3s / Kubernetes Context Check
 if ! kubectl cluster-info &> /dev/null; then
     echo "❌ Error: Cannot connect to Kubernetes cluster."

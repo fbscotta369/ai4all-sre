@@ -71,3 +71,4 @@ resource "kubernetes_annotations" "boutique_linkerd_injection" {
   }
   force = true
 }
+
