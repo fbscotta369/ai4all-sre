@@ -1,18 +1,24 @@
+data "http" "online_boutique_manifest" {
+  url = "https://raw.githubusercontent.com/GoogleCloudPlatform/microservices-demo/main/release/kubernetes-manifests.yaml"
+}
+
 resource "kubernetes_namespace" "boutique" {
   metadata {
     name = "online-boutique"
   }
 }
 
-resource "helm_release" "online_boutique" {
-  name       = "online-boutique"
-  namespace  = kubernetes_namespace.boutique.metadata[0].name
-  repository = "https://googlecloudplatform.github.io/microservices-demo"
-  chart      = "microservices-demo"
-  version    = "0.8.0" # using a stable known version
-
-  set {
-    name  = "frontend.externalService"
-    value = "true"
+resource "null_resource" "apply_manifest" {
+  triggers = {
+    manifest_sha = sha256(data.http.online_boutique_manifest.response_body)
   }
+
+  provisioner "local-exec" {
+    command = "kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/microservices-demo/main/release/kubernetes-manifests.yaml -n online-boutique"
+    environment = {
+      KUBECONFIG = pathexpand("~/.kube/config")
+    }
+  }
+
+  depends_on = [kubernetes_namespace.boutique]
 }

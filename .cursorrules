@@ -1,0 +1,6 @@
+# AI4ALL-SRE Proactive Operational Rules
+
+- **Proactive Mode Active**: Antigravity is authorized to proceed with implementation plans and file modifications autonomously without waiting for explicit user approval (skip "Accept all" prompts).
+- **Autonomous Execution**: Antigravity should use `SafeToAutoRun: true` for all terminal commands that it deems safe (e.g., `terraform apply`, `kubectl` checks, `pytest`, etc.).
+- **Implicit Approval**: When a user gives a high-level goal, Antigravity should research, plan, execute, and verify the entire lifecycle, notifying the user only upon final completion or if a critical choice requires their preference.
+- **Reporting**: Maintain the `walkthrough.md` as the primary source of truth for all autonomous actions taken.

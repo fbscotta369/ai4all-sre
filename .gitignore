@@ -1,0 +1,23 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Certificates
+*.crt
+*.key
+*.csr
+*.ext
+
+# Python
+venv/
+__pycache__/
+
+# AI Agent Artifacts
+post-mortems/
+runbooks/
+
+# Tools & Temporary
+oneuptime-10.0.9.tgz
+ollama/

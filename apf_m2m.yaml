@@ -1,0 +1,29 @@
+apiVersion: flowcontrol.apiserver.k8s.io/v1
+kind: PriorityLevelConfiguration
+metadata:
+  name: m2m-low-priority
+spec:
+  type: Limited
+  limited:
+    nominalConcurrencyShares: 10
+    limitResponse:
+      type: Reject
+---
+apiVersion: flowcontrol.apiserver.k8s.io/v1
+kind: FlowSchema
+metadata:
+  name: m2m-ai-agents
+spec:
+  priorityLevelConfiguration:
+    name: m2m-low-priority
+  matchingPrecedence: 500
+  rules:
+  - resourceRules:
+    - apiGroups: ["*"]
+      resources: ["*"]
+      verbs: ["*"]
+      namespaces: ["*"]
+    subjects:
+    - kind: User
+      user:
+        name: ai-agent
