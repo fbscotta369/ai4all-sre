@@ -73,12 +73,19 @@ echo "Applying full Infrastructure..."
 terraform apply -auto-approve
 
 echo "------------------------------------------------"
+echo "⏳ Waiting for core dashboard endpoints to become ready..."
+kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
+kubectl rollout status deployment/kube-prometheus-grafana -n observability --timeout=300s
+kubectl rollout status deployment/goalert -n incident-management --timeout=300s
+kubectl rollout status deployment/frontend -n online-boutique --timeout=300s
+kubectl rollout status deployment/chaos-dashboard -n chaos-testing --timeout=300s
+
+echo "------------------------------------------------"
 echo "✅ Autonomous Laboratory Setup Complete!"
 echo "------------------------------------------------"
-echo "To access the centralized SRE dashboards, run:"
-echo "  ./start-dashboards.sh"
-echo ""
 echo "The Multi-Agent System (Director, Network, DB, Compute) is already running in the cluster."
 echo "You can view its logs via:"
 echo "  kubectl logs -f deployment/ai-agent -n observability"
 echo "------------------------------------------------"
+echo "🚀 Automatically launching dashboards..."
+exec ./start-dashboards.sh
