@@ -54,6 +54,7 @@ The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
 4.  **Remediator (Autonomous Agent)**: Reaches consensus via MAS and executes `kubectl` fixes.
 
 ## 📂 Repository Navigation Map
+- `ai-lab/fine-tuning/`: Official guide for locally fine-tuning the SRE-Kernel LLM on your GPU.
 - `ai_agent.py`: The core Multi-Agent System reasoning engine.
 - `chaos.tf`: Infrastructure-as-Code for 5+ failure experiments and workflows.
 - `observability.tf`: Helm-based configuration for the full Grafana/Loki/Prom stack.
@@ -64,4 +65,5 @@ The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
 
 *For technical specifications and C4 Models, see [ARCHITECTURE.md](./ARCHITECTURE.md).*
 *For hardware requirements and environment optimization, see [docs/onboarding.md](./docs/onboarding.md).*
+*For **Local AI Fine-Tuning** instructions, see [ai-lab/fine-tuning/README.md](./ai-lab/fine-tuning/README.md).*
 *For **manual configuration** (Slack, GoAlert tuning), see [docs/MANUAL_CONFIG.md](./docs/MANUAL_CONFIG.md).*
