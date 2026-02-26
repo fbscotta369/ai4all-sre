@@ -82,7 +82,16 @@ def main():
 
     # 8. Save the specialized adapter
     model.save_pretrained(args.output)
-    print(f"Training Complete. Adapter saved to '{args.output}'")
+    
+    # NEW: Automated GGUF Export for Ollama
+    print(f"[*] Training Complete. Saving base model and adapter as GGUF...")
+    model.save_pretrained_gguf("sre-kernel-q4_k_m", tokenizer, quantization_method = "q4_k_m")
+    
+    print(f"------------------------------------------------")
+    print(f"✅ SPECIALIZED MODEL READY!")
+    print(f"To load this into Ollama, run:")
+    print(f"   ollama create sre-kernel -f ai-lab/Modelfile")
+    print(f"------------------------------------------------")
 
 if __name__ == "__main__":
     main()
