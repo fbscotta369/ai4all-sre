@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 import uvicorn
 import datetime
@@ -69,74 +70,50 @@ def verify_health(dep_name, namespace):
 
 def execute_remediation(action_text):
     """
-    Experimental: Parse AI recommendation and execute it with Safety Guardrails.
-    Example: 'RESTART DEPLOYMENT cartservice IN online-boutique'
+    Modernized: Parse AI recommendations using Regex and execute with Safety Guardrails.
+    Supported Formats:
+    - RESTART DEPLOYMENT <name> IN <namespace>
+    - SCALE DEPLOYMENT <name> IN <namespace> TO <count>
     """
     if not is_action_safe(action_text):
         return "Remediation BLOCKED by Safety Guardrails."
 
     print(f"[*] AI Safety Check passed. Executing: {action_text}")
     try:
-        # Simple extraction logic for demonstration
-        if "RESTART DEPLOYMENT" in action_text.upper():
-            # Clean up the action text to remove backticks or other markdowns
-            clean_text = action_text.replace("`", "").replace("*", "").strip()
-            parts = clean_text.split()
-            dep_name = None
-            namespace = "default"
-            
-            for i, part in enumerate(parts):
-                if part.upper() == "DEPLOYMENT" and i + 1 < len(parts):
-                    dep_name = parts[i+1].strip(".,!?;:`\"'")
-                if part.upper() == "IN" and i + 1 < len(parts):
-                    namespace = parts[i+1].strip(".,!?;:`\"'")
-            
-            if dep_name:
-                print(f"[*] Triggering rollout restart for {dep_name} in {namespace}...", flush=True)
-                now = datetime.datetime.now().isoformat()
-                body = {
-                    'spec': {
-                        'template': {
-                            'metadata': {
-                                'annotations': {
-                                    'kubectl.kubernetes.io/restartedAt': now
-                                }
+        # Regex for RESTART DEPLOYMENT <name> IN <namespace>
+        restart_match = re.search(r"RESTART DEPLOYMENT ([\w-]+) IN ([\w-]+)", action_text, re.IGNORECASE)
+        if restart_match:
+            dep_name = restart_match.group(1)
+            namespace = restart_match.group(2)
+            print(f"[*] Triggering rollout restart for {dep_name} in {namespace}...", flush=True)
+            now = datetime.datetime.now().isoformat()
+            body = {
+                'spec': {
+                    'template': {
+                        'metadata': {
+                            'annotations': {
+                                'kubectl.kubernetes.io/restartedAt': now
                             }
                         }
                     }
                 }
-                k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
-                result = f"Successfully restarted deployment {dep_name} in {namespace}"
-                # Proactive Verification
-                verify_health(dep_name, namespace)
-                return result
+            }
+            k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
+            verify_health(dep_name, namespace)
+            return f"Successfully restarted deployment {dep_name} in {namespace}"
 
-        if "SCALE DEPLOYMENT" in action_text.upper():
-            clean_text = action_text.replace("`", "").replace("*", "").strip()
-            parts = clean_text.split()
-            dep_name = None
-            namespace = "default"
-            replicas = 3
-            
-            for i, part in enumerate(parts):
-                if part.upper() == "DEPLOYMENT" and i + 1 < len(parts):
-                    dep_name = parts[i+1].strip(".,!?;:`\"'")
-                if part.upper() == "IN" and i + 1 < len(parts):
-                    namespace = parts[i+1].strip(".,!?;:`\"'")
-                if part.upper() == "TO" and i + 1 < len(parts):
-                    try:
-                        replicas_str = parts[i+1].strip(".,!?;:`\"'")
-                        replicas = int(replicas_str)
-                    except: pass
-            
-            if dep_name:
-                print(f"[*] Scaling {dep_name} in {namespace} to {replicas} replicas...", flush=True)
-                body = {'spec': {'replicas': replicas}}
-                k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
-                return f"Successfully scaled {dep_name} to {replicas}"
+        # Regex for SCALE DEPLOYMENT <name> IN <namespace> TO <count>
+        scale_match = re.search(r"SCALE DEPLOYMENT ([\w-]+) IN ([\w-]+) TO (\d+)", action_text, re.IGNORECASE)
+        if scale_match:
+            dep_name = scale_match.group(1)
+            namespace = scale_match.group(2)
+            replicas = int(scale_match.group(3))
+            print(f"[*] Scaling {dep_name} in {namespace} to {replicas} replicas...", flush=True)
+            body = {'spec': {'replicas': replicas}}
+            k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
+            return f"Successfully scaled {dep_name} to {replicas}"
 
         if "ROLLBACK DEPLOYMENT" in action_text.upper():
-             # Placeholder for rollback logic - usually involves searching for previous revisions
              return "Rollback logic initiated (Manual intervention still suggested)"
 
     except Exception as e:
@@ -242,13 +219,18 @@ Agent Analyses:
 2. DatabaseAgent: {agent_responses.get('DatabaseAgent')}
 3. ComputeAgent: {agent_responses.get('ComputeAgent')}
 
+Your task is to reach a consensus and provide an actionable remediation.
+
+### Guidelines:
 1. **RCA**: Synthesize the most plausible Root Cause.
 2. **Remediation**: Determine the best command. 
-   CRITICAL: Replace <name> with the actual deployment name from the context: '{deployment_name}'.
-   Supported Formats:
+   CRITICAL: Use exactly one of the supported formats.
    - RESTART DEPLOYMENT {deployment_name} IN {labels.get('namespace', 'online-boutique')}
    - SCALE DEPLOYMENT {deployment_name} IN {labels.get('namespace', 'online-boutique')} TO <count>
-3. **Predictive Insight**: Prevention steps.
+3. **Few-Shot Examples**:
+   - Case: High Latency -> Remediation: RESTART DEPLOYMENT cartservice IN online-boutique
+   - Case: Resource Saturation -> Remediation: SCALE DEPLOYMENT frontend IN online-boutique TO 5
+4. **Predictive Insight**: Prevention steps.
 
 Be concise, elite, and actionable.
 """
