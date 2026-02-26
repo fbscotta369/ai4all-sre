@@ -192,15 +192,23 @@ kernel_doctor() {
 }
 
 # Run the Doctors
-doctor_check "kubectl" "apt-get update --fix-missing && apt-get install -y apt-transport-https ca-certificates curl && mkdir -p /etc/apt/keyrings && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && apt-get update && apt-get install -y kubectl"
-doctor_check "terraform" "apt-get update --fix-missing && wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | tee /etc/apt/sources.list.d/hashicorp.list && apt-get update && apt-get install -y terraform"
-doctor_check "helm" "apt-get update --fix-missing && curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null && echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main\" | tee /etc/apt/sources.list.d/helm-stable-debian.list && apt-get update && apt-get install -y helm"
+echo "[*] Running System Prerequisites Doctor..."
+doctor_check "kubectl" "apt-get update --fix-missing && apt-get install -y apt-transport-https ca-certificates curl && mkdir -p /etc/apt/keyrings && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && apt-get update && apt-get install -y kubectl"
+doctor_check "terraform" "apt-get update --fix-missing && wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor --yes -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | tee /etc/apt/sources.list.d/hashicorp.list && apt-get update && apt-get install -y terraform"
+doctor_check "helm" "apt-get update --fix-missing && curl https://baltocdn.com/helm/signing.asc | gpg --dearmor --yes | tee /usr/share/keyrings/helm.gpg > /dev/null && echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main\" | tee /etc/apt/sources.list.d/helm-stable-debian.list && apt-get update && apt-get install -y helm"
 doctor_check "docker" "apt-get update --fix-missing && apt-get install -y docker.io"
 
 docker_daemon_check
 cluster_doctor
 adopt_gateway_crds
 kernel_doctor
+
+# AI Laboratory Doctor (Optional but recommended)
+if [ -f "ai-lab/doctor.sh" ]; then
+    echo "------------------------------------------------"
+    echo "[*] Checking AI Laboratory prerequisites..."
+    ./ai-lab/doctor.sh
+fi
 
 # 3.5 Storage Class Verification
 if ! kubectl get sc | grep -q "(default)\|default"; then
