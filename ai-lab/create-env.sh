@@ -28,16 +28,19 @@ if ! command -v conda &> /dev/null; then
     exit 1
 fi
 
-# 2. Environment Creation
+# 2. Environment Creation/Verification
 if conda info --envs | grep -q "$ENV_NAME"; then
     echo "✅ Environment '$ENV_NAME' already exists."
-    read -p "Would you like to recreate it? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "[*] Removing existing environment..."
-        conda remove --name "$ENV_NAME" --all -y
-        echo "[*] Creating new environment..."
-        conda create --name "$ENV_NAME" python="$PYTHON_VERSION" -y
+    # If in an interactive terminal, offer recreation. Otherwise, proceed to dependency verification.
+    if [ -t 0 ]; then
+        read -pt 5 -p "Would you like to RECREATE it? (y/N) [Timeout in 5s assumes N]: " -n 1 -r || REPLIED=false
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "[*] Removing existing environment..."
+            conda remove --name "$ENV_NAME" --all -y
+            echo "[*] Creating new environment..."
+            conda create --name "$ENV_NAME" python="$PYTHON_VERSION" -y
+        fi
     fi
 else
     echo "[*] Creating environment '$ENV_NAME'..."
@@ -48,9 +51,10 @@ fi
 echo "[*] Installing AI dependencies (this may take a few minutes)..."
 
 # We use 'conda run' to execute commands inside the environment without requiring a shell restart
+echo "[*] Ensuring all specialized dependencies are present in '$ENV_NAME'..."
 conda run -n "$ENV_NAME" pip install --upgrade pip
 conda run -n "$ENV_NAME" pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-conda run -n "$ENV_NAME" pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers torchvision
+conda run -n "$ENV_NAME" pip install "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers torchvision
 
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Environment '$ENV_NAME' is ready!"

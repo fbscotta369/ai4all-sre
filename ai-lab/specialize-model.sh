@@ -41,14 +41,9 @@ echo -e "${YELLOW}[Step 1/5] Validating Infrastructure...${NC}"
 echo -e "${YELLOW}[Step 2/5] Synthesizing Training Dataset...${NC}"
 ./scripts/generate_training_data.py || { echo -e "${RED}[!] Dataset generation failed.${NC}"; exit 1; }
 
-# 2.5 Environment Verification
-echo -e "${YELLOW}[Step 2.5/5] Ensuring AI Environment Residency...${NC}"
-if ! conda info --envs | grep -q "sre-ai-lab"; then
-    echo -e "${BLUE}[*] Environment 'sre-ai-lab' not found. Bootstrapping now (this may take 2-5 mins)...${NC}"
-    ./ai-lab/create-env.sh
-else
-    echo -e "${GREEN}✅ Environment 'sre-ai-lab' detected.${NC}"
-fi
+# 2.5 Environment Verification & Residency
+echo -e "${YELLOW}[Step 2.5/5] Ensuring AI Environment Integrity...${NC}"
+./ai-lab/create-env.sh
 
 # 3. Training & Fine-Tuning (LoRA/Unsloth)
 echo -e "${YELLOW}[Step 3/5] Executing Fine-Tuning (4-bit QLoRA)...${NC}"
