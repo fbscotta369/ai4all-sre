@@ -6,16 +6,27 @@ set -e
 echo "Starting AI4ALL-SRE Laboratory Setup..."
 echo "------------------------------------------------"
 
+# 0. Environment Bootstrap 🌐
+# Ensure local bin is in PATH for webi installs (k9s, etc.)
+export PATH="$HOME/.local/bin:$PATH"
+[ -f "$HOME/.config/envman/PATH.env" ] && source "$HOME/.config/envman/PATH.env"
+
 # 1. Prerequisites Doctor 🩺
 # This function checks for a command and provides installation help if missing.
 doctor_check() {
     local cmd=$1
     local install_cmd=$2
+    local use_sudo=${3:-true}
+
     if ! command -v $cmd &> /dev/null; then
         echo "❌ Error: $cmd is not installed."
         echo "------------------------------------------------"
         echo "💡 How to fix (Kubuntu/Debian/Ubuntu):"
-        echo "   sudo bash -c \"$install_cmd\""
+        if [ "$use_sudo" = true ]; then
+            echo "   sudo bash -c \"$install_cmd\""
+        else
+            echo "   $install_cmd"
+        fi
         echo "------------------------------------------------"
         
         # Proactively offer to run the command if in an interactive terminal
@@ -26,8 +37,17 @@ doctor_check() {
                 # Implement up to 3 retries for transient network errors
                 for i in {1..3}; do
                     echo "[*] Attempt $i: Installing $cmd..."
-                    if sudo bash -c "$install_cmd"; then
+                    local run_cmd
+                    if [ "$use_sudo" = true ]; then
+                        run_cmd="sudo bash -c \"$install_cmd\""
+                    else
+                        run_cmd="$install_cmd"
+                    fi
+
+                    if eval "$run_cmd"; then
                         echo "✅ $cmd installed successfully."
+                        # Re-source PATH if we just installed k9s/webi tools
+                        [ -f "$HOME/.config/envman/PATH.env" ] && source "$HOME/.config/envman/PATH.env"
                         return 0
                     fi
                     echo "⚠️ Attempt $i failed. Retrying in 5 seconds..."
@@ -63,18 +83,9 @@ doctor_check "kubectl" "apt-get update --fix-missing && apt-get install -y apt-t
 doctor_check "terraform" "apt-get update --fix-missing && wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | tee /etc/apt/sources.list.d/hashicorp.list && apt-get update && apt-get install -y terraform"
 doctor_check "helm" "apt-get update --fix-missing && curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null && echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main\" | tee /etc/apt/sources.list.d/helm-stable-debian.list && apt-get update && apt-get install -y helm"
 doctor_check "docker" "apt-get update --fix-missing && apt-get install -y docker.io"
+doctor_check "k9s" "curl -sS https://webi.sh/k9s | sh" false
 
 docker_daemon_check
-
-# 2. k9s Installation (Optional but highly recommended)
-if ! command -v k9s &> /dev/null; then
-    echo "⚠️ k9s is not installed. Installing k9s for cluster observability..."
-    curl -sS https://webi.sh/k9s | sh
-    source ~/.config/envman/PATH.env || true
-    echo "✅ k9s installed successfully."
-else
-    echo "✅ k9s is installed."
-fi
 
 
 # 1.5 Cluster Doctor 🏥
