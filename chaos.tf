@@ -240,6 +240,76 @@ resource "kubernetes_manifest" "disaster_workflow" {
     }
   }
 }
+# 7. THE DEATH SPIRAL: Advanced Cascading Failure (Network -> CPU -> Pod Kill)
+resource "kubernetes_manifest" "death_spiral_workflow" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Workflow"
+    metadata = {
+      name      = "the-death-spiral"
+      namespace = "chaos-testing"
+    }
+    spec = {
+      entry = "spiral-entry"
+      templates = [
+        {
+          name         = "spiral-entry"
+          templateType = "Serial"
+          children     = ["phase-1-network", "wait-30s", "phase-2-cpu", "wait-30s", "phase-3-disaster"]
+        },
+        {
+          name         = "phase-1-network"
+          templateType = "NetworkChaos"
+          networkChaos = {
+            action = "delay"
+            mode   = "all"
+            selector = {
+              namespaces = ["online-boutique"]
+              labelSelectors = { "app" = "adservice" }
+            }
+            delay = {
+              latency = "2000ms"
+            }
+          }
+        },
+        {
+          name         = "phase-2-cpu"
+          templateType = "StressChaos"
+          stressChaos = {
+            mode = "all"
+            selector = {
+              namespaces = ["online-boutique"]
+              labelSelectors = { "app" = "paymentservice" }
+            }
+            stressors = {
+              cpu = { workers = 4, load = 100 }
+            }
+          }
+        },
+        {
+          name         = "phase-3-disaster"
+          templateType = "PodChaos"
+          podChaos = {
+            action = "pod-kill"
+            mode   = "all"
+            selector = {
+              namespaces = ["online-boutique"]
+              labelSelectors = { "app" = "frontend" }
+            }
+          }
+        },
+        {
+          name         = "wait-30s"
+          templateType = "Suspend"
+          deadline     = "1m"
+          suspend = { duration = "30s" }
+        }
+      ]
+    }
+  }
+}
+
 # --- Chaos Mesh RBAC for Dashboard ---
 
 resource "kubernetes_service_account" "chaos_admin" {

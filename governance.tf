@@ -206,4 +206,72 @@ resource "kubernetes_manifest" "policy_mutate_limits" {
     }
   }
   depends_on = [helm_release.kyverno]
+}# Proactive Policy: Enforce Linkerd Injection (Zero-Trust mTLS)
+resource "kubernetes_manifest" "policy_enforce_linkerd" {
+  manifest = {
+    apiVersion = "kyverno.io/v1"
+    kind       = "ClusterPolicy"
+    metadata = {
+      name = "enforce-linkerd-injection"
+    }
+    spec = {
+      validationFailureAction = "Enforce"
+      background              = true
+      rules = [
+        {
+          name = "inject-linkerd"
+          match = {
+            any = [{ resources = { kinds = ["Pod"], namespaces = ["online-boutique"] } }]
+          }
+          mutate = {
+            patchStrategicMerge = {
+              metadata = {
+                annotations = {
+                  "linkerd.io/inject" = "enabled"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+  depends_on = [helm_release.kyverno]
+}
+
+# Proactive Policy: Restrict Image Registries
+resource "kubernetes_manifest" "policy_restrict_registries" {
+  manifest = {
+    apiVersion = "kyverno.io/v1"
+    kind       = "ClusterPolicy"
+    metadata = {
+      name = "restrict-image-registries"
+    }
+    spec = {
+      validationFailureAction = "Audit"
+      rules = [
+        {
+          name = "allow-trusted-registries"
+          match = {
+            any = [{ resources = { kinds = ["Pod"] } }]
+          }
+          validate = {
+            message = "Only images from trusted registries are allowed."
+            foreach = [
+              {
+                list = "request.object.spec.containers"
+                elementVar = "container"
+                pattern = {
+                  container = {
+                    image = "docker.io/* | ghcr.io/* | registry.k8s.io/*"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+  depends_on = [helm_release.kyverno]
 }
