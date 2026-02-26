@@ -179,11 +179,6 @@ if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
         echo -e "✅ Conda found at $CONDA_CMD (added to PATH for this session)."
         CONDA_PATH=$(dirname "$CONDA_CMD")
         export PATH="$CONDA_PATH:$PATH"
-        
-        # PROACTIVE: Accept Anaconda ToS for non-interactive execution
-        echo -e "[*] Ensuring Anaconda Terms of Service are accepted..."
-        "$CONDA_CMD" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>/dev/null || true
-        "$CONDA_CMD" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true
     fi
 
     if [ "$CONDA_FOUND" = false ]; then
@@ -242,6 +237,11 @@ else
             conda init bash
         fi
     fi
+    
+    # PROACTIVE: Accept Anaconda ToS for all discovery paths
+    echo "[*] Ensuring Anaconda Terms of Service are accepted..."
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>/dev/null || true
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true
 fi
 
 # 5. Pip Check

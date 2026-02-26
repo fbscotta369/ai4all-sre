@@ -26,6 +26,13 @@ if ! command -v conda &> /dev/null; then
     done
 fi
 
+# PROACTIVE: Ensure Anaconda Terms of Service are accepted
+if command -v conda &> /dev/null; then
+    echo "[*] Initializing Conda Environment & Accepting ToS..."
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>/dev/null || true
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true
+fi
+
 # 1. Prerequisite Validation
 echo -e "${YELLOW}[Step 1/5] Validating Infrastructure...${NC}"
 ./ai-lab/doctor.sh --check-only || { echo -e "${RED}[!] Infrastructure check failed. Run ./ai-lab/doctor.sh first.${NC}"; exit 1; }
