@@ -6,13 +6,14 @@ resources:
 
 # Patch all deployments to include the OpenTelemetry Endpoint pointing to our collector
 patches:
+  # Target all deployments that have a container named 'server'
   - target:
       kind: Deployment
     patch: |-
       apiVersion: apps/v1
       kind: Deployment
       metadata:
-        name: placeholder
+        name: all-boutique-servers
       spec:
         template:
           spec:
@@ -23,7 +24,41 @@ patches:
                     value: "http://otel-collector-opentelemetry-collector.observability:4317"
                   - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
                     value: "http://otel-collector-opentelemetry-collector.observability:4317"
+
+  # Target the 'frontend' deployment specifically
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: frontend
+      spec:
+        template:
+          spec:
+            containers:
               - name: frontend
+                env:
+                  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                    value: "http://otel-collector-opentelemetry-collector.observability:4317"
+                  - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                    value: "http://otel-collector-opentelemetry-collector.observability:4317"
+
+  # Target the 'loadgenerator' deployment specifically (it has its own container name)
+  - target:
+      kind: Deployment
+      name: loadgenerator
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: loadgenerator
+      spec:
+        template:
+          spec:
+            containers:
+              - name: main
                 env:
                   - name: OTEL_EXPORTER_OTLP_ENDPOINT
                     value: "http://otel-collector-opentelemetry-collector.observability:4317"
