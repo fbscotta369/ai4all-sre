@@ -63,8 +63,10 @@ The laboratory provides two methods for accessing dashboards. **Ingress** is rec
 kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 --decode && echo
 ```
 
-### 🌀 Chaos Mesh Token (Dashboard Login)
+### 🌀 Chaos Mesh Token (Optional)
+The dashboard is configured with **RBAC Disabled** for a seamless experience. If you are prompted for a token, it is automatically printed when running `./start-dashboards.sh`:
 ```bash
+# Manual retrieval if needed:
 kubectl get secret chaos-mesh-token -n default -o jsonpath='{.data.token}' | base64 --decode && echo
 ```
 

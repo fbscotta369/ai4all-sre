@@ -3,6 +3,9 @@
 # Ensure KUBECONFIG is set locally for this script
 export KUBECONFIG=~/.kube/config
 
+# Retrieve Chaos Mesh Token proactively
+CHAOS_TOKEN=$(kubectl get secret chaos-mesh-token -n default -o jsonpath='{.data.token}' | base64 --decode 2>/dev/null || echo "PENDING")
+
 echo "Starting Port-Forwards for AI4ALL SRE Stack..."
 
 # Array to keep track of background PIDs
@@ -49,6 +52,7 @@ echo "ArgoCD:          http://localhost:8080"
 echo "Grafana:         http://localhost:8082"
 echo "GoAlert:         http://localhost:8083 (or http://goalert.local)"
 echo "Chaos Mesh:      http://localhost:2333 (or http://chaos.local)"
+echo "  ↳ Token:       $CHAOS_TOKEN"
 echo "Prometheus:      http://localhost:9090"
 echo "AlertManager:    http://localhost:9093"
 echo "------------------------------------------------"

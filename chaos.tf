@@ -17,6 +17,11 @@ resource "helm_release" "chaos_mesh" {
   }
 
   set {
+    name  = "dashboard.security.rbac"
+    value = "false"
+  }
+
+  set {
     name  = "controller.podLabels.sre-privileged-access"
     value = "true"
   }
