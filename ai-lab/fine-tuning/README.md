@@ -15,6 +15,15 @@ We recommend using **Linux (Kubuntu 22.04)** for maximum performance.
 2.  **Conda/Mamba**: For clean environment management.
 3.  **Unsloth**: The fastest library for local Llama fine-tuning.
 
+## 🏁 Step 0: Prerequisites Doctor 🩺
+
+Before creating your environment, run the specialized AI environment doctor to verify your GPU and Conda status:
+
+```bash
+./ai-lab/doctor.sh
+```
+*This handles NVIDIA driver verification and Miniconda bootstrapping.*
+
 ## 🚀 Environment Setup
 
 ```bash
@@ -40,8 +49,8 @@ Follow these exact steps to begin your first training run.
 
 ### 1. Environment Initialization
 ```bash
-# Ensure NVIDIA drivers and CUDA 12.1+ are active
-nvidia-smi
+# Verify GPU and Conda readiness
+./ai-lab/doctor.sh
 
 # Create and activate the specialized environment
 conda create --name sre-ai-lab python=3.10 -y
