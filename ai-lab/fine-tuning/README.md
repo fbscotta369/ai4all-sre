@@ -27,13 +27,11 @@ Before creating your environment, run the specialized AI environment doctor to v
 ## 🚀 Environment Setup
 
 ```bash
-# Create a specialized AI environment
-conda create --name sre-ai-lab python=3.10 -y
-conda activate sre-ai-lab
+# Create and configure the specialized 'sre-ai-lab' environment
+./ai-lab/create-env.sh
 
-# Install Unsloth and dependencies
-pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft acceleration transformers
+# Activate the environment
+conda activate sre-ai-lab
 ```
 
 ## 📂 Dataset Preparation
@@ -49,16 +47,12 @@ Follow these exact steps to begin your first training run.
 
 ### 1. Environment Initialization
 ```bash
-# Verify GPU and Conda readiness
+# Verify GPU readiness and setup the environment in one go
 ./ai-lab/doctor.sh
+./ai-lab/create-env.sh
 
-# Create and activate the specialized environment
-conda create --name sre-ai-lab python=3.10 -y
+# Activate for training
 conda activate sre-ai-lab
-
-# Install the high-performance Unsloth stack
-pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers
 ```
 
 ### 2. Dataset Synthesis
