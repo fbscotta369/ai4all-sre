@@ -160,9 +160,13 @@ echo "------------------------------------------------"
 echo "Initializing Terraform..."
 terraform init
 
-# 5. Terraform Apply (Two-Stage to resolve CRD dependencies)
-echo "Applying Base Helm Charts (CRDs)..."
-terraform apply -target=helm_release.chaos_mesh -target=helm_release.kyverno -target=helm_release.argo_rollouts -auto-approve
+# 5. Terraform Apply (Multi-Stage to resolve CRD dependencies)
+echo "Applying Base Helm Charts (CRDs & Controllers)..."
+terraform apply -target=helm_release.chaos_mesh -target=helm_release.kyverno -target=helm_release.argo_rollouts -target=helm_release.argocd -target=helm_release.kube_prometheus_stack -auto-approve
+
+echo "------------------------------------------------"
+echo "⏳ Waiting for CRDs to register in the Kubernetes API..."
+sleep 20
 
 echo "Applying full Infrastructure..."
 terraform apply -auto-approve
