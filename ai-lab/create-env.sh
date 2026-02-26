@@ -50,7 +50,7 @@ echo "[*] Installing AI dependencies (this may take a few minutes)..."
 # We use 'conda run' to execute commands inside the environment without requiring a shell restart
 conda run -n "$ENV_NAME" pip install --upgrade pip
 conda run -n "$ENV_NAME" pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-conda run -n "$ENV_NAME" pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers
+conda run -n "$ENV_NAME" pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers torchvision
 
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Environment '$ENV_NAME' is ready!"
