@@ -185,6 +185,17 @@ resource "kubernetes_job" "goalert_iac_config" {
             value = "goalertpass"
           }
 
+          resources {
+            limits = {
+              cpu    = "200m"
+              memory = "256Mi"
+            }
+            requests = {
+              cpu    = "10m"
+              memory = "64Mi"
+            }
+          }
+
           volume_mount {
             name       = "config-volume"
             mount_path = "/scripts"
