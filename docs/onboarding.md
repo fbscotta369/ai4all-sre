@@ -41,11 +41,32 @@ Optimized for Kubuntu 22.04+ or Fedora 38+.
 
 ## 🚀 Immediate Deployment
 
-The laboratory follows a "One-Click" philosophy. If you have the prerequisites installed (Terraform, Helm, K3s, Ollama), run:
+### 1. Unified Prerequisite Block (Kubuntu/Ubuntu/Debian)
+If you are on a fresh system, run this once to install the core control plane tools (`kubectl`, `terraform`, `helm`, `docker`):
 
 ```bash
-./setup-all.sh
+# Update and install dependencies
+sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+
+# Install Kubectl
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+# Install Terraform
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+# Install Helm
+curl https://baltocdn.com/helm/signing.asc | sudo gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+
+# Final Install
+sudo apt-get update && sudo apt-get install -y kubectl terraform helm docker.io
 ```
+
+### 2. Deployment (Everything Everywhere)
+# This will trigger the 'Prerequisites Doctor' if any tools are missing.
+./setup-all.sh
 
 ### Post-Deployment Check (Success Verification)
 Verify your laboratory integrity using the industrial validation suite:

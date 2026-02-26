@@ -13,6 +13,7 @@ Experience the autonomous SRE lifecycle with a single command. This bootstraps t
 git clone <your-repo-url> && cd ai4all-sre
 
 # 2. Deployment (Everything Everywhere)
+# This script now features a 'Prerequisites Doctor' that assists with tool installation.
 ./setup-all.sh
 
 # 3. Expose Dashboards
