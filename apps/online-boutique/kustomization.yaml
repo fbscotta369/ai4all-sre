@@ -77,3 +77,14 @@ patches:
         name: frontend-external
       spec:
         type: ClusterIP
+
+  # 5. Remove redundant Deployment (Argo Rollout takes over in Terraform)
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: frontend
