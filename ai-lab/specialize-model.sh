@@ -15,6 +15,17 @@ NC='\033[0m'
 
 echo -e "${BLUE}[*] Starting SRE-Kernel Specialization Pipeline...${NC}"
 
+# 0. Conda PATH Discovery (Ensures portability if not in shell PATH)
+if ! command -v conda &> /dev/null; then
+    FOR_PROBE=("$HOME/miniconda3/bin/conda" "$HOME/anaconda3/bin/conda" "/opt/conda/bin/conda")
+    for probe in "${FOR_PROBE[@]}"; do
+        if [ -f "$probe" ]; then
+            eval "$($probe shell.bash hook)"
+            break
+        fi
+    done
+fi
+
 # 1. Prerequisite Validation
 echo -e "${YELLOW}[Step 1/5] Validating Infrastructure...${NC}"
 ./ai-lab/doctor.sh --check-only || { echo -e "${RED}[!] Infrastructure check failed. Run ./ai-lab/doctor.sh first.${NC}"; exit 1; }
