@@ -9,6 +9,7 @@ from kubernetes import client, config
 
 app = FastAPI()
 
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "sre-kernel")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama.default.svc.cluster.local:11434/api/generate")
 RUNBOOKS_DIR = "runbooks"
 POST_MORTEMS_DIR = "post-mortems"
@@ -192,7 +193,7 @@ Description: {annotations.get('description')}
     def query_agent(agent_name, role_prompt):
         prompt = f"{role_prompt}\n\nA {'PREDICTIVE ' if is_predictive else ''}alert has been triggered:\n{alert_context}\n\nProvide your analysis."
         try:
-            res = requests.post(OLLAMA_URL, json={"model": "llama3", "prompt": prompt, "stream": False}, timeout=120)
+            res = requests.post(OLLAMA_URL, json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}, timeout=120)
             if res.status_code == 200:
                 return agent_name, res.json().get("response", "")
         except Exception as e:
@@ -236,7 +237,7 @@ Be concise, elite, and actionable.
 """
     try:
         director_res = requests.post(OLLAMA_URL, json={
-            "model": "llama3",
+            "model": OLLAMA_MODEL,
             "prompt": consensus_prompt,
             "stream": False
         }, timeout=120)
