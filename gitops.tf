@@ -39,4 +39,14 @@ resource "helm_release" "trivy" {
     name  = "trivy.ignoreUnfixed"
     value = "true"
   }
+
+  set {
+    name  = "trivy.resources.limits.memory"
+    value = "2Gi"
+  }
+
+  set {
+    name  = "trivy.resources.requests.memory"
+    value = "256Mi"
+  }
 }

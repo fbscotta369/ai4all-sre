@@ -65,5 +65,8 @@ The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
 
 *For technical specifications and C4 Models, see [ARCHITECTURE.md](./ARCHITECTURE.md).*
 *For hardware requirements and environment optimization, see [docs/onboarding.md](./docs/onboarding.md).*
+*For **Disaster Recovery** procedures, see [docs/RUNBOOKS.md](./docs/RUNBOOKS.md).*
+*For **Governance Policies** (Kyverno), see [docs/POLICIES.md](./docs/POLICIES.md).*
+*For **Root Cause Analysis** standards, see [docs/POST_MORTEM_TEMPLATE.md](./docs/POST_MORTEM_TEMPLATE.md).*
 *For **Local AI Fine-Tuning** instructions, see [ai-lab/fine-tuning/README.md](./ai-lab/fine-tuning/README.md).*
 *For **manual configuration** (Slack, GoAlert tuning), see [docs/MANUAL_CONFIG.md](./docs/MANUAL_CONFIG.md).*
