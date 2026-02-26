@@ -50,19 +50,26 @@ For sophisticated escalation patterns, refer to the [GoAlert User Guide](https:/
 
 The laboratory provides two methods for accessing dashboards. **Ingress** is recommended for permanent setups, while **Port-Forwarding** is optimized for rapid local development.
 
-| Service | Ingress URL | Local Port (via script) | Description |
-| :--- | :--- | :--- | :--- |
-| **ArgoCD** | `argocd.local` | 8080 | GitOps state and rollouts. |
-| **Grafana** | `grafana.local` | 8082 | Global observability (OSS). |
-| **GoAlert** | `goalert.local` | 8083 | Incident lifecycle manager. |
-| **Chaos Mesh** | `chaos.local` | 2333 | Adversary failure injection. |
-| **Online Boutique**| `boutique.local`| 8084 | The Target Microservices app. |
+| Service | Ingress URL | Local Port | Username | Password / Retrieval |
+| :--- | :--- | :--- | :--- | :--- |
+| **ArgoCD** | `argocd.local` | 8080 | `admin` | See Command Below |
+| **Grafana** | `grafana.local` | 8082 | `Admin` | *None (Anonymous Admin)* |
+| **GoAlert** | `goalert.local` | 8083 | `admin` | `admin123` (Default) |
+| **Chaos Mesh** | `chaos.local` | 2333 | `User` | See Token Command |
+| **Online Boutique**| `boutique.local`| 8084 | *N/A* | *Public Demo App* |
 
-### 🔑 ArgoCD Credentials
-By default, the ArgoCD username is **`admin`**. To retrieve the auto-generated initial password:
+### 🔑 ArgoCD Initial Password
 ```bash
 kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 --decode && echo
 ```
+
+### 🌀 Chaos Mesh Token (Dashboard Login)
+```bash
+kubectl get secret chaos-mesh-token -n default -o jsonpath='{.data.token}' | base64 --decode && echo
+```
+
+### 📊 Grafana Note
+Grafana is configured with **Anonymous Admin** access for local speed. No login is required.
 
 ### Note on Ingress Resolution
 To use `.local` addresses, add the following to your `/etc/hosts` file:
