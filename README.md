@@ -10,7 +10,7 @@ Experience the autonomous SRE lifecycle with a single command. This bootstraps t
 
 ```bash
 # 1. Clone and Initialize
-git clone <your-repo-url> && cd ai4all-sre
+git clone https://github.com/fbscotta369/ai4all-sre.git && cd ai4all-sre
 
 # 2. Deployment (Everything Everywhere)
 # This script now features a 'Prerequisites Doctor' that assists with tool installation.
