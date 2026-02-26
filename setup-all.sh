@@ -77,13 +77,62 @@ else
 fi
 
 
-# 3. K3s / Kubernetes Context Check
-if ! kubectl cluster-info &> /dev/null; then
-    echo "❌ Error: Cannot connect to Kubernetes cluster."
-    echo "💡 Recommendation: If using a local environment, start minikube or k3d first."
-    exit 1
-fi
-echo "✅ Kubernetes cluster is reachable."
+# 1.5 Cluster Doctor 🏥
+# This function ensures a reachable Kubernetes cluster exists, or offers to bootstrap K3s.
+cluster_doctor() {
+    echo "Checking Kubernetes cluster connectivity..."
+    
+    # Try reachable cluster
+    if kubectl cluster-info &> /dev/null; then
+        echo "✅ Kubernetes cluster is reachable."
+        return 0
+    fi
+
+    echo "❌ Error: Cannot connect to any Kubernetes cluster."
+    echo "------------------------------------------------"
+    echo "💡 Local Cluster Bootstrapping (K3s):"
+    
+    if [ -t 0 ]; then
+        read -p "Would you like me to install and start a local K3s cluster for you? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "[*] Bootstrapping K3s (this may require sudo password)..."
+            curl -sfL https://get.k3s.io | sh -
+            
+            echo "[*] Configuring Kubeconfig permissions..."
+            mkdir -p ~/.kube
+            sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+            sudo chown $USER:$USER ~/.kube/config
+            chmod 600 ~/.kube/config
+            
+            echo "[*] Waiting for K3s to initialize..."
+            sleep 10
+            
+            if kubectl cluster-info &> /dev/null; then
+                echo "✅ K3s cluster bootstrapped and reachable."
+                return 0
+            else
+                echo "❌ K3s started but kubectl still cannot connect. Please check 'journalctl -u k3s'."
+                exit 1
+            fi
+        else
+            echo "💡 Recommendation: Start minikube, kind, or k3d manually to proceed."
+            exit 1
+        fi
+    else
+        echo "❌ Non-interactive terminal. Please start a cluster manually."
+        exit 1
+    fi
+}
+
+# Run the Doctors
+doctor_check "kubectl" "apt-get update --fix-missing && apt-get install -y apt-transport-https ca-certificates curl && mkdir -p /etc/apt/keyrings && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && apt-get update && apt-get install -y kubectl"
+doctor_check "terraform" "apt-get update --fix-missing && wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | tee /etc/apt/sources.list.d/hashicorp.list && apt-get update && apt-get install -y terraform"
+doctor_check "helm" "apt-get update --fix-missing && curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null && echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main\" | tee /etc/apt/sources.list.d/helm-stable-debian.list && apt-get update && apt-get install -y helm"
+doctor_check "docker" "apt-get update --fix-missing && apt-get install -y docker.io"
+
+docker_daemon_check
+cluster_doctor
 
 # 3.5 Storage Class Verification
 if ! kubectl get sc | grep -q "(default)\|default"; then
