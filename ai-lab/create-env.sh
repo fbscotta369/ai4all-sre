@@ -33,7 +33,7 @@ if conda info --envs | grep -q "$ENV_NAME"; then
     echo "✅ Environment '$ENV_NAME' already exists."
     # If in an interactive terminal, offer recreation. Otherwise, proceed to dependency verification.
     if [ -t 0 ]; then
-        read -pt 5 -p "Would you like to RECREATE it? (y/N) [Timeout in 5s assumes N]: " -n 1 -r || REPLIED=false
+        read -t 5 -n 1 -r -p "Would you like to RECREATE it? (y/N) [Timeout in 5s assumes N]: " || REPLY="n"
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo "[*] Removing existing environment..."
@@ -54,12 +54,12 @@ echo "[*] Installing AI dependencies (Stable Pin: Torch 2.4.0 + CUDA 12.1)..."
 conda run -n "$ENV_NAME" pip install --upgrade pip
 
 echo "[*] Phase 1/2: Forcing Base PyTorch 2.4.0 (CUDA 12.1)..."
-# Force reinstall to ensure we downgrade from 2.6.0 if it exists
-conda run -n "$ENV_NAME" pip install --force-reinstall torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+# Force reinstall and no-cache to ensure we purge any 2.6.0 artifacts
+conda run -n "$ENV_NAME" pip install --force-reinstall --no-cache-dir torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 
 echo "[*] Phase 2/2: Installing Unsloth Stack..."
-conda run -n "$ENV_NAME" pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-conda run -n "$ENV_NAME" pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers
+conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "xformers==0.0.27.post2" "trl<0.9.0" peft accelerate transformers
 
 echo "[*] Verifying Version Alignment..."
 conda run -n "$ENV_NAME" python -c "import torch; import unsloth; print(f'--- DIAGNOSTICS ---\nTorch: {torch.__version__}\nUnsloth: {unsloth.__version__}\nCUDA: {torch.version.cuda}\n-------------------')"
