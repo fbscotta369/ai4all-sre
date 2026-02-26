@@ -8,6 +8,14 @@ set -e
 echo "Starting AI Laboratory Prerequisites Check..."
 echo "------------------------------------------------"
 
+# 0. Early Repository Cleanup
+# Conflicted or broken repositories cause 'apt update' to fail globally.
+# We clear our managed repositories early to ensure a fresh state.
+echo "[*] Cleaning up potential repository conflicts..."
+sudo rm -f /etc/apt/sources.list.d/archive_uri-https_developer_download_nvidia_com_compute_cuda_repos_ubuntu2204_x86_64_-jammy.list
+sudo rm -f /etc/apt/sources.list.d/nvidia-cuda.list
+sudo rm -f /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
 # Function to check for a command and optionally install it
 doctor_check() {
     local cmd=$1
@@ -69,14 +77,15 @@ if ! command -v nvidia-smi &> /dev/null; then
         exit 1
     fi
 else
-    GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader)
-    VRAM_RAW=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,unit=MiB | head -n 1)
+    GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n 1)
+    # Portable query: skip 'unit=MiB' as older versions don't support it
+    VRAM_RAW=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader | head -n 1)
     
     # Robust numeric extraction: strip everything except digits
     VRAM_VAL=$(echo "$VRAM_RAW" | grep -oE '[0-9]+' | head -n 1)
     
     if [ -n "$VRAM_VAL" ]; then
-        echo "✅ GPU Found: $GPU_NAME (${VRAM_VAL}MiB VRAM)"
+        echo "✅ GPU Found: $GPU_NAME (${VRAM_VAL}MiB approx)"
         if [ "$VRAM_VAL" -lt 8000 ]; then
             echo "⚠️ Warning: You have less than 8GB of VRAM. Fine-tuning Llama-3 might be unstable."
         fi
@@ -92,10 +101,6 @@ if ! command -v nvcc &> /dev/null; then
         read -p "Would you like me to install CUDA 12.1 Toolkit? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "[*] Cleaning up old repository definitions to avoid duplicates..."
-            sudo rm -f /etc/apt/sources.list.d/archive_uri-https_developer_download_nvidia_com_compute_cuda_repos_ubuntu2204_x86_64_-jammy.list
-            sudo rm -f /etc/apt/sources.list.d/nvidia-cuda.list
-
             echo "[*] Setting up NVIDIA repository and installing CUDA 12.1 Toolkit..."
             # Modern GPG handling (Ubuntu 22.04)
             wget -qO- https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | \
