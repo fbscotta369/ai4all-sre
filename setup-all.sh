@@ -147,6 +147,38 @@ adopt_gateway_crds() {
     done
     echo "✅ Gateway API CRDs prepared for Linkerd."
 }
+# 1.9 Kernel Doctor (Inotify Restorer) 🧠
+# Resolves 'to create fsnotify watcher: too many open files' in high-concurrency labs.
+kernel_doctor() {
+    echo "Checking kernel inotify limits..."
+    local cur_instances=$(sysctl -n fs.inotify.max_user_instances)
+    local cur_watches=$(sysctl -n fs.inotify.max_user_watches)
+    local target_instances=512
+    local target_watches=128000
+
+    if [ "$cur_instances" -lt "$target_instances" ] || [ "$cur_watches" -lt "$target_watches" ]; then
+        echo "⚠️ Warning: Kernel inotify limits are too low for high-fidelity observability."
+        echo "   Current: Instances=$cur_instances, Watches=$cur_watches"
+        echo "   Target:  Instances=$target_instances, Watches=$target_watches"
+        echo "------------------------------------------------"
+        
+        if [ -t 0 ]; then
+            read -p "Would you like me to optimize these kernel limits for you? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "[*] Applying kernel optimizations..."
+                sudo bash -c "echo fs.inotify.max_user_instances=$target_instances >> /etc/sysctl.conf"
+                sudo bash -c "echo fs.inotify.max_user_watches=$target_watches >> /etc/sysctl.conf"
+                sudo sysctl -p
+                echo "✅ Kernel limits optimized and applied."
+            else
+                echo "💡 Note: You may encounter 'fsnotify' errors in sidecars/loki."
+            fi
+        fi
+    else
+        echo "✅ Kernel inotify limits are optimized ($cur_instances/$cur_watches)."
+    fi
+}
 
 # Run the Doctors
 doctor_check "kubectl" "apt-get update --fix-missing && apt-get install -y apt-transport-https ca-certificates curl && mkdir -p /etc/apt/keyrings && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && apt-get update && apt-get install -y kubectl"
@@ -157,6 +189,7 @@ doctor_check "docker" "apt-get update --fix-missing && apt-get install -y docker
 docker_daemon_check
 cluster_doctor
 adopt_gateway_crds
+kernel_doctor
 
 # 3.5 Storage Class Verification
 if ! kubectl get sc | grep -q "(default)\|default"; then
