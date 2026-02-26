@@ -33,7 +33,7 @@ resource "helm_release" "trivy" {
   namespace  = kubernetes_namespace.trivy.metadata[0].name
   repository = "https://aquasecurity.github.io/helm-charts/"
   chart      = "trivy-operator"
-  version    = "0.24.1" # Check for a recent version during plan
+  version    = "0.24.1" # Reverted to stable; 0.32.0 had CRD mismatches
 
   set {
     name  = "trivy.ignoreUnfixed"
@@ -48,5 +48,10 @@ resource "helm_release" "trivy" {
   set {
     name  = "trivy.resources.requests.memory"
     value = "256Mi"
+  }
+
+  set {
+    name  = "trivy.scanJobsConcurrentLimit"
+    value = "2" # Proactive: Limit concurrency to prevent DB locking on local cluster
   }
 }

@@ -94,7 +94,7 @@ resource "helm_release" "kube_prometheus_stack" {
     name  = "alertmanager.config.route.routes[0].receiver"
     value = "ai-agent"
   }
-  
+
   set {
     name  = "alertmanager.config.route.routes[0].match.severity"
     value = "critical"

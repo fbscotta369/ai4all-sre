@@ -57,6 +57,30 @@ else
     fi
 fi
 
+# 6. Proactive Cluster Health (OOM/Crash Detection)
+echo "[*] checking for recent OOMKilled pods (last 30m)..."
+if command -v jq &> /dev/null; then
+    OOM_COUNT=$(kubectl get pods -A -o json | jq '.items[] | select(.status.containerStatuses[]?.lastState.terminated.reason=="OOMKilled") | .metadata.name' | wc -l)
+else
+    echo "⚠️ Warning: jq not found. Falling back to grep for OOM detection..."
+    OOM_COUNT=$(kubectl get pods -A -o json | grep -c "OOMKilled" || echo "0")
+fi
+
+if [ "$OOM_COUNT" -gt 0 ]; then
+    echo "❌ Alert: $OOM_COUNT pods were OOMKilled recently. Check resource limits!"
+else
+    echo "✅ No recent OOMKills detected."
+fi
+
+# 7. Security Audit Status
+echo "[*] Checking Trivy VulnerabilityReport status..."
+REPORT_COUNT=$(kubectl get vulnerabilityreports -A --no-headers 2>/dev/null | wc -l || echo "0")
+if [ "$REPORT_COUNT" -gt 0 ]; then
+    echo "✅ $REPORT_COUNT VulnerabilityReports found in cluster."
+else
+    echo "⚠️ Warning: No VulnerabilityReports found. Trivy might be failing to reconcile reports."
+fi
+
 echo "------------------------------------------------"
 echo "✅ Pipeline Validation Passed!"
 echo "------------------------------------------------"
