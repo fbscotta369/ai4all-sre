@@ -158,7 +158,7 @@ resource "kubernetes_config_map" "goalert_config_script" {
   }
 
   data = {
-    "seed_goalert.sql"     = file("${path.module}/seed_goalert.sql")
+    "seed_goalert.sql" = file("${path.module}/seed_goalert.sql")
   }
 }
 

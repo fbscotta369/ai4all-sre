@@ -206,7 +206,7 @@ resource "kubernetes_manifest" "policy_mutate_limits" {
     }
   }
   depends_on = [helm_release.kyverno]
-}# Proactive Policy: Enforce Linkerd Injection (Zero-Trust mTLS)
+} # Proactive Policy: Enforce Linkerd Injection (Zero-Trust mTLS)
 resource "kubernetes_manifest" "policy_enforce_linkerd" {
   manifest = {
     apiVersion = "kyverno.io/v1"
@@ -259,7 +259,7 @@ resource "kubernetes_manifest" "policy_restrict_registries" {
             message = "Only images from trusted registries are allowed."
             foreach = [
               {
-                list = "request.object.spec.containers"
+                list       = "request.object.spec.containers"
                 elementVar = "container"
                 pattern = {
                   container = {

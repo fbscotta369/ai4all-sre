@@ -265,7 +265,7 @@ resource "kubernetes_manifest" "death_spiral_workflow" {
             action = "delay"
             mode   = "all"
             selector = {
-              namespaces = ["online-boutique"]
+              namespaces     = ["online-boutique"]
               labelSelectors = { "app" = "adservice" }
             }
             delay = {
@@ -279,7 +279,7 @@ resource "kubernetes_manifest" "death_spiral_workflow" {
           stressChaos = {
             mode = "all"
             selector = {
-              namespaces = ["online-boutique"]
+              namespaces     = ["online-boutique"]
               labelSelectors = { "app" = "paymentservice" }
             }
             stressors = {
@@ -294,7 +294,7 @@ resource "kubernetes_manifest" "death_spiral_workflow" {
             action = "pod-kill"
             mode   = "all"
             selector = {
-              namespaces = ["online-boutique"]
+              namespaces     = ["online-boutique"]
               labelSelectors = { "app" = "frontend" }
             }
           }
@@ -303,7 +303,7 @@ resource "kubernetes_manifest" "death_spiral_workflow" {
           name         = "wait-30s"
           templateType = "Suspend"
           deadline     = "1m"
-          suspend = { duration = "30s" }
+          suspend      = { duration = "30s" }
         }
       ]
     }
