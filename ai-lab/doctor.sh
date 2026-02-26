@@ -116,11 +116,26 @@ if ! command -v nvcc &> /dev/null; then
             # Use cuda-toolkit instead of full cuda package to avoid driver conflicts
             sudo apt-get -y install cuda-toolkit-12-1
             echo "✅ CUDA 12.1 Toolkit installed."
-            echo "💡 Add this to your ~/.bashrc: export PATH=/usr/local/cuda-12.1/bin:\$PATH"
+            if ! grep -q "/usr/local/cuda-12.1/bin" "$HOME/.bashrc"; then
+                read -p "Would you like me to add CUDA to your ~/.bashrc for persistence? (y/N) " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    echo 'export PATH=/usr/local/cuda-12.1/bin:$PATH' >> "$HOME/.bashrc"
+                    echo "✅ Added to ~/.bashrc."
+                fi
+            fi
         fi
     fi
 else
     echo "✅ CUDA Toolkit is installed."
+    if ! grep -q "/usr/local/cuda-12.1/bin" "$HOME/.bashrc" && [ -t 0 ]; then
+        read -p "CUDA is installed but not in your ~/.bashrc. Add it now? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo 'export PATH=/usr/local/cuda-12.1/bin:$PATH' >> "$HOME/.bashrc"
+            echo "✅ Added to ~/.bashrc."
+        fi
+    fi
 fi
 
 # 3. NVIDIA Container Toolkit Check
@@ -190,6 +205,14 @@ if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
                 rm miniconda.sh
                 echo "✅ Miniconda installed/updated at $INSTALL_PATH."
                 export PATH="$INSTALL_PATH/bin:$PATH"
+                
+                if [ -t 0 ]; then
+                    read -p "Would you like to run 'conda init' to make this persistent? (y/N) " -n 1 -r
+                    echo
+                    if [[ $REPLY =~ ^[Yy]$ ]]; then
+                        "$INSTALL_PATH/bin/conda" init bash
+                    fi
+                fi
             else
                 echo "⚠️ Please install Conda manually: https://docs.conda.io/en/latest/miniconda.html"
                 exit 1
@@ -201,6 +224,14 @@ if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
     fi
 else
     echo "✅ Conda/Mamba is installed."
+    # Check if conda init is needed
+    if ! grep -q "conda initialize" "$HOME/.bashrc" && [ -t 0 ]; then
+        read -p "Conda is installed but not initialized in your ~/.bashrc. Run 'conda init' now? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            conda init bash
+        fi
+    fi
 fi
 
 # 5. Pip Check
@@ -209,6 +240,9 @@ doctor_check "pip" "apt-get update && apt-get install -y python3-pip" "Pip" true
 # 6. Summary & Next Steps
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Prerequisites Check Complete!"
+echo "------------------------------------------------"
+echo "⚠️ IMPORTANT: Please run 'source ~/.bashrc' or restart your terminal"
+echo "   to ensure all changes are applied to your current session."
 echo "------------------------------------------------"
 echo "🚀 You are ready to create your AI environment:"
 echo "   conda create --name sre-ai-lab python=3.10 -y"
