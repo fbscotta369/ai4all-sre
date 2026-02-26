@@ -92,6 +92,10 @@ if ! command -v nvcc &> /dev/null; then
         read -p "Would you like me to install CUDA 12.1 Toolkit? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "[*] Cleaning up old repository definitions to avoid duplicates..."
+            sudo rm -f /etc/apt/sources.list.d/archive_uri-https_developer_download_nvidia_com_compute_cuda_repos_ubuntu2204_x86_64_-jammy.list
+            sudo rm -f /etc/apt/sources.list.d/nvidia-cuda.list
+
             echo "[*] Setting up NVIDIA repository and installing CUDA 12.1 Toolkit..."
             # Modern GPG handling (Ubuntu 22.04)
             wget -qO- https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | \
@@ -121,10 +125,13 @@ if ! command -v nvidia-ctk &> /dev/null; then
         read -p "Would you like me to install the NVIDIA Container Toolkit? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-            curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-                sed 's#deb [^ ]* \(.*\)#deb [arch=amd64 signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/stable/deb/\1 /#' | \
+            echo "[*] Configuring NVIDIA Container Toolkit repository..."
+            curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor --yes -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+            
+            # Use the official stable URL for amd64 directly
+            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /" | \
                 sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+            
             sudo apt-get update
             sudo apt-get install -y nvidia-container-toolkit
             echo "✅ NVIDIA Container Toolkit installed."
