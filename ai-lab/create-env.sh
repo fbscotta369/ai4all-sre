@@ -47,14 +47,17 @@ else
     conda create --name "$ENV_NAME" python="$PYTHON_VERSION" -y
 fi
 
-# 3. Dependency Installation
-echo "[*] Installing AI dependencies (this may take a few minutes)..."
+# 3. Dependency Installation (Optimized for Unsloth 2024.8+ & CUDA 12.1)
+echo "[*] Installing AI dependencies (Stable Pin: Torch 2.4.0 + CUDA 12.1)..."
 
 # We use 'conda run' to execute commands inside the environment without requiring a shell restart
-echo "[*] Ensuring all specialized dependencies are present in '$ENV_NAME'..."
 conda run -n "$ENV_NAME" pip install --upgrade pip
+echo "[*] Phase 1/2: Installing Base PyTorch with CUDA 12.1 support..."
+conda run -n "$ENV_NAME" pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+
+echo "[*] Phase 2/2: Installing Unsloth and neighbors..."
 conda run -n "$ENV_NAME" pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-conda run -n "$ENV_NAME" pip install "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers torchvision
+conda run -n "$ENV_NAME" pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers
 
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Environment '$ENV_NAME' is ready!"
