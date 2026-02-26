@@ -54,15 +54,15 @@ conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio unsloth u
 echo "[*] Phase 2/3: Installing Production-Grade PyTorch 2.4.0 (CUDA 12.1)..."
 conda run -n "$ENV_NAME" pip install --no-cache-dir torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 
-echo "[*] Phase 3/3: Tailoring Unsloth & SRE-Specific Neighbors..."
-conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth @ git+https://github.com/unslothai/unsloth.git"
+echo "[*] Phase 3/3: Tailoring Unsloth Stack..."
+conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps xformers==0.0.27.post2 trl==0.8.6 peft accelerate transformers
 
 echo "[*] Verifying Package Residency..."
 conda run -n "$ENV_NAME" pip list | grep -E "torch|unsloth|xformers|triton"
 
 echo "[*] Final Integration Test..."
-conda run -n "$ENV_NAME" python -c "import torch; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}')" || { echo "❌ Integration Test Failed. Retrying with dependency cleanup..."; exit 1; }
+conda run -n "$ENV_NAME" python -c "import torch; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}'); import unsloth_zoo; print('Unsloth Zoo: OK')" || { echo "❌ Integration Test Failed. Retrying with dependency cleanup..."; exit 1; }
 
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Environment '$ENV_NAME' is ready!"
