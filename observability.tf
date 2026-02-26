@@ -284,6 +284,9 @@ resource "kubernetes_deployment" "ai_agent" {
         labels = {
           app = "ai-agent"
         }
+        annotations = {
+          "linkerd.io/inject" = "enabled"
+        }
       }
 
       spec {
