@@ -44,28 +44,85 @@ doctor_check() {
     echo "✅ $description is installed."
 }
 
-# 1. GPU Check
+# 1. GPU Check & Driver Installation
 echo "Checking for NVIDIA GPU Readiness..."
 if ! command -v nvidia-smi &> /dev/null; then
-    echo "❌ Error: NVIDIA Drivers not found. 'nvidia-smi' is required for fine-tuning."
-    echo "💡 Please install NVIDIA Drivers (Recommended: 535+) and CUDA 12.1+."
-    exit 1
+    echo "[*] nvidia-smi not found. Checking for NVIDIA hardware..."
+    if lspci | grep -i nvidia &> /dev/null; then
+        echo "✅ NVIDIA Hardware detected via lspci."
+        if [ -t 0 ]; then
+            read -p "NVIDIA drivers are missing. Would you like me to autoinstall them? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "[*] Running 'ubuntu-drivers autoinstall'..."
+                sudo ubuntu-drivers autoinstall
+                echo "✅ Drivers installed. A REBOOT IS REQUIRED before nvidia-smi will work."
+                echo "⚠️ Please reboot and run this script again."
+                exit 0
+            fi
+        else
+            echo "💡 Manual fix: sudo ubuntu-drivers autoinstall && reboot"
+            exit 1
+        fi
+    else
+        echo "❌ Error: No NVIDIA GPU detected. Hardware is required for fine-tuning."
+        exit 1
+    fi
 else
     GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader)
     VRAM=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,unit=MiB | head -n 1)
     echo "✅ GPU Found: $GPU_NAME ($VRAM VRAM)"
     
-    # Check VRAM - RTX 3060 (12GB) is about 12000 MiB
     VRAM_VAL=$(echo "$VRAM" | awk '{print $1}')
     if [ "$VRAM_VAL" -lt 8000 ]; then
         echo "⚠️ Warning: You have less than 8GB of VRAM. Fine-tuning Llama-3 might be unstable."
     fi
 fi
 
-# 2. Conda/Mamba Check
+# 2. CUDA 12.1 Check & Installation
+if ! command -v nvcc &> /dev/null; then
+    echo "❌ CUDA Toolkit (nvcc) not found."
+    if [ -t 0 ]; then
+        read -p "Would you like me to install CUDA 12.1 for Ubuntu 22.04? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "[*] Setting up NVIDIA repository and installing CUDA 12.1..."
+            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+            sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+            sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
+            sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" -y
+            sudo apt-get update
+            sudo apt-get -y install cuda-12-1
+            echo "✅ CUDA 12.1 installed. You may need to add /usr/local/cuda-12.1/bin to your PATH."
+        fi
+    fi
+else
+    echo "✅ CUDA Toolkit is installed."
+fi
+
+# 3. NVIDIA Container Toolkit Check
+if ! command -v nvidia-ctk &> /dev/null; then
+    echo "❌ NVIDIA Container Toolkit not found. This is needed for GPU support in Docker/K8s."
+    if [ -t 0 ]; then
+        read -p "Would you like me to install the NVIDIA Container Toolkit? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+            curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+                sed 's#deb [^ ]* \(.*\)#deb [arch=amd64 signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/stable/deb/\1 /#' | \
+                sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+            sudo apt-get update
+            sudo apt-get install -y nvidia-container-toolkit
+            echo "✅ NVIDIA Container Toolkit installed."
+        fi
+    fi
+else
+    echo "✅ NVIDIA Container Toolkit is installed."
+fi
+
+# 4. Conda/Mamba Check
 if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
-    echo "❌ Conda/Mamba not found. Environment management is highly recommended."
-    echo "------------------------------------------------"
+    echo "❌ Conda/Mamba not found."
     if [ -t 0 ]; then
         read -p "Would you like me to install Miniconda for you? (y/N) " -n 1 -r
         echo
@@ -75,9 +132,6 @@ if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
             bash miniconda.sh -b -p "$HOME/miniconda3"
             rm miniconda.sh
             echo "✅ Miniconda installed to $HOME/miniconda3."
-            echo "💡 Run 'source ~/miniconda3/bin/activate' to start using conda."
-            # We don't exit here, but the user will need to restart their shell to get 'conda' in PATH
-            # For the current script, we can add it to PATH
             export PATH="$HOME/miniconda3/bin:$PATH"
         else
             echo "⚠️ Please install Conda manually: https://docs.conda.io/en/latest/miniconda.html"
@@ -91,14 +145,15 @@ else
     echo "✅ Conda/Mamba is installed."
 fi
 
-# 3. Pip Check
+# 5. Pip Check
 doctor_check "pip" "apt-get update && apt-get install -y python3-pip" "Pip" true
 
-# 4. Summary & Next Steps
+# 6. Summary & Next Steps
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Prerequisites Check Complete!"
 echo "------------------------------------------------"
 echo "🚀 You are ready to create your AI environment:"
 echo "   conda create --name sre-ai-lab python=3.10 -y"
 echo "   conda activate sre-ai-lab"
+echo "   pip install unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 echo "------------------------------------------------"

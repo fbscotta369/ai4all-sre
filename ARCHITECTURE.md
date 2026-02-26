@@ -55,11 +55,24 @@ The system is a distributed **Data Mesh** where state is synchronized across asy
 
 ## 🧩 C4 Model - Level 3: Component (MAS Reasoning)
 
-The Autonomous SRE Agent is composed of a **Multi-Agent System (MAS)**:
-1.  **Context Collector**: Aggregates logs, metrics, and K8s events into a unified Trace-bound context.
-2.  **Specialist Swarm**: Domain-specific agents (`NetworkAgent`, `DatabaseAgent`, `ComputeAgent`) analyze the context simultaneously.
-3.  **Director Agent (Consensus Engine)**: Synthesizes specialist output to determine the true Root Cause and optimal action.
-4.  **Executor**: Validates actions against Kyverno policies and executes non-idempotent API calls.
+The Autonomous SRE Agent is composed of a **Multi-Agent System (MAS)** as defined in [ai_agent.py](file:///home/fb/Workspace/ai4all-sre/ai_agent.py):
+1.  **Specialist Swarm**:
+    - **NetworkAgent**: Focuses on ingress, DNS, and service mesh (Linkerd) issues.
+    - **DatabaseAgent**: Focuses on storage persistence, connection pool saturation, and query latency.
+    - **ComputeAgent**: Focuses on CPU/Memory headroom, OOMKills, and scheduling constraints.
+2.  **Director Agent (Consensus Engine)**: Synthesizes expert advice via a secondary LLM pass to determine the final Root Cause and optimal action.
+3.  **Executor**: Validates actions against safety guardrails (forbidden keywords/namespaces whitelisting) and executes non-idempotent API calls (e.g., `rollout restart`).
+
+---
+
+## 📂 Architecture Decision Records (ADR) Index
+
+The system's evolution is documented through ADRs to ensure design lineage:
+
+| ADR | Title | Status | Description |
+| :--- | :--- | :--- | :--- |
+| [ADR-001](./adr/ADR-001-vector-db-selection.md) | Vector DB Selection | **Accepted** | Defines the shift from ephemeral storage to persistent local vectorization. |
+| [ADR-002](./adr/ADR-002-llm-orchestration.md) | LLM Orchestration | **Accepted** | Protocols for local inference (Ollama) andMAS consensus. |
 
 ---
 

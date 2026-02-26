@@ -41,6 +41,24 @@ The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
 
 ---
 
+## 🛡️ Multi-Agent System (MAS) Governance
+
+The lab's resilience loop is managed by a Multi-Agent System that follows a **Consensus-over-Action** protocol. This prevents individual agent hallucinations from impacting production stability.
+
+### 🎭 Agent Personas
+- **NetworkAgent**: Specializes in ingress, DNS, and service mesh (Linkerd) anomalies.
+- **DatabaseAgent**: Focuses on storage persistence, connection pool saturation, and query latency.
+- **ComputeAgent**: Monitors CPU/Memory headroom, OOMKills, and scheduling constraints.
+- **Director (Consensus Engine)**: Synthesizes expert advice and executes remediation with a global view.
+
+### 🔐 Zero-Trust Execution Model
+Every autonomous remediation action is strictly governed:
+1.  **Identity Verification**: All actions originate from an mTLS-secured ServiceAccount enforced by Linkerd.
+2.  **Safety Guardrails**: The Agent logic includes hardcoded forbidden keywords (e.g., `DELETE`, `NAMESPACE`) and namespace whitelisting.
+3.  **Policy Enforcement**: Kyverno admission controllers validate every `patch` or `restart` request against security baseline policies.
+
+---
+
 ## 💡 System Pillars
 
 - **Intelligent Observability**: Automated log-to-context synthesis using specialized LLMs.
