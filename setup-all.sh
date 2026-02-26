@@ -274,5 +274,9 @@ echo "The Multi-Agent System (Director, Network, DB, Compute) is already running
 echo "You can view its logs via:"
 echo "  kubectl logs -f deployment/ai-agent -n observability"
 echo "------------------------------------------------"
-echo "🚀 Automatically launching dashboards..."
+echo -e "\033[1;33m🚀 PHASE 2: AI MODEL SPECIALIZATION (Optional)\033[0m"
+echo "To transform the base LLM into an elite SRE-Kernel brain specialized in this lab's context:"
+echo "  ./ai-lab/specialize-model.sh"
+echo "------------------------------------------------"
+echo "🚀 Launching Dashboards..."
 exec ./start-dashboards.sh
