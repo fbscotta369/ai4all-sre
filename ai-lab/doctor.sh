@@ -70,12 +70,18 @@ if ! command -v nvidia-smi &> /dev/null; then
     fi
 else
     GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader)
-    VRAM=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,unit=MiB | head -n 1)
-    echo "✅ GPU Found: $GPU_NAME ($VRAM VRAM)"
+    VRAM_RAW=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,unit=MiB | head -n 1)
     
-    VRAM_VAL=$(echo "$VRAM" | awk '{print $1}')
-    if [ "$VRAM_VAL" -lt 8000 ]; then
-        echo "⚠️ Warning: You have less than 8GB of VRAM. Fine-tuning Llama-3 might be unstable."
+    # Robust numeric extraction: strip everything except digits
+    VRAM_VAL=$(echo "$VRAM_RAW" | grep -oE '[0-9]+' | head -n 1)
+    
+    if [ -n "$VRAM_VAL" ]; then
+        echo "✅ GPU Found: $GPU_NAME (${VRAM_VAL}MiB VRAM)"
+        if [ "$VRAM_VAL" -lt 8000 ]; then
+            echo "⚠️ Warning: You have less than 8GB of VRAM. Fine-tuning Llama-3 might be unstable."
+        fi
+    else
+        echo "⚠️ Warning: Could not parse VRAM value from '$VRAM_RAW'. Skipping VRAM check."
     fi
 fi
 
@@ -83,17 +89,25 @@ fi
 if ! command -v nvcc &> /dev/null; then
     echo "❌ CUDA Toolkit (nvcc) not found."
     if [ -t 0 ]; then
-        read -p "Would you like me to install CUDA 12.1 for Ubuntu 22.04? (y/N) " -n 1 -r
+        read -p "Would you like me to install CUDA 12.1 Toolkit? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "[*] Setting up NVIDIA repository and installing CUDA 12.1..."
-            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+            echo "[*] Setting up NVIDIA repository and installing CUDA 12.1 Toolkit..."
+            # Modern GPG handling (Ubuntu 22.04)
+            wget -qO- https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | \
+                sudo gpg --dearmor --yes -o /usr/share/keyrings/nvidia-cuda.gpg
+            
+            echo "deb [signed-by=/usr/share/keyrings/nvidia-cuda.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" | \
+                sudo tee /etc/apt/sources.list.d/nvidia-cuda.list
+            
+            wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
             sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
-            sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
-            sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" -y
+            
             sudo apt-get update
-            sudo apt-get -y install cuda-12-1
-            echo "✅ CUDA 12.1 installed. You may need to add /usr/local/cuda-12.1/bin to your PATH."
+            # Use cuda-toolkit instead of full cuda package to avoid driver conflicts
+            sudo apt-get -y install cuda-toolkit-12-1
+            echo "✅ CUDA 12.1 Toolkit installed."
+            echo "💡 Add this to your ~/.bashrc: export PATH=/usr/local/cuda-12.1/bin:\$PATH"
         fi
     fi
 else
