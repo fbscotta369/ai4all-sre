@@ -21,7 +21,7 @@ https://youtu.be/Ho5WyPHExTU
 Create a values.yaml file and change the host.
 
 ```yaml
-host: <ip-address-or-domain-of-server>
+host: DOMAIN_OR_IP_ADDRESS
 
 # If hosted on non-ssl server then change this to http
 httpProtocol: https 
@@ -354,7 +354,7 @@ If you would like to add a custom domain to your status page (something like sta
 ```
 DNS Record Type: CNAME
 Host: status.yourcomapny.com
-Value: <your-oneuptime-host>
+Value: ONEUPTIME_HOST
 ```
 
 Please make sure oneuptime is hosted on a server which is publicly accessible.
@@ -402,13 +402,13 @@ Once you have the version, you can pin the version in your values.yaml file.
 ```
 postgresql:
   image:
-    tag: <specific-version>
+    tag: SPECIFIC_VERSION
 redis:
   image:
-    tag: <specific-version>
+    tag: SPECIFIC_VERSION
 clickhouse:
   image:
-    tag: <specific-version>
+    tag: SPECIFIC_VERSION
 ```
 
 - [ ] Please make sure you have backups enabled for your PVCs. This is outside the scope of this chart. Please refer to your cloud provider's documentation on how to enable backups for PVCs.
