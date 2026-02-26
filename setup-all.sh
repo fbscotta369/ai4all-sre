@@ -125,6 +125,29 @@ cluster_doctor() {
     fi
 }
 
+# 1.8 Gateway API Doctor (K3s/Traefik Conflict Resolver) 🌐
+# K3s installs Traefik with Gateway API CRDs. Linkerd needs to 'adopt' them.
+adopt_gateway_crds() {
+    echo "Checking for Gateway API CRD conflicts (Traefik vs Linkerd)..."
+    local crds=(
+        "gatewayclasses.gateway.networking.k8s.io"
+        "gateways.gateway.networking.k8s.io"
+        "httproutes.gateway.networking.k8s.io"
+        "referencegrants.gateway.networking.k8s.io"
+        "backlayerregulations.gateway.networking.k8s.io"
+    )
+
+    for crd in "${crds[@]}"; do
+        if kubectl get crd "$crd" &> /dev/null; then
+            echo "[*] Patching $crd for Linkerd adoption..."
+            kubectl annotate crd "$crd" meta.helm.sh/release-name=linkerd-crds --overwrite
+            kubectl annotate crd "$crd" meta.helm.sh/release-namespace=linkerd --overwrite
+            kubectl label crd "$crd" app.kubernetes.io/managed-by=Helm --overwrite
+        fi
+    done
+    echo "✅ Gateway API CRDs prepared for Linkerd."
+}
+
 # Run the Doctors
 doctor_check "kubectl" "apt-get update --fix-missing && apt-get install -y apt-transport-https ca-certificates curl && mkdir -p /etc/apt/keyrings && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && apt-get update && apt-get install -y kubectl"
 doctor_check "terraform" "apt-get update --fix-missing && wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | tee /etc/apt/sources.list.d/hashicorp.list && apt-get update && apt-get install -y terraform"
@@ -133,6 +156,7 @@ doctor_check "docker" "apt-get update --fix-missing && apt-get install -y docker
 
 docker_daemon_check
 cluster_doctor
+adopt_gateway_crds
 
 # 3.5 Storage Class Verification
 if ! kubectl get sc | grep -q "(default)\|default"; then
