@@ -9,7 +9,7 @@ patches:
   # 1. Services with 'server' container
   - target:
       kind: Deployment
-      labelSelector: "app in (adservice, cartservice, checkoutservice, currencyservice, emailservice, frontend, paymentservice, productcatalogservice, recommendationservice, shippingservice)"
+      labelSelector: "app in (adservice, cartservice, checkoutservice, currencyservice, emailservice, paymentservice, productcatalogservice, recommendationservice, shippingservice)"
     patch: |-
       apiVersion: apps/v1
       kind: Deployment
