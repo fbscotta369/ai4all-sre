@@ -81,6 +81,18 @@ else
     echo "⚠️ Warning: No VulnerabilityReports found. Trivy might be failing to reconcile reports."
 fi
 
+# 8. AI Laboratory Verification
+echo "[*] Checking AI Laboratory environment readiness..."
+if command -v conda &> /dev/null; then
+    if conda info --envs | grep -q "sre-ai-lab"; then
+        echo "✅ AI Laboratory environment (sre-ai-lab) is present."
+    else
+        echo "⚠️ Warning: AI Laboratory environment (sre-ai-lab) not found. Run ./ai-lab/create-env.sh."
+    fi
+else
+    echo "⚠️ Warning: Conda not in PATH. Skipping environment check."
+fi
+
 echo "------------------------------------------------"
 echo "✅ Pipeline Validation Passed!"
 echo "------------------------------------------------"
