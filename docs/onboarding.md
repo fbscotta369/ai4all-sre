@@ -68,6 +68,13 @@ sudo apt-get update && sudo apt-get install -y kubectl terraform helm docker.io
 # This will trigger the 'Prerequisites Doctor' if any tools are missing.
 ./setup-all.sh
 
+### 3. AI Laboratory Setup (Optional)
+If you plan to fine-tune your own models, run the specialized AI environment doctor:
+```bash
+./ai-lab/doctor.sh
+```
+*This handles GPU/CUDA verification and Conda environment bootstrapping.*
+
 ### Post-Deployment Check (Success Verification)
 Verify your laboratory integrity using the industrial validation suite:
 ```bash

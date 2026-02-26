@@ -64,7 +64,7 @@ The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
 | **Reporting** | [docs/POST_MORTEM_TEMPLATE.md](./docs/POST_MORTEM_TEMPLATE.md) | Standardized RCA format for AI Agent vector memory. |
 | **Setup** | [docs/onboarding.md](./docs/onboarding.md) | Hardware requirements and environment optimization. |
 | **Configuration** | [docs/MANUAL_CONFIG.md](./docs/MANUAL_CONFIG.md) | Manual tuning (Slack, GoAlert) and external integrations. |
-| **AI Laboratory** | [ai-lab/fine-tuning/README.md](./ai-lab/fine-tuning/README.md) | Official guide for local LLM fine-tuning on consumer GPUs. |
+| **AI Laboratory** | [ai-lab/fine-tuning/README.md](./ai-lab/fine-tuning/README.md) | Official guide for local LLM fine-tuning (+ `./ai-lab/doctor.sh`). |
 
 ---
 *Document Version: 2.2.0 (Autonomous Resilience Edition)*
