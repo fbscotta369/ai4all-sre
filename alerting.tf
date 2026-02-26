@@ -177,7 +177,7 @@ resource "kubernetes_job" "goalert_iac_config" {
           image   = "bitnami/postgresql:15"
           command = ["/bin/sh", "-c"]
           args = [
-            "psql -h goalert-db-postgresql -U postgres -d postgres -f /scripts/seed_goalert.sql"
+            "until pg_isready -h goalert-db-postgresql -U postgres; do echo 'Waiting for DB...'; sleep 3; done; psql -h goalert-db-postgresql -U postgres -d postgres -f /scripts/seed_goalert.sql"
           ]
 
           env {
