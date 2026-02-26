@@ -15,7 +15,7 @@ doctor_check() {
         echo "❌ Error: $cmd is not installed."
         echo "------------------------------------------------"
         echo "💡 How to fix (Kubuntu/Debian/Ubuntu):"
-        echo "   $install_cmd"
+        echo "   sudo bash -c \"$install_cmd\""
         echo "------------------------------------------------"
         
         # Proactively offer to run the command if in an interactive terminal
@@ -23,7 +23,7 @@ doctor_check() {
             read -p "Would you like me to try installing $cmd for you? (y/N) " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                eval "sudo $install_cmd"
+                sudo bash -c "$install_cmd"
             else
                 exit 1
             fi
@@ -34,10 +34,10 @@ doctor_check() {
     echo "✅ $cmd is installed."
 }
 
-doctor_check "kubectl" "apt-get update && apt-get install -y apt-transport-https ca-certificates curl && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list && sudo apt-get update && sudo apt-get install -y kubectl"
-doctor_check "terraform" "wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/hashicorp.list && sudo apt-get update && sudo apt-get install terraform"
-doctor_check "helm" "curl https://baltocdn.com/helm/signing.asc | sudo gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null && echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main\" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list && sudo apt-get update && sudo apt-get install helm"
-doctor_check "docker" "sudo apt-get update && sudo apt-get install docker.io"
+doctor_check "kubectl" "apt-get update && apt-get install -y apt-transport-https ca-certificates curl && mkdir -p /etc/apt/keyrings && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && apt-get update && apt-get install -y kubectl"
+doctor_check "terraform" "wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | tee /etc/apt/sources.list.d/hashicorp.list && apt-get update && apt-get install -y terraform"
+doctor_check "helm" "curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null && echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main\" | tee /etc/apt/sources.list.d/helm-stable-debian.list && apt-get update && apt-get install -y helm"
+doctor_check "docker" "apt-get update && apt-get install -y docker.io"
 
 # 2. k9s Installation (Optional but highly recommended)
 if ! command -v k9s &> /dev/null; then
