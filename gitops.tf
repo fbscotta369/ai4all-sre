@@ -55,3 +55,36 @@ resource "helm_release" "trivy" {
     value = "2" # Proactive: Limit concurrency to prevent DB locking on local cluster
   }
 }
+
+resource "kubernetes_manifest" "argocd_app_boutique" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "ai4all-sre"
+      namespace = "argocd"
+    }
+    spec = {
+      project = "default"
+      source = {
+        repoURL        = "https://github.com/fbscotta369/ai4all-sre.git"
+        path           = "apps/online-boutique"
+        targetRevision = "HEAD"
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "online-boutique"
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+        syncOptions = [
+          "CreateNamespace=true",
+          "Replace=true"
+        ]
+      }
+    }
+  }
+}

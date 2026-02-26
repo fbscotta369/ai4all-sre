@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: online-boutique
+  name: ai4all-sre
   namespace: argocd
 spec:
   project: default

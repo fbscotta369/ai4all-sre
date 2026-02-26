@@ -58,6 +58,12 @@ The laboratory provides two methods for accessing dashboards. **Ingress** is rec
 | **Chaos Mesh** | `chaos.local` | 2333 | Adversary failure injection. |
 | **Online Boutique**| `boutique.local`| 8084 | The Target Microservices app. |
 
+### 🔑 ArgoCD Credentials
+By default, the ArgoCD username is **`admin`**. To retrieve the auto-generated initial password:
+```bash
+kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 --decode && echo
+```
+
 ### Note on Ingress Resolution
 To use `.local` addresses, add the following to your `/etc/hosts` file:
 ```text
