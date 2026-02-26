@@ -43,6 +43,33 @@ resource "helm_release" "kube_prometheus_stack" {
     value = "true"
   }
 
+  # Grafana Resource Limits & Probes (Stability)
+  set {
+    name  = "grafana.resources.limits.cpu"
+    value = "500m"
+  }
+  set {
+    name  = "grafana.resources.limits.memory"
+    value = "512Mi"
+  }
+  set {
+    name  = "grafana.resources.requests.cpu"
+    value = "100m"
+  }
+  set {
+    name  = "grafana.resources.requests.memory"
+    value = "256Mi"
+  }
+
+  set {
+    name  = "grafana.readinessProbe.timeoutSeconds"
+    value = "5"
+  }
+  set {
+    name  = "grafana.readinessProbe.initialDelaySeconds"
+    value = "30"
+  }
+
   # AlertManager Configuration
   set {
     name  = "alertmanager.config.global.resolve_timeout"
