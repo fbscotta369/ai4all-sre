@@ -159,6 +159,7 @@ resource "kubernetes_config_map" "goalert_config_script" {
 
   data = {
     "configure_goalert.py" = file("${path.module}/configure_goalert.py")
+    "seed_goalert.sql"     = file("${path.module}/seed_goalert.sql")
   }
 }
 
@@ -172,12 +173,33 @@ resource "kubernetes_job" "goalert_iac_config" {
     template {
       metadata {}
       spec {
+        # Container 1: SQL Seeding (Wait for DB + Inject Admin)
+        container {
+          name    = "sql-seed"
+          image   = "bitnami/postgresql:15"
+          command = ["/bin/sh", "-c"]
+          args = [
+            "psql -h goalert-db-postgresql -U postgres -d postgres -f /scripts/seed_goalert.sql"
+          ]
+
+          env {
+            name  = "PGPASSWORD"
+            value = "goalertpass"
+          }
+
+          volume_mount {
+            name       = "config-volume"
+            mount_path = "/scripts"
+          }
+        }
+
+        # Container 2: GraphQL Config
         container {
           name    = "config-runner"
           image   = "python:3.11-slim"
           command = ["/bin/sh", "-c"]
           args = [
-            "pip install requests && python /scripts/configure_goalert.py"
+            "sleep 10 && pip install requests && python /scripts/configure_goalert.py"
           ]
 
           env {

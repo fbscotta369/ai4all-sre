@@ -28,6 +28,11 @@ resource "helm_release" "kube_prometheus_stack" {
     value = "Admin"
   }
 
+  set {
+    name  = "grafana.adminPassword"
+    value = "admin123"
+  }
+
   # Enable Sidecars to auto-load Loki DataSources and SRE Dashboards
   set {
     name  = "grafana.sidecar.datasources.enabled"

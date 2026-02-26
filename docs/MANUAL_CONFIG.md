@@ -52,9 +52,9 @@ The laboratory provides two methods for accessing dashboards. **Ingress** is rec
 
 | Service | Ingress URL | Local Port | Username | Password / Retrieval |
 | :--- | :--- | :--- | :--- | :--- |
-| **ArgoCD** | `argocd.local` | 8080 | `admin` | See Command Below |
+| **ArgoCD** | `argocd.local` | 8080 | `admin` | `admin123` |
 | **Grafana** | `grafana.local` | 8082 | `Admin` | *None (Anonymous Admin)* |
-| **GoAlert** | `goalert.local` | 8083 | `admin` | `admin123` (Default) |
+| **GoAlert** | `goalert.local` | 8083 | `admin` | `admin123` |
 | **Chaos Mesh** | `chaos.local` | 2333 | `User` | See Token Command |
 | **Online Boutique**| `boutique.local`| 8084 | *N/A* | *Public Demo App* |
 

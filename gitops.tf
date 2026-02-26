@@ -20,6 +20,13 @@ resource "helm_release" "argocd" {
     name  = "configs.params.server\\.insecure"
     value = "true"
   }
+
+  # Set admin password to 'admin123'
+  # Hash generated via python-bcrypt
+  set {
+    name  = "configs.secret.argocdServerAdminPassword"
+    value = "$2b$12$sH.HE0ZxAr2k/OkiXmLrMeSa77jKhqSx5shk1N5IVQ2rey7q9OapK"
+  }
 }
 
 resource "kubernetes_namespace" "trivy" {
