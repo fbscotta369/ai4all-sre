@@ -4,11 +4,12 @@ kind: Kustomization
 resources:
   - kubernetes-manifests.yaml
 
-# Patch all deployments to include the OpenTelemetry Endpoint pointing to our collector
+# Patch microservices to include the OpenTelemetry Endpoint pointing to our collector
 patches:
-  # Target all deployments that have a container named 'server'
+  # 1. Services with 'server' container
   - target:
       kind: Deployment
+      labelSelector: "app in (adservice, cartservice, checkoutservice, currencyservice, emailservice, frontend, paymentservice, productcatalogservice, recommendationservice, shippingservice)"
     patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -25,27 +26,7 @@ patches:
                   - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
                     value: "http://otel-collector-opentelemetry-collector.observability:4317"
 
-  # Target the 'frontend' deployment specifically
-  - target:
-      kind: Deployment
-      name: frontend
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: frontend
-      spec:
-        template:
-          spec:
-            containers:
-              - name: frontend
-                env:
-                  - name: OTEL_EXPORTER_OTLP_ENDPOINT
-                    value: "http://otel-collector-opentelemetry-collector.observability:4317"
-                  - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-                    value: "http://otel-collector-opentelemetry-collector.observability:4317"
-
-  # Target the 'loadgenerator' deployment specifically (it has its own container name)
+  # 2. Services with 'main' container
   - target:
       kind: Deployment
       name: loadgenerator
@@ -65,7 +46,27 @@ patches:
                   - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
                     value: "http://otel-collector-opentelemetry-collector.observability:4317"
 
-  # Resolve K3s LoadBalancer port collision by changing service type to ClusterIP
+  # 3. Services with 'redis' container
+  - target:
+      kind: Deployment
+      name: redis-cart
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis-cart
+      spec:
+        template:
+          spec:
+            containers:
+              - name: redis
+                env:
+                  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                    value: "http://otel-collector-opentelemetry-collector.observability:4317"
+                  - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                    value: "http://otel-collector-opentelemetry-collector.observability:4317"
+
+  # 4. Resolve K3s LoadBalancer port collision
   - target:
       kind: Service
       name: frontend-external
