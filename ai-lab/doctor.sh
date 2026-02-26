@@ -148,24 +148,56 @@ fi
 
 # 4. Conda/Mamba Check
 if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
-    echo "❌ Conda/Mamba not found."
-    if [ -t 0 ]; then
-        read -p "Would you like me to install Miniconda for you? (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "[*] Downloading Miniconda installer..."
-            curl -L https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o miniconda.sh
-            bash miniconda.sh -b -p "$HOME/miniconda3"
-            rm miniconda.sh
-            echo "✅ Miniconda installed to $HOME/miniconda3."
-            export PATH="$HOME/miniconda3/bin:$PATH"
+    echo "[*] Conda/Mamba not in PATH. Probing common locations..."
+    FOR_PROBE=("$HOME/miniconda3/bin/conda" "$HOME/anaconda3/bin/conda" "/opt/conda/bin/conda")
+    CONDA_FOUND=false
+    for probe in "${FOR_PROBE[@]}"; do
+        if [ -f "$probe" ]; then
+            CONDA_BIN=$(dirname "$probe")
+            export PATH="$CONDA_BIN:$PATH"
+            echo "✅ Conda found at $probe (added to PATH for this session)."
+            CONDA_FOUND=true
+            break
+        fi
+    done
+
+    if [ "$CONDA_FOUND" = false ]; then
+        echo "❌ Conda/Mamba not found."
+        if [ -t 0 ]; then
+            read -p "Would you like me to install Miniconda for you? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "[*] Downloading Miniconda installer..."
+                curl -L https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o miniconda.sh
+                
+                # Check if directory exists
+                INSTALL_PATH="$HOME/miniconda3"
+                if [ -d "$INSTALL_PATH" ]; then
+                    echo "⚠️  Directory $INSTALL_PATH already exists."
+                    read -p "Would you like to try updating the existing installation? (y/N) " -n 1 -r
+                    echo
+                    if [[ $REPLY =~ ^[Yy]$ ]]; then
+                        bash miniconda.sh -b -u -p "$INSTALL_PATH"
+                    else
+                        echo "❌ Installation aborted to avoid overwriting $INSTALL_PATH."
+                        rm miniconda.sh
+                        exit 1
+                    fi
+                else
+                    bash miniconda.sh -b -p "$INSTALL_PATH"
+                fi
+                
+                rm miniconda.sh
+                echo "✅ Miniconda installed/updated at $INSTALL_PATH."
+                export PATH="$INSTALL_PATH/bin:$PATH"
+            else
+                echo "⚠️ Please install Conda manually: https://docs.conda.io/en/latest/miniconda.html"
+                exit 1
+            fi
         else
-            echo "⚠️ Please install Conda manually: https://docs.conda.io/en/latest/miniconda.html"
+            echo "💡 Install Miniconda: https://docs.conda.io/en/latest/miniconda.html"
             exit 1
         fi
-    else
-        echo "💡 Install Miniconda: https://docs.conda.io/en/latest/miniconda.html"
-        exit 1
     fi
 else
     echo "✅ Conda/Mamba is installed."
