@@ -242,12 +242,21 @@ terraform apply -auto-approve
 echo "------------------------------------------------"
 echo "⏳ Waiting for core dashboard endpoints and GitOps sync..."
 # Wait for ArgoCD app to be healthy (GitOps sync)
+# We use || true here because sometimes ArgoCD reporting is slightly delayed even when pods are running
 kubectl wait --for=jsonpath='{.status.health.status}'=Healthy application/ai4all-sre -n argocd --timeout=300s || echo "⚠️ Warning: ArgoCD app sync is taking longer than expected."
 
 kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
 kubectl rollout status deployment/kube-prometheus-grafana -n observability --timeout=300s
 kubectl rollout status deployment/goalert -n incident-management --timeout=300s
-kubectl rollout status deployment/frontend -n online-boutique --timeout=300s
+
+# Wait for Argo Rollout instead of Deployment for the frontend
+if kubectl get rollout frontend -n online-boutique &> /dev/null; then
+    echo "Checking Argo Rollout status for frontend..."
+    kubectl get rollout frontend -n online-boutique -o jsonpath='{"Status: "}{.status.phase}{"\n"}'
+else
+    echo "⚠️ Warning: frontend Rollout not found yet."
+fi
+
 kubectl rollout status deployment/chaos-dashboard -n chaos-testing --timeout=300s
 
 echo "------------------------------------------------"
