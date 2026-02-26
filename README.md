@@ -53,20 +53,17 @@ The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
 3.  **Orchestrator (GoAlert)**: Aggregates alerts into Incidents and notifies the Agent.
 4.  **Remediator (Autonomous Agent)**: Reaches consensus via MAS and executes `kubectl` fixes.
 
-## 📂 Repository Navigation Map
-- `ai-lab/fine-tuning/`: Official guide for locally fine-tuning the SRE-Kernel LLM on your GPU.
-- `ai_agent.py`: The core Multi-Agent System reasoning engine.
-- `chaos.tf`: Infrastructure-as-Code for 5+ failure experiments and workflows.
-- `observability.tf`: Helm-based configuration for the full Grafana/Loki/Prom stack.
-- `docs/`: In-depth guides for hardware, manual setup, and onboarding.
-- `scripts/`: Operational automation and health-check validation.
+## 📚 Documentation & Resource Index
+
+| Category | Resource | Description |
+| :--- | :--- | :--- |
+| **Architecture** | [ARCHITECTURE.md](./ARCHITECTURE.md) | Technical specifications and C4 Model diagrams. |
+| **Governance** | [docs/POLICIES.md](./docs/POLICIES.md) | Kyverno-enforced security and Zero-Trust boundaries. |
+| **Ops & Recovery**| [docs/RUNBOOKS.md](./docs/RUNBOOKS.md) | Disaster recovery and incident stabilization procedures. |
+| **Reporting** | [docs/POST_MORTEM_TEMPLATE.md](./docs/POST_MORTEM_TEMPLATE.md) | Standardized RCA format for AI Agent vector memory. |
+| **Setup** | [docs/onboarding.md](./docs/onboarding.md) | Hardware requirements and environment optimization. |
+| **Configuration** | [docs/MANUAL_CONFIG.md](./docs/MANUAL_CONFIG.md) | Manual tuning (Slack, GoAlert) and external integrations. |
+| **AI Laboratory** | [ai-lab/fine-tuning/README.md](./ai-lab/fine-tuning/README.md) | Official guide for local LLM fine-tuning on consumer GPUs. |
 
 ---
-
-*For technical specifications and C4 Models, see [ARCHITECTURE.md](./ARCHITECTURE.md).*
-*For hardware requirements and environment optimization, see [docs/onboarding.md](./docs/onboarding.md).*
-*For **Disaster Recovery** procedures, see [docs/RUNBOOKS.md](./docs/RUNBOOKS.md).*
-*For **Governance Policies** (Kyverno), see [docs/POLICIES.md](./docs/POLICIES.md).*
-*For **Root Cause Analysis** standards, see [docs/POST_MORTEM_TEMPLATE.md](./docs/POST_MORTEM_TEMPLATE.md).*
-*For **Local AI Fine-Tuning** instructions, see [ai-lab/fine-tuning/README.md](./ai-lab/fine-tuning/README.md).*
-*For **manual configuration** (Slack, GoAlert tuning), see [docs/MANUAL_CONFIG.md](./docs/MANUAL_CONFIG.md).*
+*Document Version: 2.2.0 (Autonomous Resilience Edition)*
