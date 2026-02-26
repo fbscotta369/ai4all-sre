@@ -1,93 +1,54 @@
-# 🧪 SRE AI Fine-Tuning Lab: Local Execution Guide
+# 🧠 SRE-Kernel: Autonomous Model Specialization Factory
 
-This guide provides the step-by-step instructions to fine-tune Llama 3 8B into a specialized **"SRE-Kernel"** model using your local desktop hardware (RTX 3060 12GB).
+Welcome to the **SRE-Kernel Model Factory**. This facility enables the autonomous specialization of Large Language Models (LLMs) into elite Site Reliability Engineering (SRE) and DevSecOps experts, executed entirely on local, air-gapped infrastructure.
 
-## 🧰 Prerequisites
+## 🏛️ Architectural Philosophy
+The "SRE-Kernel" is not just an LLM; it is a context-anchored, domain-specific brain. It is trained using **4-bit QLoRA (Quantized Low-Rank Adaptation)** and optimized via **Unsloth** for maximum throughput on consumer-grade high-VRAM hardware (RTX 3060 12GB+).
 
-### Hardware Optimization
-Your machine is ideally spec'd for this:
-- **GPU**: RTX 3060 (12GB VRAM) — Crucial for 4-bit QLoRA.
-- **RAM**: 128GB — Allows for large dataset buffering and CPU-offloading.
-
-### Software Stack
-We recommend using **Linux (Kubuntu 22.04)** for maximum performance.
-1.  **NVIDIA Drivers**: Ensure you have CUDA 12.1+ installed.
-2.  **Conda/Mamba**: For clean environment management.
-3.  **Unsloth**: The fastest library for local Llama fine-tuning.
-
-## 🏁 Step 0: Prerequisites Doctor 🩺
-
-Before creating your environment, run the specialized AI environment doctor to verify your GPU and Conda status:
-
-```bash
-./ai-lab/doctor.sh
-```
-*This handles NVIDIA driver verification and Miniconda bootstrapping.*
-
-## 🚀 Environment Setup
-
-```bash
-# Create and configure the specialized 'sre-ai-lab' environment
-./ai-lab/create-env.sh
-
-# Activate the environment
-conda activate sre-ai-lab
-```
-
-## 📂 Dataset Preparation
-
-The model learns from your **Post-Mortems** and **Kubernetes logs**.
-1.  Collect your `.md` post-mortems from the `post-mortems/` directory.
-2.  Format them into the `dataset_template.jsonl` structure.
-3.  Standardize the instruction: `"Analyze the following Kubernetes incident and provide a Root Cause Analysis (RCA)."`.
-
-## 🚀 Phase-by-Phase Execution
-
-Follow these exact steps to begin your first training run.
-
-### 1. Environment Initialization
-```bash
-# Verify GPU readiness and setup the environment in one go
-./ai-lab/doctor.sh
-./ai-lab/create-env.sh
-
-# Activate for training
-conda activate sre-ai-lab
-```
-
-### 2. Dataset Synthesis
-The model requires a `.jsonl` file. You can generate this from your existing post-mortems:
-```bash
-# Example: Convert a markdown post-mortem into a training pair
-# Instruction: "Analyze the incident context and provide a technical RCA."
-# Input: [Raw Log/Post-Mortem Content]
-# Output: [The expected RCA outcome]
-
-# Verify your dataset format
-head -n 1 dataset_template.jsonl
-```
-
-### 3. Training Execution (Managed via Unsloth)
-Run the training script with optimized settings for the RTX 3060:
-```bash
-python train_sre.py \
-    --dataset ./dataset_template.jsonl \
-    --output ./sre-kernel-adapter \
-    --max_steps 500
-```
-
-### 4. Model Export & Ollama Integration
-Once training completes, export the adapter and merge it for local inference:
-```bash
-# Merge the LoRA adapter into a GGUF file for Ollama
-# (Add this logic to train_sre.py if you want automated export)
-python -c "from unsloth import FastLanguageModel; \
-model, tokenizer = FastLanguageModel.from_pretrained('./sre-kernel-adapter'); \
-model.save_pretrained_gguf('sre-kernel-v1', tokenizer, quantization_method = 'q4_k_m')"
-
-# Load into Ollama
-ollama create sre-kernel -f Modelfile
-```
+### The Specialization Loop:
+1.  **Expert Bootstrapping**: Infusing the model with synthetic "Senior SRE" intuition.
+2.  **Local Ground-Truth**: Learning from your cluster's actual post-mortems and logs.
+3.  **GGUF Atomization**: Exporting weights for high-performance inference in Ollama.
+4.  **A/B Validation**: Technical verification against base general-purpose models.
 
 ---
-*By training locally, you ensure that sensitive infrastructure data never leaves your environment.*
+
+## 🚀 One-Click Specialization Pipeline
+
+The entire pipeline is orchestrated via a single high-end automation suite.
+
+```bash
+# Execute the full specialization loop
+./ai-lab/specialize-model.sh
+```
+
+### What this orchestrator handles autonomously:
+| Phase | Tool | Description |
+| :--- | :--- | :--- |
+| **Infra Check** | `doctor.sh` | Verifies NVIDIA CUDA, VRAM occupancy, and Conda residency. |
+| **Data Synthesis** | `generate_training_data.py` | Scans `./post-mortems` and merges with the Expert Bootstrap Library. |
+| **Fine-Tuning** | `train_sre.py` | Executes 100+ steps of 4-bit fine-tuning using Unsloth. |
+| **GGUF Export** | `Unsloth Core` | Merges LoRA weights and atomizes into a single GGUF artifact. |
+| **Registration** | `ollama create` | Anchors the model via the `ai-lab/Modelfile` (Zero-Trust Persona). |
+| **A/B Testing** | `verify_specialization.py` | Validates technical RCA precision vs general-purpose LLMs. |
+
+---
+
+## 🛠️ Specialized Tooling Reference
+
+### 🎓 The Trainer (`train_sre.py`)
+Highly optimized for hardware with 12GB of VRAM. It uses **Gradient Checkpointing** and **4-bit Quantization** to deliver state-of-the-art results without requiring data-center GPUs.
+
+### 🛡️ The Context Anchor (`Modelfile`)
+Defines the **SRE-Kernel Persona**. It enforces technical precision, absolute conciseness, and compliance with Zero-Trust and GitOps philosophies.
+
+### 🧪 The Validator (`verify_specialization.py`)
+Performs technical A/B testing. It compares the response of `llama3` vs `sre-kernel` on specific, high-complexity failure scenarios found in this laboratory.
+
+---
+
+## 🔒 Security & Privacy
+Because training occurs entirely in the `sre-ai-lab` Conda environment on your local hardware, **no infrastructure data, logs, or post-mortems ever leave your secure perimeter.** This is a fundamental requirement for Tier-1 DevSecOps practitioners.
+
+---
+*Status: Professional SRE-Kernel Factory Operational.*

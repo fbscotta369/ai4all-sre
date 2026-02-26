@@ -41,7 +41,14 @@ The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
 
 ---
 
-## 🛡️ Multi-Agent System (MAS) Governance
+## 🚀 Phase 2: AI Model Specialization (Optional but Recommended)
+For peak autonomous performance, transform the base LLM into a specialized **SRE-Kernel** brain:
+```bash
+./ai-lab/specialize-model.sh
+```
+*This automates knowledge bootstrapping, fine-tuning, and Ollama integration in a single Tier-1 pipeline.*
+
+## 🏛️ Architecture and Governance
 
 The lab's resilience loop is managed by a Multi-Agent System that follows a **Consensus-over-Action** protocol. This prevents individual agent hallucinations from impacting production stability.
 
