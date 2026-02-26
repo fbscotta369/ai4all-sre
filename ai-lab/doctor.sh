@@ -166,15 +166,25 @@ if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
     echo "[*] Conda/Mamba not in PATH. Probing common locations..."
     FOR_PROBE=("$HOME/miniconda3/bin/conda" "$HOME/anaconda3/bin/conda" "/opt/conda/bin/conda")
     CONDA_FOUND=false
+    CONDA_CMD="" # Initialize CONDA_CMD
     for probe in "${FOR_PROBE[@]}"; do
         if [ -f "$probe" ]; then
-            CONDA_BIN=$(dirname "$probe")
-            export PATH="$CONDA_BIN:$PATH"
-            echo "✅ Conda found at $probe (added to PATH for this session)."
+            CONDA_CMD="$probe" # Store the full path to the conda executable
             CONDA_FOUND=true
             break
         fi
     done
+
+    if [ "$CONDA_CMD" != "" ]; then
+        echo -e "✅ Conda found at $CONDA_CMD (added to PATH for this session)."
+        CONDA_PATH=$(dirname "$CONDA_CMD")
+        export PATH="$CONDA_PATH:$PATH"
+        
+        # PROACTIVE: Accept Anaconda ToS for non-interactive execution
+        echo -e "[*] Ensuring Anaconda Terms of Service are accepted..."
+        "$CONDA_CMD" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>/dev/null || true
+        "$CONDA_CMD" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true
+    fi
 
     if [ "$CONDA_FOUND" = false ]; then
         echo "❌ Conda/Mamba not found."
