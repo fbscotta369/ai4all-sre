@@ -49,16 +49,16 @@ fi
 
 # 3. Dependency Installation (Lean High-Performance Stack)
 echo "[*] Phase 1/3: Nuclear Purge of existing ML artifacts & Redundant Extras..."
-# Explicitly purge torchao as it often causes the 'int1' conflict in unsloth_zoo
-conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio unsloth unsloth-zoo triton xformers trl peft accelerate transformers torchao 2>/dev/null || true
+# Explicitly purge torchao and older tokenizers/transformers to prevent shadowing
+conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio unsloth unsloth-zoo triton xformers trl peft accelerate transformers torchao tokenizers 2>/dev/null || true
 
 echo "[*] Phase 2/3: Installing Stable base: PyTorch 2.4.0 + CUDA 12.1..."
 # We go back to 2.4.0 but with a clean slate to avoid 'int1' errors
 conda run -n "$ENV_NAME" pip install --no-cache-dir torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 
 echo "[*] Phase 3/3: Tailoring Lean Unsloth & SRE-Specific Neighbors..."
-# Install neighbors FIRST and pinned to block newer versions from pulling in torchao
-conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "transformers==4.44.2" "trl==0.8.6" "xformers==0.0.26.post1" peft accelerate
+# Install neighbors FIRST and pinned to strictly align with Unsloth's 0.19 tokenizer requirement
+conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "tokenizers==0.19.1" "transformers==4.41.2" "trl==0.8.6" "xformers==0.0.26.post1" peft accelerate
 
 # Install unsloth core and zoo strictly WITHOUT dependencies to prevent torchao contamination
 conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "unsloth @ git+https://github.com/unslothai/unsloth.git"
