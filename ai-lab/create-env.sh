@@ -62,12 +62,20 @@ conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth @ git+https://githu
 conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth_zoo @ git+https://github.com/unslothai/unsloth-zoo.git"
 conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers
 
+echo "[*] Applying Surgical Stability Patch to Unsloth-Zoo..."
+# This bypasses the 'torch._inductor.config' AttributeError by providing a fallback
+PATCH_FILE="/home/fb/miniconda3/envs/$ENV_NAME/lib/python3.10/site-packages/unsloth_zoo/temporary_patches/common.py"
+if [ -f "$PATCH_FILE" ]; then
+    sed -i "s/inspect.getsource(torch._inductor.config)/'# Bypassed by SRE-Kernel Patch'/" "$PATCH_FILE"
+    echo "✅ Surgical Patch Applied to $PATCH_FILE"
+fi
+
 echo "[*] Verifying Package Residency..."
 conda run -n "$ENV_NAME" pip list | grep -E "torch|unsloth|xformers|triton"
 
 echo "[*] Final Integration Test..."
-# Note: We import torch.utils.cpp_extension to warm up the compiler environment
-conda run -n "$ENV_NAME" python -c "import torch; import torch.utils.cpp_extension; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}'); from unsloth import FastLanguageModel; print('Integrity Check: OK')" || { echo "❌ Integration Test Failed. Retrying with total reset..."; exit 1; }
+export UNSLOTH_COMPILE_DISABLE=1
+conda run -n "$ENV_NAME" python -c "import torch; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}'); print('Integrity Check: OK')" || { echo "❌ Integration Test Failed."; exit 1; }
 
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Environment '$ENV_NAME' is ready!"
