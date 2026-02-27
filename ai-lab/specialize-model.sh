@@ -13,6 +13,10 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+export UNSLOTH_COMPILE_DISABLE=1
+export OLLAMA_MODEL="sre-kernel"
+export PYTHON_VERSION="3.10"
+
 echo -e "${BLUE}[*] Starting SRE-Kernel Specialization Pipeline...${NC}"
 
 # 0. Conda PATH Discovery (Ensures portability if not in shell PATH)
