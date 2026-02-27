@@ -51,18 +51,19 @@ fi
 echo "[*] Phase 1/3: Nuclear Purge of existing ML artifacts..."
 conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio unsloth unsloth-zoo triton xformers trl peft accelerate transformers 2>/dev/null || true
 
-echo "[*] Phase 2/3: Installing Production-Grade PyTorch 2.4.0 (CUDA 12.1)..."
-conda run -n "$ENV_NAME" pip install --no-cache-dir torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+echo "[*] Phase 2/3: Installing Production-Grade PyTorch 2.5.1 (CUDA 12.1)..."
+# Using 2.5.1 as it contains critical inductor fixes over 2.4.0
+conda run -n "$ENV_NAME" pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121
 
 echo "[*] Phase 3/3: Tailoring Unsloth Stack..."
 conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps xformers==0.0.27.post2 trl==0.8.6 peft accelerate transformers
+conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps xformers==0.0.28 trl==0.8.6 peft accelerate transformers
 
 echo "[*] Verifying Package Residency..."
 conda run -n "$ENV_NAME" pip list | grep -E "torch|unsloth|xformers|triton"
 
-echo "[*] Final Integration Test..."
-conda run -n "$ENV_NAME" python -c "import torch; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}'); import unsloth_zoo; print('Unsloth Zoo: OK')" || { echo "❌ Integration Test Failed. Retrying with dependency cleanup..."; exit 1; }
+echo "[*] Final Integration Test & Inductor Verification..."
+conda run -n "$ENV_NAME" python -c "import torch; import torch._inductor; import torch._inductor.config; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}'); import unsloth_zoo; print('Unsloth Zoo: OK')" || { echo "❌ Integration Test Failed. Retrying with dependency cleanup..."; exit 1; }
 
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Environment '$ENV_NAME' is ready!"
