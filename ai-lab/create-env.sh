@@ -47,23 +47,26 @@ else
     conda create --name "$ENV_NAME" python="$PYTHON_VERSION" -y
 fi
 
-# 3. Dependency Installation (High-Performance Stability Pin)
-echo "[*] Phase 1/3: Nuclear Purge of existing ML artifacts..."
-conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio unsloth unsloth-zoo triton xformers trl peft accelerate transformers 2>/dev/null || true
+# 3. Dependency Installation (Lean High-Performance Stack)
+echo "[*] Phase 1/3: Nuclear Purge of existing ML artifacts & Redundant Extras..."
+# Explicitly purge torchao as it often causes the 'int1' conflict in unsloth_zoo
+conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio unsloth unsloth-zoo triton xformers trl peft accelerate transformers torchao 2>/dev/null || true
 
-echo "[*] Phase 2/3: Installing Production-Grade PyTorch 2.5.1 (CUDA 12.1)..."
-# Using 2.5.1 as it contains critical inductor fixes over 2.4.0
-conda run -n "$ENV_NAME" pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+echo "[*] Phase 2/3: Installing Stable base: PyTorch 2.4.0 + CUDA 12.1..."
+# We go back to 2.4.0 but with a clean slate to avoid 'int1' errors
+conda run -n "$ENV_NAME" pip install --no-cache-dir torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 
-echo "[*] Phase 3/3: Tailoring Unsloth Stack..."
-conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps xformers==0.0.28 trl==0.8.6 peft accelerate transformers
+echo "[*] Phase 3/3: Tailoring Lean Unsloth & SRE-Specific Neighbors..."
+# Install unsloth WITHOUT colab-specific extras to avoid dependency bloat
+conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth @ git+https://github.com/unslothai/unsloth.git"
+conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers
 
 echo "[*] Verifying Package Residency..."
 conda run -n "$ENV_NAME" pip list | grep -E "torch|unsloth|xformers|triton"
 
-echo "[*] Final Integration Test & Inductor Verification..."
-conda run -n "$ENV_NAME" python -c "import torch; import torch._inductor; import torch._inductor.config; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}'); import unsloth_zoo; print('Unsloth Zoo: OK')" || { echo "❌ Integration Test Failed. Retrying with dependency cleanup..."; exit 1; }
+echo "[*] Final Integration Test..."
+# Note: We import torch.utils.cpp_extension to warm up the compiler environment
+conda run -n "$ENV_NAME" python -c "import torch; import torch.utils.cpp_extension; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}'); from unsloth import FastLanguageModel; print('Integrity Check: OK')" || { echo "❌ Integration Test Failed. Retrying with total reset..."; exit 1; }
 
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Environment '$ENV_NAME' is ready!"
