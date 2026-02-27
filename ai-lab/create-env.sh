@@ -57,17 +57,27 @@ echo "[*] Phase 2/3: Installing Stable base: PyTorch 2.4.0 + CUDA 12.1..."
 conda run -n "$ENV_NAME" pip install --no-cache-dir torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 
 echo "[*] Phase 3/3: Tailoring Lean Unsloth & SRE-Specific Neighbors..."
-# Install unsloth core and the required zoo explicitly
-conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth @ git+https://github.com/unslothai/unsloth.git"
-conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth_zoo @ git+https://github.com/unslothai/unsloth-zoo.git"
-conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers
+# Install neighbors FIRST and pinned to block newer versions from pulling in torchao
+conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "transformers==4.44.2" "trl==0.8.6" "xformers==0.0.26.post1" peft accelerate
+
+# Install unsloth core and zoo strictly WITHOUT dependencies to prevent torchao contamination
+conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "unsloth @ git+https://github.com/unslothai/unsloth.git"
+conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "unsloth_zoo @ git+https://github.com/unslothai/unsloth-zoo.git"
+
+# Final Quarantine: Force uninstall torchao if it somehow leaked in
+conda run -n "$ENV_NAME" pip uninstall -y torchao 2>/dev/null || true
 
 echo "[*] Applying Surgical Stability Patch to Unsloth-Zoo..."
-# This bypasses the 'torch._inductor.config' AttributeError by providing a fallback
+# 1. Bypassing Inductor Config check
 PATCH_FILE="/home/fb/miniconda3/envs/$ENV_NAME/lib/python3.10/site-packages/unsloth_zoo/temporary_patches/common.py"
 if [ -f "$PATCH_FILE" ]; then
     sed -i "s/inspect.getsource(torch._inductor.config)/'# Bypassed by SRE-Kernel Patch'/" "$PATCH_FILE"
-    echo "✅ Surgical Patch Applied to $PATCH_FILE"
+fi
+
+# 2. Monkey-patching Torch to support int1 if needed by transformers
+TORCH_INIT="/home/fb/miniconda3/envs/$ENV_NAME/lib/python3.10/site-packages/torch/__init__.py"
+if [ -f "$TORCH_INIT" ] && ! grep -q "int1 = int" "$TORCH_INIT"; then
+    echo "torch.int1 = torch.int8 # SRE-Kernel Patch" >> "$TORCH_INIT"
 fi
 
 echo "[*] Verifying Package Residency..."
@@ -75,7 +85,7 @@ conda run -n "$ENV_NAME" pip list | grep -E "torch|unsloth|xformers|triton"
 
 echo "[*] Final Integration Test..."
 export UNSLOTH_COMPILE_DISABLE=1
-conda run -n "$ENV_NAME" python -c "import torch; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}'); print('Integrity Check: OK')" || { echo "❌ Integration Test Failed."; exit 1; }
+conda run -n "$ENV_NAME" python -c "import torch; print(f'Torch: {torch.__version__}'); import unsloth; print(f'Unsloth: {unsloth.__version__}'); from unsloth import FastLanguageModel; print('Integrity Check: OK')" || { echo "❌ Integration Test Failed."; exit 1; }
 
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Environment '$ENV_NAME' is ready!"
