@@ -57,8 +57,9 @@ echo "[*] Phase 2/3: Installing Stable base: PyTorch 2.4.0 + CUDA 12.1..."
 conda run -n "$ENV_NAME" pip install --no-cache-dir torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 
 echo "[*] Phase 3/3: Tailoring Lean Unsloth & SRE-Specific Neighbors..."
-# Install unsloth WITHOUT colab-specific extras to avoid dependency bloat
+# Install unsloth core and the required zoo explicitly
 conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth @ git+https://github.com/unslothai/unsloth.git"
+conda run -n "$ENV_NAME" pip install --no-cache-dir "unsloth_zoo @ git+https://github.com/unslothai/unsloth-zoo.git"
 conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate transformers
 
 echo "[*] Verifying Package Residency..."
