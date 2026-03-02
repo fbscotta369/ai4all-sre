@@ -17,6 +17,10 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
+      - name: Create Dummy Certs for Terraform Validation
+        run: |
+          touch issuer.crt issuer.key trust-anchor.crt
+
       - name: Terraform Format & Validate
         run: |
           terraform fmt -check
@@ -30,7 +34,7 @@ jobs:
 
       - name: Python Lint
         run: |
-          pip install pylint requests fastapi uvicorn kubernetes
+          pip install requests fastapi uvicorn kubernetes pylint
           pylint ai_agent.py --disable=C0114,C0116,C0115 || true
 
       - name: Trivy Config Scan
