@@ -57,8 +57,11 @@ echo "[*] Phase 2/3: Installing Stable base: PyTorch 2.4.0 + CUDA 12.1..."
 conda run -n "$ENV_NAME" pip install --no-cache-dir torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 
 echo "[*] Phase 3/3: Tailoring Lean Unsloth & SRE-Specific Neighbors..."
-# Install neighbors FIRST and pinned to strictly align with Unsloth's 0.19 tokenizer requirement
-conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "tokenizers==0.19.1" "transformers==4.41.2" "trl==0.8.6" "xformers==0.0.26.post1" peft accelerate
+# 3.1 Install Utilities (With deps, as they are standard and safe)
+conda run -n "$ENV_NAME" pip install --no-cache-dir huggingface_hub datasets bitsandbytes sentencepiece protobuf
+
+# 3.2 Install Pinned Neighbors (Strictly without deps to enforce versions)
+conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "tokenizers==0.20.3" "transformers==4.46.1" "trl==0.8.6" "xformers==0.0.26.post1" peft accelerate
 
 # Install unsloth core and zoo strictly WITHOUT dependencies to prevent torchao contamination
 conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "unsloth @ git+https://github.com/unslothai/unsloth.git"
@@ -81,7 +84,7 @@ if [ -f "$TORCH_INIT" ] && ! grep -q "int1 = int" "$TORCH_INIT"; then
 fi
 
 echo "[*] Verifying Package Residency..."
-conda run -n "$ENV_NAME" pip list | grep -E "torch|unsloth|xformers|triton"
+conda run -n "$ENV_NAME" pip list | grep -E "torch|unsloth|xformers|triton|transformers|huggingface|datasets"
 
 echo "[*] Final Integration Test..."
 export UNSLOTH_COMPILE_DISABLE=1
