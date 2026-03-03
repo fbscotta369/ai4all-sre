@@ -84,6 +84,7 @@ Every autonomous remediation action is strictly governed:
 | Category | Resource | Description |
 | :--- | :--- | :--- |
 | **Architecture** | [ARCHITECTURE.md](./ARCHITECTURE.md) | Technical specifications and C4 Model diagrams. |
+| **Onboarding (Junior)** | [docs/JUNIOR_ONBOARDING.md](./docs/JUNIOR_ONBOARDING.md) | Plain English guide: 'Why' behind tech choices and day-1 exploration. |
 | **Governance** | [docs/POLICIES.md](./docs/POLICIES.md) | Kyverno-enforced security and Zero-Trust boundaries. |
 | **Ops & Recovery**| [docs/RUNBOOKS.md](./docs/RUNBOOKS.md) | Disaster recovery and incident stabilization procedures. |
 | **Reporting** | [docs/POST_MORTEM_TEMPLATE.md](./docs/POST_MORTEM_TEMPLATE.md) | Standardized RCA format for AI Agent vector memory. |
