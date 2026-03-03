@@ -24,6 +24,7 @@ spec:
       verbs: ["*"]
       namespaces: ["*"]
     subjects:
-    - kind: User
-      user:
+    - kind: ServiceAccount
+      serviceAccount:
         name: ai-agent
+        namespace: observability

@@ -1,19 +1,14 @@
 #!/bin/bash
 
-# AI4ALL-SRE Cleanup Script 🧹
-set -e
+# ============================================================
+#  DEPRECATION NOTICE
+#  cleanup.sh has been deprecated to prevent accidental 
+#  unprompted destruction of the laboratory.
+#  
+#  Redirecting to the safer destroy.sh script...
+# ============================================================
 
-echo "Starting AI4ALL-SRE Laboratory Cleanup..."
-echo "------------------------------------------------"
+echo -e "\033[1;33m⚠️  cleanup.sh is deprecated. Transferring to destroy.sh...\033[0m"
+sleep 2
 
-# 1. Terraform Destroy
-echo "Destroying Infrastructure..."
-terraform destroy -auto-approve
-
-# 2. Namespace Final Cleanup (Optional but good practice)
-echo "Ensuring namespaces are removed..."
-kubectl delete namespace online-boutique observability incident-management chaos-testing argocd trivy-system --ignore-not-found
-
-echo "------------------------------------------------"
-echo "✅ Laboratory Cleanup Complete!"
-echo "------------------------------------------------"
+./destroy.sh "$@"

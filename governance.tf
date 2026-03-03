@@ -320,9 +320,10 @@ resource "kubernetes_manifest" "apf_m2m_flow_schema" {
           ]
           subjects = [
             {
-              kind = "User"
-              user = {
-                name = "ai-agent"
+              kind = "ServiceAccount"
+              serviceAccount = {
+                name      = "ai-agent"
+                namespace = "observability"
               }
             }
           ]

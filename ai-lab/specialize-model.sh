@@ -59,9 +59,24 @@ conda run -n sre-ai-lab python ai-lab/fine-tuning/train_sre.py \
 
 # 4. Ollama Model Registration
 echo -e "${YELLOW}[Step 4/5] Registering 'sre-kernel' in Ollama...${NC}"
-ollama create sre-kernel -f ai-lab/Modelfile || { echo -e "${RED}[!] Ollama model creation failed.${NC}"; exit 1; }
+# Find the dynamically generated GGUF file by Unsloth
+GGUF_FILE=$(find . -maxdepth 1 -name "*sre-kernel*.gguf" | head -n 1)
 
-# 5. Continuous Verification
+if [ -z "$GGUF_FILE" ]; then
+    echo -e "${RED}[!] Error: Could not find the generated GGUF file.${NC}"
+    exit 1
+fi
+
+echo -e "[*] Found fine-tuned weights: ${GGUF_FILE}"
+# Create a temporary specialized Modelfile
+echo "FROM ${GGUF_FILE}" > ai-lab/Modelfile.specialized
+# Append the original Modelfile, stripping the base FROM directive
+sed '/^FROM /d' ai-lab/Modelfile >> ai-lab/Modelfile.specialized
+
+ollama create sre-kernel -f ai-lab/Modelfile.specialized || { echo -e "${RED}[!] Ollama model creation failed.${NC}"; exit 1; }
+# Cleanup temporary Modelfile
+rm -f ai-lab/Modelfile.specialized
+
 echo -e "${YELLOW}[Step 5/5] Performing A/B Verification...${NC}"
 ./scripts/verify_specialization.py || { echo -e "${YELLOW}[!] Verification suite returned warnings. Review results above.${NC}"; }
 
