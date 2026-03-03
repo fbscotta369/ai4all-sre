@@ -142,7 +142,14 @@ def handle_autonomous_lifecycle(alert_name, labels, annotations, ai_response):
         f.write(f"- **Description**: {annotations.get('description')}\n")
         f.write(f"- **Labels**: {labels}\n\n")
         f.write(f"## AI Analysis & RCA\n")
-        f.write(f"{ai_response}\n")
+        f.write(f"{ai_response}\n\n")
+        
+        # Extract and format the GitOps Recommendation if present
+        if "GitOps Recommendation:" in ai_response:
+             gitops_patch = ai_response.split("GitOps Recommendation:")[1].strip()
+             f.write(f"## 🌐 GitOps Declarative Patch (ArgoCD)\n")
+             f.write(f"To make this self-healing action permanent, commit the following to the source repository:\n\n")
+             f.write(f"{gitops_patch}\n")
     
     print(f"[*] Post-Mortem generated at {post_mortem_path}")
 
@@ -232,8 +239,9 @@ Your task is to reach a consensus and provide an actionable remediation.
    - Case: High Latency -> Remediation: RESTART DEPLOYMENT cartservice IN online-boutique
    - Case: Resource Saturation -> Remediation: SCALE DEPLOYMENT frontend IN online-boutique TO 5
 4. **Predictive Insight**: Prevention steps.
+5. **GitOps Recommendation**: If you recommended a scaling action, provide the exact Kubernetes YAML patch (in a ```yaml block) that an operator should commit to Git so ArgoCD makes the change permanent.
 
-Be concise, elite, and actionable.
+Be concise, elite, and actionable. Ensure the GitOps Recommendation starts with the exact string "GitOps Recommendation:" followed by the yaml block.
 """
     try:
         director_res = requests.post(OLLAMA_URL, json={

@@ -275,3 +275,59 @@ resource "kubernetes_manifest" "policy_restrict_registries" {
   }
   depends_on = [helm_release.kyverno]
 }
+
+# --- M2M API Priority and Fairness (APF) ---
+resource "kubernetes_manifest" "apf_m2m_low_priority" {
+  manifest = {
+    apiVersion = "flowcontrol.apiserver.k8s.io/v1"
+    kind       = "PriorityLevelConfiguration"
+    metadata = {
+      name = "m2m-low-priority"
+    }
+    spec = {
+      type = "Limited"
+      limited = {
+        nominalConcurrencyShares = 10
+        limitResponse = {
+          type = "Reject"
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_manifest" "apf_m2m_flow_schema" {
+  manifest = {
+    apiVersion = "flowcontrol.apiserver.k8s.io/v1"
+    kind       = "FlowSchema"
+    metadata = {
+      name = "m2m-ai-agents"
+    }
+    spec = {
+      priorityLevelConfiguration = {
+        name = "m2m-low-priority"
+      }
+      matchingPrecedence = 500
+      rules = [
+        {
+          resourceRules = [
+            {
+              apiGroups  = ["*"]
+              resources  = ["*"]
+              verbs      = ["*"]
+              namespaces = ["*"]
+            }
+          ]
+          subjects = [
+            {
+              kind = "User"
+              user = {
+                name = "ai-agent"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

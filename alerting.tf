@@ -144,6 +144,19 @@ resource "kubernetes_manifest" "high_cpu_alert" {
                 summary     = "Frontend is using too much CPU."
                 description = "The frontend pods have been using > 80% CPU for the last 1 minute."
               }
+            },
+            {
+              alert = "PredictiveFrontendHighCPU"
+              expr  = "predict_linear(sum by (namespace) (node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{namespace=\"online-boutique\", pod=~\"frontend-.*\"})[15m:1m], 3600) > 0.8"
+              for   = "5m"
+              labels = {
+                severity   = "warning"
+                deployment = "frontend"
+              }
+              annotations = {
+                summary     = "PREDICTIVE: Frontend CPU usage trending towards saturation."
+                description = "Based on the last 15 minutes, frontend CPU is predicted to exceed 80% within the next hour."
+              }
             }
           ]
         }
