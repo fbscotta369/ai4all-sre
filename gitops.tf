@@ -94,4 +94,5 @@ resource "kubernetes_manifest" "argocd_app_boutique" {
       }
     }
   }
+  depends_on = [helm_release.argocd]
 }

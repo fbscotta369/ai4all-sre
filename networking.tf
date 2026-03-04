@@ -75,6 +75,7 @@ resource "kubernetes_manifest" "productcatalog_server" {
       proxyProtocol = "grpc"
     }
   }
+  depends_on = [helm_release.linkerd_crds]
 }
 
 resource "kubernetes_manifest" "authz_frontend_to_productcatalog" {
@@ -94,6 +95,7 @@ resource "kubernetes_manifest" "authz_frontend_to_productcatalog" {
       }
     }
   }
+  depends_on = [helm_release.linkerd_crds]
 }
 
 # Only allow loadgenerator to talk to frontend
@@ -113,6 +115,7 @@ resource "kubernetes_manifest" "frontend_server" {
       proxyProtocol = "http"
     }
   }
+  depends_on = [helm_release.linkerd_crds]
 }
 
 resource "kubernetes_manifest" "authz_loadgen_to_frontend" {
@@ -130,4 +133,5 @@ resource "kubernetes_manifest" "authz_loadgen_to_frontend" {
       }
     }
   }
+  depends_on = [helm_release.linkerd_crds]
 }

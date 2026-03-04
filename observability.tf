@@ -452,6 +452,7 @@ resource "kubernetes_manifest" "slo_rules" {
       ]
     }
   }
+  depends_on = [helm_release.kube_prometheus_stack]
 }
 
 # Grafana Datasource for Loki (via Sidecar)

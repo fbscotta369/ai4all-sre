@@ -167,7 +167,9 @@ resource "kubernetes_manifest" "high_cpu_alert" {
       ]
     }
   }
+  depends_on = [helm_release.kube_prometheus_stack]
 }
+
 resource "kubernetes_config_map" "goalert_config_script" {
   metadata {
     name      = "goalert-config-script"

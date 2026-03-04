@@ -74,4 +74,5 @@ resource "kubernetes_manifest" "frontend_rollout" {
       }
     }
   }
+  depends_on = [helm_release.argo_rollouts]
 }
