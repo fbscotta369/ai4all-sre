@@ -1,10 +1,28 @@
+# Build Stage
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# Final Stage
 FROM python:3.11-slim
 
 WORKDIR /app
 
+# Create a non-root user
+RUN groupadd -g 10001 sre-group && \
+    useradd -u 10001 -g sre-group -s /bin/bash sre-user
+
+# Copy installed packages from builder
+COPY --from=builder /root/.local /home/sre-user/.local
 COPY ai_agent.py .
 
-RUN pip install requests fastapi uvicorn
+# Ensure permissions
+RUN chown -R sre-user:sre-group /app /home/sre-user
+
+USER sre-user
+ENV PATH="/home/sre-user/.local/bin:${PATH}"
 
 EXPOSE 8000
 

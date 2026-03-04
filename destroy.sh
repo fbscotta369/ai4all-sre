@@ -68,7 +68,6 @@ NAMESPACES=(
     argo-rollouts
     kyverno
     trivy-system
-    kube-system
 )
 for NS in "${NAMESPACES[@]}"; do
     if kubectl get namespace "$NS" &>/dev/null; then

@@ -57,4 +57,77 @@ resource "helm_release" "linkerd_control_plane" {
   }
 }
 
+# 3. Distributed Zero-Trust Policy (Server & ServerAuthorization)
+# Only allow frontend to talk to productcatalogservice
+resource "kubernetes_manifest" "productcatalog_server" {
+  manifest = {
+    apiVersion = "policy.linkerd.io/v1beta2"
+    kind       = "Server"
+    metadata = {
+      name      = "productcatalog-grpc"
+      namespace = "online-boutique"
+    }
+    spec = {
+      podSelector = {
+        matchLabels = { "app" = "productcatalogservice" }
+      }
+      port          = 3550
+      proxyProtocol = "grpc"
+    }
+  }
+}
 
+resource "kubernetes_manifest" "authz_frontend_to_productcatalog" {
+  manifest = {
+    apiVersion = "policy.linkerd.io/v1alpha1"
+    kind       = "ServerAuthorization"
+    metadata = {
+      name      = "frontend-to-productcatalog"
+      namespace = "online-boutique"
+    }
+    spec = {
+      server = { name = "productcatalog-grpc" }
+      client = {
+        meshTLS = {
+          serviceAccounts = [{ name = "frontend" }]
+        }
+      }
+    }
+  }
+}
+
+# Only allow loadgenerator to talk to frontend
+resource "kubernetes_manifest" "frontend_server" {
+  manifest = {
+    apiVersion = "policy.linkerd.io/v1beta2"
+    kind       = "Server"
+    metadata = {
+      name      = "frontend-http"
+      namespace = "online-boutique"
+    }
+    spec = {
+      podSelector = {
+        matchLabels = { "app" = "frontend" }
+      }
+      port          = 8080
+      proxyProtocol = "http"
+    }
+  }
+}
+
+resource "kubernetes_manifest" "authz_loadgen_to_frontend" {
+  manifest = {
+    apiVersion = "policy.linkerd.io/v1alpha1"
+    kind       = "ServerAuthorization"
+    metadata = {
+      name      = "loadgen-to-frontend"
+      namespace = "online-boutique"
+    }
+    spec = {
+      server = { name = "frontend-server" }
+      client = {
+        unauthenticated = true # Frontend is external facing via LB/Ingress
+      }
+    }
+  }
+}

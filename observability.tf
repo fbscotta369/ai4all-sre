@@ -185,9 +185,9 @@ resource "helm_release" "opentelemetry_collector" {
         service = {
           pipelines = {
             traces = {
-              receivers = ["otlp"]
+              receivers  = ["otlp"]
               processors = ["memory_limiter", "batch"]
-              exporters = ["otlp"]
+              exporters  = ["otlp"]
             }
           }
         }
@@ -605,8 +605,8 @@ resource "kubernetes_config_map" "tempo_dashboard" {
       title = "SRE: Distributed Tracing (Tempo)"
       panels = [
         {
-          title = "Live Trace Search"
-          type  = "traces"
+          title      = "Live Trace Search"
+          type       = "traces"
           datasource = "Tempo"
           targets = [
             {

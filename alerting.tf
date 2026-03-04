@@ -143,6 +143,9 @@ resource "kubernetes_manifest" "high_cpu_alert" {
               annotations = {
                 summary     = "Frontend is using too much CPU."
                 description = "The frontend pods have been using > 80% CPU for the last 1 minute."
+                runbook     = "https://github.com/fbscotta369/ai4all-sre/blob/main/docs/reference/incident-runbooks.md"
+                # Tier-1 Integration: Link to Tempo Traces
+                trace_link = "http://localhost:3000/explore?orgId=1&left=[\"now-1h\",\"now\",\"Tempo\",{\"query\":\"{resource.namespace=\\\"online-boutique\\\", resource.app=\\\"frontend\\\"}\"}]"
               }
             },
             {
@@ -156,6 +159,7 @@ resource "kubernetes_manifest" "high_cpu_alert" {
               annotations = {
                 summary     = "PREDICTIVE: Frontend CPU usage trending towards saturation."
                 description = "Based on the last 15 minutes, frontend CPU is predicted to exceed 80% within the next hour."
+                trace_link  = "http://localhost:3000/explore?orgId=1&left=[\"now-1h\",\"now\",\"Tempo\",{\"query\":\"{resource.namespace=\\\"online-boutique\\\", resource.app=\\\"frontend\\\"}\"}]"
               }
             }
           ]

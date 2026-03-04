@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - kubernetes-manifests.yaml
+  - frontend-rollout.yaml
 
 # Patch microservices to include the OpenTelemetry Endpoint pointing to our collector
 patches:

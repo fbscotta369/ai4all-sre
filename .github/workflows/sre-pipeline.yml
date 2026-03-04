@@ -13,6 +13,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Cache Terraform
+        uses: actions/cache@v3
+        with:
+          path: .terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/*.tf') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -23,29 +33,87 @@ jobs:
           terraform init -backend=false
           terraform validate
 
+      - name: Cache Pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Python Lint
+      - name: Python Unit Tests
         run: |
-          pip install pylint requests fastapi uvicorn kubernetes
-          pylint ai_agent.py --disable=C0114,C0116,C0115 || true
+          pip install -r requirements.txt
+          python3 -m unittest discover tests/
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck scripts/*.sh *.sh ai-lab/*.sh
+
+      - name: Yamllint
+        run: |
+          pip install yamllint
+          yamllint .
+
+      - name: Gitleaks (Secret Scanning)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkov (IaC Scan)
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: terraform,kubernetes
 
       - name: Trivy Config Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'config'
-          hide-progress: false
           format: 'table'
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
+
+      - name: Generate SBOM (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'cyclonedx'
+          output: 'sbom.json'
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.json
 
       - name: Terraform Security Scan (tfsec)
         uses: aquasecurity/tfsec-action@v1.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  analyze:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: python
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
 
   deploy:
     name: GitOps Sync (Simulated)

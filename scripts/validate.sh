@@ -23,6 +23,30 @@ if command -v pylint &> /dev/null; then
     pylint ai_agent.py --disable=C0114,C0116,C0115 || true
 fi
 
+# 2.5 Unit Tests
+echo "[*] Running Python unit tests..."
+if command -v conda &> /dev/null && conda info --envs | grep -q "sre-ai-lab"; then
+    conda run -n sre-ai-lab python3 -m unittest discover tests/
+else
+    python3 -m unittest discover tests/
+fi
+
+# 2.8 Shell Linting (ShellCheck)
+if command -v shellcheck &> /dev/null; then
+    echo "[*] Running shellcheck on shell scripts..."
+    shellcheck scripts/*.sh *.sh ai-lab/*.sh
+else
+    echo "⚠️ Warning: shellcheck not found. Skipping shell linting."
+fi
+
+# 2.9 YAML Linting (Yamllint)
+if command -v yamllint &> /dev/null; then
+    echo "[*] Running yamllint on manifests and configs..."
+    yamllint .
+else
+    echo "⚠️ Warning: yamllint not found. Skipping YAML linting."
+fi
+
 # 3. Security Scanning (Trivy)
 if command -v trivy &> /dev/null; then
     echo "[*] Running Trivy security scan on manifests..."
@@ -35,6 +59,17 @@ fi
 if command -v tfsec &> /dev/null; then
     echo "[*] Running tfsec on Terraform code..."
     tfsec . || true
+fi
+
+if command -v checkov &> /dev/null; then
+    echo "[*] Running checkov on infrastructure..."
+    checkov -d . --framework terraform kubernetes || true
+fi
+
+# 4.5 Secret Scanning (gitleaks)
+if command -v gitleaks &> /dev/null; then
+    echo "[*] Running gitleaks to detect secret leaks..."
+    gitleaks detect --source . -v || true
 fi
 
 # 5. Linkerd Health Check

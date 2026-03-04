@@ -31,19 +31,36 @@ Our documentation is structurally partitioned by user intent. Whether you need t
 
 ---
 
+## 🛡️ Tier-1 Industrial Features
+
+This laboratory implements elite engineering standards for mission-critical reliability:
+
+*   **Zero-Trust Networking**: Explicit Linkerd authorization policies (Server/Auth) instead of "default allow."
+*   **Security Governance**: Kyverno-based Admission Control that blocks images with CRITICAL vulnerabilities (sourced from real-time Trivy scans).
+*   **Advanced CI/CD**: Hardened GitHub Actions with Multi-Language Linting, CodeQL (SAST), Secret Scanning (Gitleaks), and Automated SBOM (CycloneDX) generation.
+*   **Modern Deployment**: Argo Canary Rollouts with automated, metrics-driven rollback logic for the frontend.
+*   **FinOps Control**: Strict `ResourceQuotas` and `LimitRanges` to model industrial cost governance and prevent resource exhaustion.
+*   **Incident Hyper-Correlation**: One-click "Alert-to-Trace" integration linking Prometheus with Tempo for sub-second MTTR.
+
+---
+
 ## 🏗️ Core Technology Stack
 
 The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
 
 | Component | Technology | Documentation |
 | :--- | :--- | :--- |
-| **Service Mesh** | Linkerd | [Official Docs](https://linkerd.io/) |
-| **GitOps** | ArgoCD | [Official Docs](https://argoproj.github.io/cd/) |
+| **Service Mesh** | Linkerd (Zero-Trust) | [Official Docs](https://linkerd.io/) |
+| **GitOps** | ArgoCD + Rollouts | [Official Docs](https://argoproj.github.io/cd/) |
 | **Chaos Engine** | Chaos Mesh | [Official Docs](https://chaos-mesh.org/) |
-| **Observability** | Prometheus / Grafana / Tempo | [OSS Stack](https://prometheus.io/) |
-| **Incident Management**| GoAlert | [Official Docs](https://goalert.org/) |
-| **Policy Governance** | Kyverno | [Official Docs](https://kyverno.io/) |
+| **Observability** | OTel / Prom / Grafana / Tempo | [OSS Stack](https://prometheus.io/) |
+| **Incident Management**| GoAlert + Slack | [Official Docs](https://goalert.org/) |
+| **Policy Governance** | Kyverno (Admission Control) | [Official Docs](https://kyverno.io/) |
+| **SRE Agent Security** | Gitleaks / CodeQL | [Security Center](https://github.com/features/security) |
 | **Local Inference** | Ollama (Llama 3) | [GitHub](https://ollama.com/) |
 
 ---
 *Document Version: 4.0.0 (Tier-1 Diátaxis Edition)*
+
+> [!CAUTION]
+> **Maintenance**: To completely wipe the laboratory infrastructure (including all namespaces and Terraform resources), run `./destroy.sh`. To recreate it, run `./setup-all.sh`.

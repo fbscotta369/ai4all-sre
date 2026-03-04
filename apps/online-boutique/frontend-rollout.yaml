@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: frontend
+  namespace: online-boutique
+spec:
+  replicas: 3
+  strategy:
+    canary:
+      # Automatically roll back if analysis fails (simulated here)
+      steps:
+        - setWeight: 20
+        - pause: {duration: 1m} # Wait for 1 minute for manual/AI verification
+        - setWeight: 50
+        - pause: {duration: 1m}
+        - setWeight: 80
+      # Automated Rollback logic: 
+      # In a real environment, we would link this to an AnalysisTemplate 
+      # querying Prometheus metrics for 5xx errors.
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: server
+          image: frontend:latest # Placeholder image
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector-opentelemetry-collector.observability:4317"
+          readinessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: "/_healthz"
+              port: 8080
+              httpHeaders:
+                - name: "Cookie"
+                  value: "shop_session-id=x-readiness-probe"
+          livenessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: "/_healthz"
+              port: 8080
+              httpHeaders:
+                - name: "Cookie"
+                  value: "shop_session-id=x-liveness-probe"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

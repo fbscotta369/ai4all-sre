@@ -6,10 +6,11 @@ Welcome to the **SRE-Kernel Model Factory**. This facility enables the autonomou
 The "SRE-Kernel" is not just an LLM; it is a context-anchored, domain-specific brain. It is trained using **4-bit QLoRA (Quantized Low-Rank Adaptation)** and optimized via **Unsloth** for maximum throughput on consumer-grade high-VRAM hardware (RTX 3060 12GB+).
 
 ### The Specialization Loop:
-1.  **Expert Bootstrapping**: Infusing the model with synthetic "Senior SRE" intuition.
-2.  **Local Ground-Truth**: Learning from your cluster's actual post-mortems and logs.
-3.  **GGUF Atomization**: Exporting weights for high-performance inference in Ollama.
-4.  **A/B Validation**: Technical verification against base general-purpose models.
+1.  **Infra Readiness**: Ensuring CUDA, VRAM, and the `sre-ai-lab` environment are optimized.
+2.  **Expert Bootstrapping**: Infusing the model with synthetic "Senior SRE" intuition.
+3.  **Local Ground-Truth**: Learning from your cluster's actual post-mortems and logs.
+4.  **GGUF Atomization**: Exporting weights for high-performance inference in Ollama.
+5.  **A/B Validation**: Technical verification against base general-purpose models.
 
 ---
 
@@ -39,6 +40,7 @@ graph LR
 | Phase | Tool | Description |
 | :--- | :--- | :--- |
 | **Infra Check** | `doctor.sh` | Verifies NVIDIA CUDA, VRAM occupancy, and Conda residency. |
+| **Env Setup** | `create-env.sh` | Provisions the pinned `sre-ai-lab` environment with optimized dependencies. |
 | **Data Synthesis** | `generate_training_data.py` | Scans `./post-mortems` and merges with the Expert Bootstrap Library. |
 | **Fine-Tuning** | `train_sre.py` | Executes 100+ steps of 4-bit fine-tuning using Unsloth. |
 | **GGUF Export** | `Unsloth Core` | Merges LoRA weights and atomizes into a single GGUF artifact. |

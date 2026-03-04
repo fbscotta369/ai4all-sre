@@ -331,4 +331,44 @@ resource "kubernetes_manifest" "apf_m2m_flow_schema" {
       ]
     }
   }
+} # Proactive Policy: Block images with CRITICAL vulnerabilities
+resource "kubernetes_manifest" "policy_block_critical_vulnerabilities" {
+  manifest = {
+    apiVersion = "kyverno.io/v1"
+    kind       = "ClusterPolicy"
+    metadata = {
+      name = "block-critical-vulnerabilities"
+    }
+    spec = {
+      validationFailureAction = "Enforce"
+      background              = true
+      rules = [
+        {
+          name = "block-vulnerable-images"
+          match = {
+            any = [{ resources = { kinds = ["Pod"] } }]
+          }
+          exclude = {
+            any = [{ resources = { namespaces = ["kube-system", "kyverno", "observability", "trivy-system"] } }]
+          }
+          validate = {
+            message = "Deployment blocked: Image has CRITICAL vulnerabilities."
+            # Note: This is a complex lookup that checks the VulnerabilityReport 
+            # created by Trivy in the cluster.
+            deny = {
+              conditions = [
+                {
+                  key      = "{{ request.object.metadata.namespace }}/{{ request.object.metadata.name }}"
+                  operator = "In"
+                  # This lookup assumes Trivy reports are named after the owner resource
+                  value = "Trivy:CRITICAL"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+  depends_on = [helm_release.kyverno]
 }

@@ -7,9 +7,9 @@ This document defines the technical architecture of the AI4ALL-SRE Laboratory. I
 ## Core Design Principles
 
 1.  **Local-First Autonomy**: All reasoning (LLM) and data storage happen within the laboratory perimeter to ensure 100% data sovereignty and low-latency decision loops.
-2.  **M2M Zero-Trust**: Machine-to-Machine communication is cryptographically secured via Linkerd. No agent action is executed without a verified, mTLS-backed identity.
-3.  **Consensus-Based Remediation**: Automated fixes require consensus from specialized domain agents (Network, DB, Compute) to prevent "Agentic Hallucination."
-4.  **Audit-Ready Lineage**: Every automated action carries a global incident trace trace, allowing a direct mapping from a `kubectl` command back to the original telemetry anomaly.
+2.  **M2M Zero-Trust**: Machine-to-Machine communication is secured via explicit Linkerd **Server/Authorization** resources. Access is denied by default until an identity trust is established.
+3.  **Governance-First Deployment**: Every new pod is validated by an Admission Controller (Kyverno) against live Vulnerability Data. Critical vulnerabilities block the build/deploy cycle.
+4.  **Trace-Linked Alerting**: Incidents are born with a Distributed Trace context, allowing immediate correlation from a high-level alert (Prometheus) to a low-level Span (Tempo).
 
 ---
 
@@ -19,23 +19,23 @@ The AI4ALL-SRE Laboratory operates as an autonomous enclave bridging the gap bet
 
 ```mermaid
 graph TD
-    subgraph "External Constraints"
-        GH["GitHub (Source of Truth)"]
+    subgraph "SRE CI/CD (Hardened)"
+        GA["GitHub Actions (SAST/SBOM/Secrets)"]
     end
 
     subgraph "AI4ALL-SRE Ecosystem"
-        CP["Autonomous Control Plane (K8s/Linkerd)"]
+        CP["Autonomous Control Plane (K8s/Kyverno/Argo)"]
         Agent["Autonomous MAS (Multi-Agent System)"]
-        Sink["Telemetry Sink (Loki/Prom/OTel)"]
+        Sink["Telemetry Sink (Loki/Prom/OTel/Tempo)"]
     end
 
     subgraph "Hardware Plane"
         Inference["Local Inference Engine (Ollama/GPU)"]
     end
 
-    GH -->|Desired State| CP
-    CP -->|Telemetry| Sink
-    Sink -->|Incident Context| Agent
+    GA -->|Verified State| CP
+    CP -->|Telemetry + Traces| Sink
+    Sink -->|Incident + Trace Context| Agent
     Agent -->|Remediation Request| CP
     Agent -->|Reasoning Request| Inference
     style CP fill:#f9f,stroke:#333,stroke-width:2px
@@ -53,27 +53,25 @@ The system is a distributed **Data Mesh** where state is synchronized across asy
 C4Container
     title Container diagram for AI4ALL-SRE Data Mesh
 
-    Container_Ext(git, "GitHub", "Git", "Source of Truth")
+    Container_Ext(git, "GitHub Actions", "CI/CD", "Enforces CodeQL/SBOM/Gitleaks")
     
-    System_Boundary(c1, "K3s Cluster Envelope") {
-        Container(argocd, "ArgoCD", "Go", "Syncs cluster state with Git")
-        Container(apps, "Online Boutique", "Microservices", "Target application generating telemetry")
-        ContainerDb(prom, "Prometheus", "TSDB", "Collects metrics")
-        ContainerDb(loki, "Loki", "Log Store", "Collects indexed logs")
-        Container(goalert, "GoAlert", "Go", "Incident Orchestration")
-        Container(agent, "AI SRE Agent", "Python/FastAPI", "Autonomous Remediation")
+    System_Boundary(c1, "Tier-1 Cluster Envelope") {
+        Container(argocd, "ArgoCD + Rollouts", "Go", "Syncs state & executes Canary releases")
+        Container(apps, "Online Boutique", "Microservices", "Enforced by Zero-Trust Policies")
+        Container(kyverno, "Kyverno", "Go", "Vulnerability-aware Admission Gate")
+        ContainerDb(prom, "Prometheus", "TSDB", "Collects metrics & links to Tempo")
+        Container(tempo, "Tempo", "Golang", "Distributed Tracing")
+        Container(agent, "AI SRE Agent", "Hardened Docker", "Autonomous Remediation")
     }
     
     Container(ollama, "Ollama", "C++", "Local LLM Inference Engine")
 
-    Rel(git, argocd, "Webhook/Polling", "HTTPS")
-    Rel(argocd, apps, "Deploys", "Kubernetes API")
-    Rel(apps, prom, "Scrapes metrics", "HTTP")
-    Rel(apps, loki, "Pushes logs", "HTTP")
-    Rel(prom, goalert, "Fires alerts", "Webhook")
-    Rel(goalert, agent, "Creates incident", "Webhook")
-    Rel(agent, ollama, "Prompts", "REST API")
-    Rel(agent, apps, "Remediates", "Kubernetes API")
+    Rel(git, argocd, "Webhook", "HTTPS")
+    Rel(argocd, apps, "Deploys via Canary", "K8s API")
+    Rel(apps, kyverno, "Validates at Runtime", "Admission Hook")
+    Rel(prom, tempo, "Correlates", "TraceID")
+    Rel(prom, agent, "Dispatches context", "Webhook")
+    Rel(agent, apps, "Remediates", "K8s API")
 ```
 
 ---
@@ -119,19 +117,18 @@ sequenceDiagram
     autonumber
     participant C as Chaos Mesh (Adversary)
     participant A as Online Boutique (App)
-    participant S as Telemetry Sink (Observer)
-    participant G as GoAlert (Orchestrator)
+    participant V as Kyverno (Admission Gate)
+    participant S as Observability (Prom/Tempo)
     participant AG as AI SRE Agent (Remediator)
 
-    C->>A: Trigger PodKill/Latency/CPU Stress
-    A->>S: Metrics/Logs breach thresholds
-    S->>G: Post Critical Alert (Webhook)
-    G->>G: Create Incident & Escalation
-    G->>AG: Dispatch Context via Webhook
-    AG->>AG: MAS Consensus & Reasoning
-    Note right of AG: Validating with Kyverno...
-    AG->>A: Execute 'kubectl' Remediation
-    A-->>AG: State Restored
+    C->>A: Trigger Degradation (Network/CPU)
+    A->>S: Breach Thresholds + Spans
+    S->>AG: Dispatch Alert + TraceID Link
+    AG->>AG: MAS Consensus + Trace Analysis
+    AG->>A: Propose Remediation (Rollout/Restart)
+    A->>V: Validate Action (Security/Auth)
+    V-->>A: Approved (No Critical Vulns)
+    A-->>AG: State Restored (Success)
 ```
 
 ---

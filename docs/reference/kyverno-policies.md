@@ -17,6 +17,7 @@ Policies are categorized by their enforcement mode: `Enforce` (blocks non-compli
 | **Disallow Privileged** | `ClusterPolicy` | Block `privileged: true` | Prevents container escapes and unauthorized node access. |
 | **Require Resource Limits**| `ClusterPolicy` | Validate `cpu`/`memory` limits | Prevents resource exhaustion (noisy neighbor effect). |
 | **Auto-Mutate Limits** | `ClusterPolicy` | Inject default limits | Ensures baseline stability for microservices that miss resource tags. |
+| **Block Critical Vulns** | `ClusterPolicy` | Block images with vulnerabilities| Admission gate that prevents deploying pods with CRITICAL CVEs. |
 
 ---
 

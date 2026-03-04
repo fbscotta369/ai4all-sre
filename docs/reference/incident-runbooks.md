@@ -62,4 +62,24 @@ Operational procedures for restoring the AI4ALL-SRE Laboratory in the event of m
     ```
 
 ---
+
+## 🗑️ Scenario 5: Total State Corruption / Lab Reset
+**Symptom**: The environment is in an inconsistent state (e.g., partial Terraform success, missing namespaces, or broken CRDs) and incremental fixes are failing.
+
+1.  **Nuclear Clean**: Run the destructive cleanup script. This will forcefully purge namespaces, active chaos experiments, and local Terraform state locks.
+    ```bash
+    ./destroy.sh
+    ```
+    *Note: Type `yes` to confirm. This script is designed to be safe to run even if the environment is partially broken.*
+
+2.  **Fresh Rebuild**: Once the cluster is clean, trigger the full bootstrap again.
+    ```bash
+    ./setup-all.sh
+    ```
+
+---
+## 🛡️ Tier-1 Industrial Tip: Trace-First Debugging
+Every critical alert in the laboratory is now **Trace-Linked**. When an incident fires in GoAlert or Slack, look for the `trace_link` annotation. Clicking this will take you directly to the Grafana Tempo query for the specific microservice and timeframe, significantly reducing Mean Time to Discovery (MTTD).
+
+---
 *For environment re-builds from scratch, always use `./setup-all.sh`.*

@@ -370,7 +370,7 @@ resource "kubernetes_manifest" "redis_io_latency" {
           }
         }
         volumePath = "/data"
-        delay = "100ms"
+        delay      = "100ms"
       }
     }
   }
@@ -428,7 +428,7 @@ resource "kubernetes_manifest" "az_outage_workflow" {
             action = "loss"
             mode   = "all"
             selector = {
-              namespaces = ["online-boutique"]
+              namespaces     = ["online-boutique"]
               labelSelectors = { "app" = "frontend" }
             }
             loss = { loss = "100" }
@@ -447,7 +447,7 @@ resource "kubernetes_manifest" "az_outage_workflow" {
             action = "loss"
             mode   = "all"
             selector = {
-              namespaces = ["online-boutique"]
+              namespaces     = ["online-boutique"]
               labelSelectors = { "app" = "productcatalogservice" }
             }
             loss = { loss = "100" }
