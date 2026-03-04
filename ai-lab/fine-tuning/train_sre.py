@@ -1,9 +1,22 @@
 import argparse
 import torch
+import torch.nn as nn
 from unsloth import FastLanguageModel
 from datasets import load_dataset
 from trl import SFTTrainer
 from transformers import TrainingArguments
+
+# Monkey-patch set_submodule if missing (fixes compatibility with transformers 5.x in some environments)
+def set_submodule(self, target, module):
+    if not target:
+        raise ValueError("Cannot set submodule with empty target string")
+    atoms = target.split(".")
+    name = atoms.pop(-1)
+    mod = self.get_submodule(".".join(atoms))
+    setattr(mod, name, module)
+
+if not hasattr(nn.Module, "set_submodule"):
+    nn.Module.set_submodule = set_submodule
 
 def main():
     parser = argparse.ArgumentParser(description="Fine-tune Llama 3 for SRE tasks.")
