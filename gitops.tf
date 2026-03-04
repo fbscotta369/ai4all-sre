@@ -75,6 +75,43 @@ resource "helm_release" "keda" {
   repository = "https://kedacore.github.io/charts"
   chart      = "keda"
   version    = "2.14.0"
+  timeout    = 600
+  wait       = true
+}
+
+# Fix for KEDA Metrics Server crashing on minimal/custom clusters (like K3s 1.34+)
+# Missing the default 'extension-apiserver-authentication-reader' Role in kube-system
+resource "kubernetes_role" "keda_auth_reader" {
+  metadata {
+    name      = "extension-apiserver-authentication-reader"
+    namespace = "kube-system"
+  }
+
+  rule {
+    api_groups     = [""]
+    resources      = ["configmaps"]
+    resource_names = ["extension-apiserver-authentication"]
+    verbs          = ["get", "list", "watch"]
+  }
+}
+
+resource "kubernetes_role_binding" "keda_auth_reader_binding" {
+  metadata {
+    name      = "keda-metrics-auth-reader"
+    namespace = "kube-system"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role.keda_auth_reader.metadata[0].name
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = "keda-metrics-server"
+    namespace = kubernetes_namespace.keda.metadata[0].name
+  }
 }
 
 resource "kubernetes_manifest" "argocd_app_boutique" {

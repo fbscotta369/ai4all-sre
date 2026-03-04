@@ -21,3 +21,6 @@ runbooks/
 # Tools & Temporary
 oneuptime-10.0.9.tgz
 ollama/
+sre-kernel-q4_k_m/
+outputs/
+ai-lab/fine-tuning/sre-kernel-adapter/

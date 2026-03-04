@@ -247,7 +247,39 @@ fi
 # 5. Pip Check
 doctor_check "pip" "apt-get update && apt-get install -y python3-pip" "Pip" true
 
-# 6. Summary & Next Steps
+# 6. Ollama CLI & Connectivity Check
+echo "Checking for Ollama CLI and Cluster Connectivity..."
+if ! command -v ollama &> /dev/null; then
+    echo "❌ Ollama CLI is not installed."
+    if [ -t 0 ]; then
+        read -p "Would you like me to install the Ollama CLI for you? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "[*] Installing Ollama CLI..."
+            curl -fsSL https://ollama.com/install.sh | sh
+            echo "✅ Ollama CLI installed successfully."
+        fi
+    else
+        echo "💡 Manual fix: curl -fsSL https://ollama.com/install.sh | sh"
+    fi
+fi
+
+# 7. Cluster Ollama Connectivity Check
+echo "[*] Verifying Connectivity to Cluster-Resident Ollama..."
+if kubectl get svc ollama -n ollama &> /dev/null; then
+    echo "✅ Ollama service found in cluster."
+    # Port-forward if needed to check from local machine, but here we just check readiness
+    READY_REPLICAS=$(kubectl get deployment ollama -n ollama -o jsonpath='{.status.readyReplicas}')
+    if [[ "$READY_REPLICAS" -gt 0 ]]; then
+        echo "✅ Ollama deployment is READY in the cluster."
+    else
+        echo "⚠️  Ollama deployment is NOT READY yet. Waiting for rollout..."
+    fi
+else
+    echo "❌ Ollama service NOT found in cluster. Please run ./setup-all.sh"
+fi
+
+# 8. Summary & Next Steps
 echo "------------------------------------------------"
 echo "✅ AI Laboratory Prerequisites Check Complete!"
 echo "------------------------------------------------"

@@ -369,7 +369,7 @@ resource "kubernetes_deployment" "ai_agent" {
 
           env {
             name  = "OLLAMA_URL"
-            value = "http://ollama.default.svc.cluster.local:11434/api/generate"
+            value = "http://ollama.ollama.svc.cluster.local:11434/api/generate"
           }
 
           volume_mount {

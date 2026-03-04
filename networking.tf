@@ -61,7 +61,7 @@ resource "helm_release" "linkerd_control_plane" {
 # Only allow frontend to talk to productcatalogservice
 resource "kubernetes_manifest" "productcatalog_server" {
   manifest = {
-    apiVersion = "policy.linkerd.io/v1beta2"
+    apiVersion = "policy.linkerd.io/v1beta1"
     kind       = "Server"
     metadata = {
       name      = "productcatalog-grpc"
@@ -72,7 +72,7 @@ resource "kubernetes_manifest" "productcatalog_server" {
         matchLabels = { "app" = "productcatalogservice" }
       }
       port          = 3550
-      proxyProtocol = "grpc"
+      proxyProtocol = "gRPC"
     }
   }
   depends_on = [helm_release.linkerd_crds]
@@ -101,7 +101,7 @@ resource "kubernetes_manifest" "authz_frontend_to_productcatalog" {
 # Only allow loadgenerator to talk to frontend
 resource "kubernetes_manifest" "frontend_server" {
   manifest = {
-    apiVersion = "policy.linkerd.io/v1beta2"
+    apiVersion = "policy.linkerd.io/v1beta1"
     kind       = "Server"
     metadata = {
       name      = "frontend-http"
@@ -112,7 +112,7 @@ resource "kubernetes_manifest" "frontend_server" {
         matchLabels = { "app" = "frontend" }
       }
       port          = 8080
-      proxyProtocol = "http"
+      proxyProtocol = "HTTP/1"
     }
   }
   depends_on = [helm_release.linkerd_crds]

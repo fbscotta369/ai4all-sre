@@ -26,7 +26,7 @@ resource "kubernetes_manifest" "m2m_flow_schema" {
     }
     spec = {
       priorityLevelConfiguration = {
-        name = "m2m-low-priority"
+        name = kubernetes_manifest.m2m_priority_level.manifest.metadata.name
       }
       matchingPrecedence = 500
       rules = [
@@ -44,7 +44,7 @@ resource "kubernetes_manifest" "m2m_flow_schema" {
               kind = "ServiceAccount"
               serviceAccount = {
                 name      = "ai-agent"
-                namespace = "observability"
+                namespace = kubernetes_namespace.observability.metadata[0].name
               }
             }
           ]
@@ -61,7 +61,7 @@ resource "kubernetes_manifest" "frontend_scaledobject" {
     kind       = "ScaledObject"
     metadata = {
       name      = "frontend-cpu-scaledobject"
-      namespace = "online-boutique"
+      namespace = kubernetes_namespace.online_boutique.metadata[0].name
     }
     spec = {
       scaleTargetRef = {
@@ -79,6 +79,35 @@ resource "kubernetes_manifest" "frontend_scaledobject" {
             metricName    = "frontend_cpu_usage"
             query         = "sum(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{namespace='online-boutique', pod=~'frontend-.*'})"
             threshold     = "0.5" # Scale up if CPU usage > 0.5 cores
+          }
+        }
+      ]
+    }
+  }
+  depends_on = [helm_release.keda]
+}
+
+resource "kubernetes_manifest" "productcatalog_scaledobject" {
+  manifest = {
+    apiVersion = "keda.sh/v1alpha1"
+    kind       = "ScaledObject"
+    metadata = {
+      name      = "productcatalog-cpu-scaledobject"
+      namespace = kubernetes_namespace.online_boutique.metadata[0].name
+    }
+    spec = {
+      scaleTargetRef = {
+        apiVersion = "apps/v1"
+        kind       = "Deployment"
+        name       = "productcatalogservice"
+      }
+      minReplicaCount = 2
+      maxReplicaCount = 8
+      triggers = [
+        {
+          type = "cpu"
+          metadata = {
+            value = "50" # 50% utilization
           }
         }
       ]

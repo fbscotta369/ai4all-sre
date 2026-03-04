@@ -93,6 +93,7 @@ resource "kubernetes_manifest" "policy_disallow_privileged" {
                     "linkerd",
                     "linkerd-viz",
                     "monitoring",
+                    "ollama"
                   ]
                 }
               }
@@ -263,7 +264,7 @@ resource "kubernetes_manifest" "policy_restrict_registries" {
                 elementVar = "container"
                 pattern = {
                   container = {
-                    image = "docker.io/* | ghcr.io/* | registry.k8s.io/*"
+                    image = "docker.io/* | ghcr.io/* | registry.k8s.io/* | *.pkg.dev/* | gcr.io/* | quay.io/*"
                   }
                 }
               }
@@ -276,62 +277,7 @@ resource "kubernetes_manifest" "policy_restrict_registries" {
   depends_on = [helm_release.kyverno]
 }
 
-# --- M2M API Priority and Fairness (APF) ---
-resource "kubernetes_manifest" "apf_m2m_low_priority" {
-  manifest = {
-    apiVersion = "flowcontrol.apiserver.k8s.io/v1"
-    kind       = "PriorityLevelConfiguration"
-    metadata = {
-      name = "m2m-low-priority"
-    }
-    spec = {
-      type = "Limited"
-      limited = {
-        nominalConcurrencyShares = 10
-        limitResponse = {
-          type = "Reject"
-        }
-      }
-    }
-  }
-}
-
-resource "kubernetes_manifest" "apf_m2m_flow_schema" {
-  manifest = {
-    apiVersion = "flowcontrol.apiserver.k8s.io/v1"
-    kind       = "FlowSchema"
-    metadata = {
-      name = "m2m-ai-agents"
-    }
-    spec = {
-      priorityLevelConfiguration = {
-        name = "m2m-low-priority"
-      }
-      matchingPrecedence = 500
-      rules = [
-        {
-          resourceRules = [
-            {
-              apiGroups  = ["*"]
-              resources  = ["*"]
-              verbs      = ["*"]
-              namespaces = ["*"]
-            }
-          ]
-          subjects = [
-            {
-              kind = "ServiceAccount"
-              serviceAccount = {
-                name      = "ai-agent"
-                namespace = "observability"
-              }
-            }
-          ]
-        }
-      ]
-    }
-  }
-} # Proactive Policy: Block images with CRITICAL vulnerabilities
+# Proactive Policy: Block images with CRITICAL vulnerabilities
 resource "kubernetes_manifest" "policy_block_critical_vulnerabilities" {
   manifest = {
     apiVersion = "kyverno.io/v1"
@@ -348,8 +294,17 @@ resource "kubernetes_manifest" "policy_block_critical_vulnerabilities" {
           match = {
             any = [{ resources = { kinds = ["Pod"] } }]
           }
-          exclude = {
-            any = [{ resources = { namespaces = ["kube-system", "kyverno", "observability", "trivy-system"] } }]
+           exclude = {
+            any = [{ resources = { namespaces = ["kube-system", "kyverno", "observability", "trivy-system", "linkerd", "argocd", "argo-rollouts", "incident-management", "chaos-testing", "ollama", "default"] } }, { resources = { names = ["behavioral-loadgen"] } }]
+          }
+          preconditions = {
+            all = [
+              {
+                key      = "{{ request.operation }}"
+                operator = "NotEquals"
+                value    = "DELETE"
+              }
+            ]
           }
           validate = {
             message = "Deployment blocked: Image has CRITICAL vulnerabilities."

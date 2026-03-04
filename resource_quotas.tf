@@ -1,8 +1,20 @@
+resource "kubernetes_namespace" "online_boutique" {
+  metadata {
+    name = "online-boutique"
+  }
+}
+
+resource "kubernetes_namespace" "ai_lab" {
+  metadata {
+    name = "ai-lab"
+  }
+}
+
 # FinOps Governance: Resource Quotas for Online Boutique
 resource "kubernetes_resource_quota" "online_boutique_quota" {
   metadata {
     name      = "online-boutique-quota"
-    namespace = "online-boutique"
+    namespace = kubernetes_namespace.online_boutique.metadata[0].name
   }
   spec {
     hard = {
@@ -37,7 +49,7 @@ resource "kubernetes_limit_range" "online_boutique_limits" {
 resource "kubernetes_resource_quota" "ai_lab_quota" {
   metadata {
     name      = "ai-lab-quota"
-    namespace = "ai-lab"
+    namespace = kubernetes_namespace.ai_lab.metadata[0].name
   }
   spec {
     hard = {
