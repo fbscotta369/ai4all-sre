@@ -170,15 +170,30 @@ resource "helm_release" "opentelemetry_collector" {
     value = "daemonset"
   }
 
-  # Simple configuration to receive OTLP and export to Prometheus
-  set {
-    name  = "config.receivers.otlp.protocols.grpc.endpoint"
-    value = "0.0.0.0:4317"
-  }
-  set {
-    name  = "config.receivers.otlp.protocols.http.endpoint"
-    value = "0.0.0.0:4318"
-  }
+  # OTLP config via values (merging with defaults)
+  values = [
+    yamlencode({
+      config = {
+        exporters = {
+          otlp = {
+            endpoint = "tempo:4317"
+            tls = {
+              insecure = true
+            }
+          }
+        }
+        service = {
+          pipelines = {
+            traces = {
+              receivers = ["otlp"]
+              processors = ["memory_limiter", "batch"]
+              exporters = ["otlp"]
+            }
+          }
+        }
+      }
+    })
+  ]
 }
 # --- Centralized Logging (Loki Stack) ---
 
@@ -201,6 +216,53 @@ resource "helm_release" "loki" {
 
   set {
     name  = "promtail.enabled"
+    value = "true"
+  }
+
+  values = [
+    yamlencode({
+      promtail = {
+        config = {
+          snippets = {
+            pipelineStages = [
+              {
+                docker = {}
+              },
+              {
+                json = {
+                  expressions = {
+                    traceID = "http.req.id"
+                  }
+                }
+              },
+              {
+                labels = {
+                  traceID = ""
+                }
+              }
+            ]
+          }
+        }
+      }
+    })
+  ]
+}
+
+# --- Grafana Tempo (Distributed Tracing) ---
+
+resource "helm_release" "tempo" {
+  name       = "tempo"
+  repository = "https://grafana.github.io/helm-charts"
+  chart      = "tempo"
+  namespace  = kubernetes_namespace.observability.metadata[0].name
+  version    = "1.10.3"
+
+  set {
+    name  = "traces.otlp.grpc.enabled"
+    value = "true"
+  }
+  set {
+    name  = "traces.otlp.http.enabled"
     value = "true"
   }
 }
@@ -412,6 +474,48 @@ resource "kubernetes_config_map" "loki_datasource" {
           access    = "proxy"
           url       = "http://loki.observability.svc.cluster.local:3100"
           isDefault = false
+          jsonData = {
+            derivedFields = [
+              {
+                datasourceUid = "Tempo"
+                matcherRegex  = "traceID=\"([^\"]+)\""
+                name          = "TraceID"
+                url           = "$${__value.raw}"
+              },
+              {
+                datasourceUid = "Tempo"
+                matcherRegex  = "\"http\\.req\\.id\":\"([^\"]+)\""
+                name          = "TraceID (JSON)"
+                url           = "$${__value.raw}"
+              }
+            ]
+          }
+        }
+      ]
+    })
+  }
+}
+
+# Grafana Datasource for Tempo (via Sidecar)
+resource "kubernetes_config_map" "tempo_datasource" {
+  metadata {
+    name      = "tempo-datasource"
+    namespace = kubernetes_namespace.observability.metadata[0].name
+    labels = {
+      grafana_datasource = "1"
+    }
+  }
+
+  data = {
+    "tempo-datasource.yaml" = yamlencode({
+      apiVersion = 1
+      datasources = [
+        {
+          name      = "Tempo"
+          type      = "tempo"
+          access    = "proxy"
+          url       = "http://tempo.observability.svc.cluster.local:3100"
+          isDefault = false
         }
       ]
     })
@@ -480,6 +584,36 @@ resource "kubernetes_config_map" "slo_dashboard" {
               }
             }
           }
+        }
+      ]
+    })
+  }
+}
+
+# Grafana Dashboard for Distributed Tracing (via Sidecar)
+resource "kubernetes_config_map" "tempo_dashboard" {
+  metadata {
+    name      = "tempo-tracing-dashboard"
+    namespace = kubernetes_namespace.observability.metadata[0].name
+    labels = {
+      grafana_dashboard = "1"
+    }
+  }
+
+  data = {
+    "tempo-traces.json" = jsonencode({
+      title = "SRE: Distributed Tracing (Tempo)"
+      panels = [
+        {
+          title = "Live Trace Search"
+          type  = "traces"
+          datasource = "Tempo"
+          targets = [
+            {
+              queryType = "search"
+            }
+          ]
+          gridPos = { h = 20, w = 24, x = 0, y = 0 }
         }
       ]
     })

@@ -310,6 +310,154 @@ resource "kubernetes_manifest" "death_spiral_workflow" {
   }
 }
 
+# 8. Network Partition (Split-Brain) - Sever cartservice from redis-cart
+resource "kubernetes_manifest" "cart_split_brain" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "split-brain-cart"
+      namespace = "chaos-testing"
+    }
+    spec = {
+      schedule = "@every 30m"
+      type     = "NetworkChaos"
+      networkChaos = {
+        action    = "partition"
+        mode      = "all"
+        direction = "both"
+        selector = {
+          namespaces = ["online-boutique"]
+          labelSelectors = {
+            "app" = "cartservice"
+          }
+        }
+        target = {
+          mode = "all"
+          selector = {
+            namespaces = ["online-boutique"]
+            labelSelectors = {
+              "app" = "redis-cart"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# 9. I/O Latency (Storage Degradation) - Simulate degraded disk on redis
+resource "kubernetes_manifest" "redis_io_latency" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "redis-io-latency"
+      namespace = "chaos-testing"
+    }
+    spec = {
+      schedule = "@every 25m"
+      type     = "IOChaos"
+      ioChaos = {
+        action = "latency"
+        mode   = "all"
+        selector = {
+          namespaces = ["online-boutique"]
+          labelSelectors = {
+            "app" = "redis-cart"
+          }
+        }
+        volumePath = "/data"
+        delay = "100ms"
+      }
+    }
+  }
+}
+
+# 10. Time Skew - Fast-forward clock on paymentservice by 10m
+resource "kubernetes_manifest" "payment_time_skew" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "payment-time-skew"
+      namespace = "chaos-testing"
+    }
+    spec = {
+      schedule = "@every 40m"
+      type     = "TimeChaos"
+      timeChaos = {
+        mode = "all"
+        selector = {
+          namespaces = ["online-boutique"]
+          labelSelectors = {
+            "app" = "paymentservice"
+          }
+        }
+        timeOffset = "10m"
+      }
+    }
+  }
+}
+
+# 11. BGP Route Flapping Workflow (Availability Zone Outage)
+resource "kubernetes_manifest" "az_outage_workflow" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Workflow"
+    metadata = {
+      name      = "az-route-flapping"
+      namespace = "chaos-testing"
+    }
+    spec = {
+      entry = "flapping-sequence"
+      templates = [
+        {
+          name         = "flapping-sequence"
+          templateType = "Serial"
+          children     = ["drop-frontend", "wait-2m", "drop-backend"]
+        },
+        {
+          name         = "drop-frontend"
+          templateType = "NetworkChaos"
+          networkChaos = {
+            action = "loss"
+            mode   = "all"
+            selector = {
+              namespaces = ["online-boutique"]
+              labelSelectors = { "app" = "frontend" }
+            }
+            loss = { loss = "100" }
+          }
+        },
+        {
+          name         = "wait-2m"
+          templateType = "Suspend"
+          deadline     = "3m"
+          suspend      = { duration = "2m" }
+        },
+        {
+          name         = "drop-backend"
+          templateType = "NetworkChaos"
+          networkChaos = {
+            action = "loss"
+            mode   = "all"
+            selector = {
+              namespaces = ["online-boutique"]
+              labelSelectors = { "app" = "productcatalogservice" }
+            }
+            loss = { loss = "100" }
+          }
+        }
+      ]
+    }
+  }
+}
+
 # --- Chaos Mesh RBAC for Dashboard ---
 
 resource "kubernetes_service_account" "chaos_admin" {

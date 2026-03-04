@@ -57,18 +57,4 @@ resource "helm_release" "linkerd_control_plane" {
   }
 }
 
-# 3. Inject Linkerd into the Online Boutique namespace
-# We do this by adding an annotation to the namespace.
-# However, for already running pods, we might need to restart them.
-resource "kubernetes_annotations" "boutique_linkerd_injection" {
-  api_version = "v1"
-  kind        = "Namespace"
-  metadata {
-    name = "online-boutique"
-  }
-  annotations = {
-    "linkerd.io/inject" = "enabled"
-  }
-  force = true
-}
 

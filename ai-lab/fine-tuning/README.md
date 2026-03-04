@@ -17,6 +17,19 @@ The "SRE-Kernel" is not just an LLM; it is a context-anchored, domain-specific b
 
 The entire pipeline is orchestrated via a single high-end automation suite.
 
+```mermaid
+graph LR
+    A[doctor.sh] -->|Infra OK| B[generate_training_data]
+    B -->|Synthesizes JSONL| C[train_sre.py]
+    C -->|Unsloth 4-bit| D[LoRA Weights]
+    D -->|Merge & Atomize| E[GGUF Export]
+    E -->|ollama create| F[SRE-Kernel Live]
+    F -->|verify_specialization| G{A/B Validation}
+    
+    style C fill:#f96,stroke:#333,stroke-width:2px
+    style F fill:#6f9,stroke:#333,stroke-width:2px
+```
+
 ```bash
 # Execute the full specialization loop
 ./ai-lab/specialize-model.sh

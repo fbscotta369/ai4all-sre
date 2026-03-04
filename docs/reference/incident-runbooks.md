@@ -1,4 +1,4 @@
-# Disaster Recovery Runbooks 🌋
+# Reference: Disaster Recovery Runbooks 🌋
 
 Operational procedures for restoring the AI4ALL-SRE Laboratory in the event of major infrastructure failure or state corruption.
 
@@ -26,7 +26,7 @@ Operational procedures for restoring the AI4ALL-SRE Laboratory in the event of m
     ```bash
     kubectl scale deployment/kube-prometheus-grafana -n observability --replicas=0
     ```
-2.  **Delete PVC**: (Warning: Data Loss) Delete the claim to trigger the local-path-provisioner to create a fresh volume.
+2.  **Delete PVC**: *(Warning: Data Loss)* Delete the claim to trigger the local-path-provisioner to create a fresh volume.
     ```bash
     kubectl delete pvc <pvc-name> -n observability
     ```
