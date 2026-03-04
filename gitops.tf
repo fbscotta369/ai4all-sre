@@ -63,6 +63,20 @@ resource "helm_release" "trivy" {
   }
 }
 
+resource "kubernetes_namespace" "keda" {
+  metadata {
+    name = "keda"
+  }
+}
+
+resource "helm_release" "keda" {
+  name       = "keda"
+  namespace  = kubernetes_namespace.keda.metadata[0].name
+  repository = "https://kedacore.github.io/charts"
+  chart      = "keda"
+  version    = "2.14.0"
+}
+
 resource "kubernetes_manifest" "argocd_app_boutique" {
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
