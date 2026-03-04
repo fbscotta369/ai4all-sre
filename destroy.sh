@@ -41,17 +41,37 @@ fi
 echo ""
 echo "------------------------------------------------"
 
-# ── Step 1: Remove active Chaos experiments ──────────────────
-echo -e "${BLUE}[1/5] Removing active Chaos experiments...${NC}"
+# ── Step 1: Remove problematic resources ──────────────────
+echo -e "${BLUE}[1/5] Removing active Chaos and Policy resources...${NC}"
 kubectl delete stresschaos --all -n chaos-testing   2>/dev/null || true
 kubectl delete networkchaos --all -n chaos-testing  2>/dev/null || true
 kubectl delete podchaos --all -n chaos-testing      2>/dev/null || true
 kubectl delete schedule --all -n chaos-testing      2>/dev/null || true
-echo -e "${GREEN}✅ Chaos experiments removed.${NC}"
+
+# Pre-delete Linkerd policies via kubectl to avoid Terraform refresh hangs
+kubectl delete server --all -n online-boutique  2>/dev/null || true
+kubectl delete serverauthorization --all -n online-boutique  2>/dev/null || true
+
+echo -e "${GREEN}✅ Dynamic resources removed.${NC}"
 
 # ── Step 2: Terraform Destroy ────────────────────────────────
 echo ""
 echo -e "${BLUE}[2/5] Running Terraform destroy (this may take a few minutes)...${NC}"
+
+# CRITICAL FIX: If CRDs are missing, kubernetes_manifest fails to refresh.
+# We manually remove them from state so Terraform doesn't try to validate them.
+echo -e "  ${YELLOW}Cleansing strict Kubernetes manifests from state...${NC}"
+STRICT_RESOURCES=(
+  "kubernetes_manifest.productcatalog_server"
+  "kubernetes_manifest.authz_frontend_to_productcatalog"
+  "kubernetes_manifest.frontend_server"
+  "kubernetes_manifest.authz_loadgen_to_frontend"
+  "kubernetes_manifest.policy_block_critical_vulnerabilities"
+)
+for RES in "${STRICT_RESOURCES[@]}"; do
+    terraform state rm "$RES" 2>/dev/null || true
+done
+
 terraform destroy -auto-approve
 echo -e "${GREEN}✅ Terraform resources destroyed.${NC}"
 
@@ -68,6 +88,7 @@ NAMESPACES=(
     argo-rollouts
     kyverno
     trivy-system
+    vault
 )
 for NS in "${NAMESPACES[@]}"; do
     if kubectl get namespace "$NS" &>/dev/null; then
@@ -92,7 +113,7 @@ echo -e "${GREEN}✅ Namespaces cleaned up.${NC}"
 echo ""
 echo -e "${BLUE}[4/5] Removing Linkerd CRDs (if present)...${NC}"
 kubectl get crds 2>/dev/null \
-    | grep "linkerd\|chaos-mesh\|kyverno" \
+    | grep "linkerd\|chaos-mesh\|kyverno\|vault" \
     | awk '{print $1}' \
     | xargs kubectl delete crd --ignore-not-found 2>/dev/null || true
 echo -e "${GREEN}✅ CRDs removed.${NC}"

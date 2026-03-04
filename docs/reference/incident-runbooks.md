@@ -78,6 +78,23 @@ Operational procedures for restoring the AI4ALL-SRE Laboratory in the event of m
     ```
 
 ---
+## 🔐 Scenario 6: Vault Sealed / Secret Access Denied
+**Symptom**: Pods are stuck in `Init:0/1` or `CreateContainerConfigError`. Vault logs show `core: vault is sealed`.
+
+1.  **Check Seal Status**:
+    ```bash
+    kubectl exec -it vault-0 -n vault -- vault status
+    ```
+2.  **Unseal (Lab Mode)**: In this local lab, Vault may auto-unseal if configured, otherwise use the unseal keys (see `/home/fb/.vault-keys` if persisted):
+    ```bash
+    kubectl exec -it vault-0 -n vault -- vault operator unseal <key>
+    ```
+3.  **Verify Kubernetes Auth**: Ensure the sidecar injector can talk to the Vault API:
+    ```bash
+    kubectl get pods -n vault -l app.kubernetes.io/name=vault-agent-injector
+    ```
+
+---
 ## 🛡️ Tier-1 Industrial Tip: Trace-First Debugging
 Every critical alert in the laboratory is now **Trace-Linked**. When an incident fires in GoAlert or Slack, look for the `trace_link` annotation. Clicking this will take you directly to the Grafana Tempo query for the specific microservice and timeframe, significantly reducing Mean Time to Discovery (MTTD).
 

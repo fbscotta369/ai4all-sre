@@ -32,6 +32,14 @@ spec:
         date: "{{ now | unixEpoch }}"
         {{- end }}
         appname: oneuptime
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "sre-lab"
+        vault.hashicorp.com/agent-inject-secret-config: "secret/data/ai-agent"
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secret/data/ai-agent" -}}
+          export AI_AGENT_KEY="{{ .Data.data.key }}"
+          {{- end -}}
     spec:
       {{- if $.Values.imagePullSecrets }}
       imagePullSecrets:
