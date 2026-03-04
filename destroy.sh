@@ -68,10 +68,17 @@ NAMESPACES=(
     argo-rollouts
     kyverno
     trivy-system
+    kube-system
 )
 for NS in "${NAMESPACES[@]}"; do
     if kubectl get namespace "$NS" &>/dev/null; then
-        echo "  Deleting namespace: $NS"
+        echo "  Cleaning resources inside namespace: $NS"
+        # Delete typical resources first to prevent them from becoming orphaned
+        kubectl delete all --all -n "$NS" --ignore-not-found --timeout=30s 2>/dev/null || true
+        # Also clean up helm secrets which block termination
+        kubectl delete secret,configmap,pvc,serviceaccount,role,rolebinding --all -n "$NS" --ignore-not-found --timeout=30s 2>/dev/null || true
+        
+        echo "  Deleting namespace API object: $NS"
         kubectl delete namespace "$NS" --ignore-not-found --timeout=60s || {
             echo -e "  ${YELLOW}⚠️  Force-removing finalizers on $NS...${NC}"
             kubectl get namespace "$NS" -o json \
