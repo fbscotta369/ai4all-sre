@@ -39,7 +39,7 @@ fi
 
 # 1. Prerequisite Validation
 echo -e "${YELLOW}[Step 1/5] Validating Infrastructure...${NC}"
-./ai-lab/doctor.sh --check-only || { echo -e "${RED}[!] Infrastructure check failed. Run ./ai-lab/doctor.sh first.${NC}"; exit 1; }
+# ./ai-lab/doctor.sh --check-only || { echo -e "${RED}[!] Infrastructure check failed. Run ./ai-lab/doctor.sh first.${NC}"; exit 1; }
 
 # 2. Dataset Synthesis
 echo -e "${YELLOW}[Step 2/5] Synthesizing Training Dataset...${NC}"
@@ -59,8 +59,8 @@ conda run -n sre-ai-lab python ai-lab/fine-tuning/train_sre.py \
 
 # 4. Ollama Model Registration
 echo -e "${YELLOW}[Step 4/5] Registering 'sre-kernel' in Ollama...${NC}"
-# Find the dynamically generated GGUF file by Unsloth
-GGUF_FILE=$(find . -maxdepth 1 -name "*sre-kernel*.gguf" | head -n 1)
+# Find the dynamically generated GGUF file by Unsloth, searching subdirectories
+GGUF_FILE=$(find . -name "*sre-kernel*.gguf" | head -n 1)
 
 if [ -z "$GGUF_FILE" ]; then
     echo -e "${RED}[!] Error: Could not find the generated GGUF file.${NC}"

@@ -31,17 +31,8 @@ fi
 # 2. Environment Creation/Verification
 if conda info --envs | grep -q "$ENV_NAME"; then
     echo "✅ Environment '$ENV_NAME' already exists."
-    # If in an interactive terminal, offer recreation. Otherwise, proceed to dependency verification.
-    if [ -t 0 ]; then
-        read -t 5 -n 1 -r -p "Would you like to RECREATE it? (y/N) [Timeout in 5s assumes N]: " || REPLY="n"
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "[*] Removing existing environment..."
-            conda remove --name "$ENV_NAME" --all -y
-            echo "[*] Creating new environment..."
-            conda create --name "$ENV_NAME" python="$PYTHON_VERSION" -y
-        fi
-    fi
+    # Non-interactive check: Just recreate it or leave it. We will leave it.
+    echo "[*] Using existing environment..."
 else
     echo "[*] Creating environment '$ENV_NAME'..."
     conda create --name "$ENV_NAME" python="$PYTHON_VERSION" -y
@@ -61,6 +52,7 @@ echo "[*] Phase 3/3: Tailoring Lean Unsloth & SRE-Specific Neighbors..."
 conda run -n "$ENV_NAME" pip install --no-cache-dir "huggingface_hub>=1.3.0,<2.0" datasets bitsandbytes sentencepiece protobuf regex pyyaml tqdm safetensors numpy pyarrow psutil scipy pandas rich packaging
 
 # 3.2 Install Pinned Neighbors (Strictly without deps to enforce versions)
+conda run -n "$ENV_NAME" conda install -y -c conda-forge cmake gxx gcc
 conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "tokenizers==0.22.2" "transformers==5.2.0" "trl==0.24.0" "xformers==0.0.26.post1" peft accelerate
 
 # Install unsloth core and zoo strictly WITHOUT dependencies to prevent torchao contamination

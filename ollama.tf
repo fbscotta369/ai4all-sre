@@ -18,6 +18,7 @@ resource "kubernetes_persistent_volume_claim" "ollama_storage" {
       }
     }
   }
+  wait_until_bound = false
 }
 
 resource "kubernetes_deployment" "ollama" {

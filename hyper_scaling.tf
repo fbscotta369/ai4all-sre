@@ -54,7 +54,13 @@ resource "kubernetes_manifest" "m2m_flow_schema" {
   }
 }
 
-# Tier-1 Hyper-Scaling: Proactive HPA via KEDA
+resource "null_resource" "wait_for_deployments" {
+  provisioner "local-exec" {
+    command = "echo 'Waiting for ArgoCD to sync deployments...' && sleep 20 && kubectl wait --for=condition=available deployment/productcatalogservice -n online-boutique --timeout=300s || true"
+  }
+  depends_on = [kubernetes_manifest.argocd_app_boutique]
+}
+
 resource "kubernetes_manifest" "frontend_scaledobject" {
   manifest = {
     apiVersion = "keda.sh/v1alpha1"
@@ -84,7 +90,7 @@ resource "kubernetes_manifest" "frontend_scaledobject" {
       ]
     }
   }
-  depends_on = [helm_release.keda]
+  depends_on = [helm_release.keda, null_resource.wait_for_deployments]
 }
 
 resource "kubernetes_manifest" "productcatalog_scaledobject" {
@@ -113,5 +119,5 @@ resource "kubernetes_manifest" "productcatalog_scaledobject" {
       ]
     }
   }
-  depends_on = [helm_release.keda]
+  depends_on = [helm_release.keda, null_resource.wait_for_deployments]
 }

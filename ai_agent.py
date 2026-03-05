@@ -2,10 +2,37 @@ import os
 import re
 import requests
 import uvicorn
+import asyncio
 import datetime
 import concurrent.futures
+import threading
+import time
+import random
 from fastapi import FastAPI, Request
 from kubernetes import client, config
+
+# Concurrency & Debouncing
+k8s_lock = threading.Lock()
+processed_alerts = {}
+ALERT_DEBOUNCE_SECONDS = 120
+
+def query_ollama_with_backoff(prompt, max_retries=3, base_wait=2.0):
+    """Jittered Exponential Backoff for M2M Inference Load"""
+    for attempt in range(max_retries):
+        try:
+            res = requests.post(OLLAMA_URL, json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}, timeout=120)
+            if res.status_code == 200:
+                return res.json().get("response", "")
+            print(f"[!] Ollama HTTP {res.status_code}. Retrying...")
+        except requests.exceptions.RequestException as e:
+            print(f"[!] Ollama Connection Error: {e}. Retrying ({attempt+1}/{max_retries})...")
+        
+        # Exponential backoff with jitter
+        wait_time = (base_wait * (2 ** attempt)) + random.uniform(0, 1)
+        print(f"[*] Backing off for {wait_time:.1f}s...")
+        time.sleep(wait_time)
+        
+    return "Error: Maximum retries exceeded or Ollama saturated."
 
 app = FastAPI()
 
@@ -118,12 +145,14 @@ def execute_remediation(action_text):
         return "Remediation BLOCKED by Safety Guardrails."
 
     print(f"[*] AI Safety Check passed. Executing: {action_text}")
-    try:
-        # Regex for RESTART DEPLOYMENT <name> IN <namespace>
-        restart_match = re.search(r"RESTART DEPLOYMENT ([\w-]+) IN ([\w-]+)", action_text, re.IGNORECASE)
-        if restart_match:
-            dep_name = restart_match.group(1)
-            namespace = restart_match.group(2)
+    
+    with k8s_lock:
+        try:
+            # Regex for RESTART DEPLOYMENT <name> IN <namespace>, handling backticks/quotes
+            restart_match = re.search(r"RESTART DEPLOYMENT [\'\`\"]?([\w-]+)[\'\`\"]? IN [\'\`\"]?([\w-]+)[\'\`\"]?", action_text, re.IGNORECASE)
+            if restart_match:
+                dep_name = restart_match.group(1)
+                namespace = restart_match.group(2)
             
             target_type, _ = get_target_type(dep_name, namespace)
             if not target_type:
@@ -150,15 +179,15 @@ def execute_remediation(action_text):
             else:
                 k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
                 
-            verify_health(dep_name, namespace)
-            return f"Successfully restarted {target_type} {dep_name} in {namespace}"
+                verify_health(dep_name, namespace)
+                return f"Successfully restarted {target_type} {dep_name} in {namespace}"
 
-        # Regex for SCALE DEPLOYMENT <name> IN <namespace> TO <count>
-        scale_match = re.search(r"SCALE DEPLOYMENT ([\w-]+) IN ([\w-]+) TO (\d+)", action_text, re.IGNORECASE)
-        if scale_match:
-            dep_name = scale_match.group(1)
-            namespace = scale_match.group(2)
-            replicas = int(scale_match.group(3))
+            # Regex for SCALE DEPLOYMENT <name> IN <namespace> TO <count>
+            scale_match = re.search(r"SCALE DEPLOYMENT [\'\`\"]?([\w-]+)[\'\`\"]? IN [\'\`\"]?([\w-]+)[\'\`\"]? TO (\d+)", action_text, re.IGNORECASE)
+            if scale_match:
+                dep_name = scale_match.group(1)
+                namespace = scale_match.group(2)
+                replicas = int(scale_match.group(3))
             
             target_type, _ = get_target_type(dep_name, namespace)
             if not target_type:
@@ -177,11 +206,12 @@ def execute_remediation(action_text):
                 
             return f"Successfully scaled {target_type} {dep_name} to {replicas}"
 
-        if "ROLLBACK DEPLOYMENT" in action_text.upper():
-             return "Rollback logic initiated (Manual intervention still suggested)"
+            if "ROLLBACK DEPLOYMENT" in action_text.upper():
+                 return "Rollback logic initiated (Manual intervention still suggested)"
 
-    except Exception as e:
-        return f"Failed to execute remediation: {e}"
+        except Exception as e:
+            return f"Failed to execute remediation: {e}"
+    
     return "No actionable remediation found."
 
 def handle_autonomous_lifecycle(alert_name, labels, annotations, ai_response):
@@ -246,6 +276,18 @@ def process_alert_background(alert):
     alert_name = labels.get('alertname', 'UnknownAlert')
     deployment_name = labels.get('deployment') or labels.get('app') or labels.get('service', 'frontend')
     
+    # Debouncing Logic
+    alert_key = f"{alert_name}-{deployment_name}"
+    current_time = time.time()
+    
+    if alert_key in processed_alerts:
+        elapsed = current_time - processed_alerts[alert_key]
+        if elapsed < ALERT_DEBOUNCE_SECONDS:
+            print(f"[*] DEBOUNCED: Ignoring duplicate alert '{alert_key}' (Last fired {elapsed:.1f}s ago)", flush=True)
+            return
+            
+    processed_alerts[alert_key] = current_time
+
     is_predictive = labels.get('severity') == 'warning' or "PREDICTIVE" in alert_name.upper()
     
     # ... (Agents and other logic remains the same)
@@ -264,13 +306,8 @@ Description: {annotations.get('description')}
 
     def query_agent(agent_name, role_prompt):
         prompt = f"{role_prompt}\n\nA {'PREDICTIVE ' if is_predictive else ''}alert has been triggered:\n{alert_context}\n\nProvide your analysis."
-        try:
-            res = requests.post(OLLAMA_URL, json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}, timeout=120)
-            if res.status_code == 200:
-                return agent_name, res.json().get("response", "")
-        except Exception as e:
-            return agent_name, f"Error: {e}"
-        return agent_name, "No response."
+        response = query_ollama_with_backoff(prompt)
+        return agent_name, response
 
     print(f"\n[*] [Background] Dispatching alert {alert_name} to Specialist Agents...", flush=True)
     
@@ -309,14 +346,9 @@ Your task is to reach a consensus and provide an actionable remediation.
 Be concise, elite, and actionable. Ensure the GitOps Recommendation starts with the exact string "GitOps Recommendation:" followed by the yaml block.
 """
     try:
-        director_res = requests.post(OLLAMA_URL, json={
-            "model": OLLAMA_MODEL,
-            "prompt": consensus_prompt,
-            "stream": False
-        }, timeout=120)
+        ai_analysis = query_ollama_with_backoff(consensus_prompt)
         
-        if director_res.status_code == 200:
-            ai_analysis = director_res.json().get("response", "")
+        if not ai_analysis.startswith("Error"):
             print(f"\n[Director MAS Analysis for {alert_name}]:\n{ai_analysis}\n", flush=True)
             
             # Full Lifecycle Management

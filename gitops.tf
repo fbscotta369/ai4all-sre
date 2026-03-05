@@ -81,19 +81,7 @@ resource "helm_release" "keda" {
 
 # Fix for KEDA Metrics Server crashing on minimal/custom clusters (like K3s 1.34+)
 # Missing the default 'extension-apiserver-authentication-reader' Role in kube-system
-resource "kubernetes_role" "keda_auth_reader" {
-  metadata {
-    name      = "extension-apiserver-authentication-reader"
-    namespace = "kube-system"
-  }
-
-  rule {
-    api_groups     = [""]
-    resources      = ["configmaps"]
-    resource_names = ["extension-apiserver-authentication"]
-    verbs          = ["get", "list", "watch"]
-  }
-}
+# Removed role creation because 'extension-apiserver-authentication-reader' already exists in kube-system
 
 resource "kubernetes_role_binding" "keda_auth_reader_binding" {
   metadata {
@@ -104,7 +92,7 @@ resource "kubernetes_role_binding" "keda_auth_reader_binding" {
   role_ref {
     api_group = "rbac.authorization.k8s.io"
     kind      = "Role"
-    name      = kubernetes_role.keda_auth_reader.metadata[0].name
+    name      = "extension-apiserver-authentication-reader"
   }
 
   subject {

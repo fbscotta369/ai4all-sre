@@ -1,6 +1,9 @@
 resource "kubernetes_namespace" "online_boutique" {
   metadata {
     name = "online-boutique"
+    annotations = {
+      "linkerd.io/inject" = "enabled"
+    }
   }
 }
 
