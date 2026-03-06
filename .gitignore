@@ -1,27 +1,54 @@
-# Terraform
+# ──────────────────── Terraform ────────────────────
 *.tfstate
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
-# Certificates
+# ──────────────────── Certificates & keys ────────────────────
 *.crt
 *.key
 *.csr
 *.ext
+*.pem
 
-# Python
+# ──────────────────── Python ────────────────────
+.venv/
 venv/
 __pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
 
-# AI Agent Artifacts
+# ──────────────────── AI / ML Artifacts ────────────────────
+ai-lab/fine-tuning/sre-kernel-adapter/
+sre-kernel-q4_k_m/
+unsloth_compiled_cache/
+ollama/
+outputs/
 post-mortems/
 runbooks/
 
-# Tools & Temporary
-oneuptime-10.0.9.tgz
-ollama/
-sre-kernel-q4_k_m/
-outputs/
-ai-lab/fine-tuning/sre-kernel-adapter/
+# ──────────────────── Documentation Build ────────────────────
 site/
+
+# ──────────────────── Tools & Temporary ────────────────────
+oneuptime-10.0.9.tgz
+oneuptime/
+*.deb
+*.log
+.DS_Store
+*.swp
+*.swo
+*~
+
+# ──────────────────── IDE ────────────────────
+.idea/
+.vscode/
+*.code-workspace
