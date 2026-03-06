@@ -30,8 +30,12 @@ resource "helm_release" "postgresql" {
   version    = "18.4.1"
 
   set {
-    name  = "auth.postgresPassword"
-    value = "goalertpass"
+    name  = "auth.existingSecret"
+    value = "goalert-db-credentials"
+  }
+  set {
+    name  = "auth.secretKeys.adminPasswordKey"
+    value = "postgres_password"
   }
   set {
     name  = "auth.database"
@@ -79,8 +83,13 @@ resource "kubernetes_deployment" "goalert" {
           }
 
           env {
-            name  = "GOALERT_DB_URL"
-            value = "postgres://postgres:goalertpass@goalert-db-postgresql.incident-management.svc.cluster.local:5432/postgres?sslmode=disable"
+            name = "GOALERT_DB_URL"
+            value_from {
+              secret_key_ref {
+                name = "goalert-db-credentials"
+                key  = "connection_url"
+              }
+            }
           }
 
           env {
@@ -214,8 +223,13 @@ resource "kubernetes_job" "goalert_iac_config" {
           ]
 
           env {
-            name  = "PGPASSWORD"
-            value = "goalertpass"
+            name = "PGPASSWORD"
+            value_from {
+              secret_key_ref {
+                name = "goalert-db-credentials"
+                key  = "postgres_password"
+              }
+            }
           }
 
           resources {

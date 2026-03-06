@@ -74,12 +74,22 @@ resource "kubernetes_deployment" "minio" {
             container_port = 9001
           }
           env {
-            name  = "MINIO_ROOT_USER"
-            value = "admin"
+            name = "MINIO_ROOT_USER"
+            value_from {
+              secret_key_ref {
+                name = "minio-credentials"
+                key  = "root_user"
+              }
+            }
           }
           env {
-            name  = "MINIO_ROOT_PASSWORD"
-            value = "password123!"
+            name = "MINIO_ROOT_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = "minio-credentials"
+                key  = "root_password"
+              }
+            }
           }
           resources {
             limits   = { cpu = "500m", memory = "512Mi" }

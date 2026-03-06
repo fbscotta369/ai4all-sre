@@ -90,3 +90,126 @@ resource "helm_release" "vault" {
 # Note: In a production Tier-1 setup, we would use the Vault Terraform Provider
 # to configure auth methods, policies, and secret engines programmatically.
 # For this lab, basics are bootstrapped via the Helm chart dev mode.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Vault Secret Bootstrap — ConfigMap + Job
+# Seeds all platform secrets into Vault and configures Kubernetes Auth.
+# ──────────────────────────────────────────────────────────────────────────────
+resource "kubernetes_config_map" "vault_seed_script" {
+  metadata {
+    name      = "vault-seed-script"
+    namespace = var.vault_namespace
+  }
+  data = {
+    "seed_vault_secrets.sh" = file("${path.root}/scripts/internal/seed_vault_secrets.sh")
+  }
+  depends_on = [helm_release.vault]
+}
+
+resource "kubernetes_job" "vault_bootstrap" {
+  metadata {
+    name      = "vault-bootstrap"
+    namespace = var.vault_namespace
+  }
+  spec {
+    backoff_limit = 3
+    template {
+      metadata {
+        labels = { app = "vault-bootstrap" }
+      }
+      spec {
+        restart_policy       = "OnFailure"
+        service_account_name = "vault"
+        container {
+          name    = "vault-seeder"
+          image   = "hashicorp/vault:1.15"
+          command = ["/bin/sh", "-c", "chmod +x /scripts/seed_vault_secrets.sh && /scripts/seed_vault_secrets.sh"]
+          env {
+            name  = "VAULT_ADDR"
+            value = "http://vault.${var.vault_namespace}.svc.cluster.local:8200"
+          }
+          env {
+            name  = "VAULT_TOKEN"
+            value = "root" # Dev mode root token
+          }
+          volume_mount {
+            name       = "seed-script"
+            mount_path = "/scripts"
+          }
+          resources {
+            limits   = { cpu = "200m", memory = "128Mi" }
+            requests = { cpu = "100m", memory = "64Mi" }
+          }
+        }
+        volume {
+          name = "seed-script"
+          config_map {
+            name         = kubernetes_config_map.vault_seed_script.metadata[0].name
+            default_mode = "0755"
+          }
+        }
+      }
+    }
+  }
+  wait_for_completion = true
+  timeouts {
+    create = "5m"
+  }
+  depends_on = [helm_release.vault, kubernetes_config_map.vault_seed_script]
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Kubernetes Secrets — Centralized credential store
+# These replace ALL hardcoded passwords across the platform.
+# In production, these would be injected via Vault CSI or Agent Injector.
+# ──────────────────────────────────────────────────────────────────────────────
+
+resource "kubernetes_secret" "minio_credentials" {
+  metadata {
+    name      = "minio-credentials"
+    namespace = "minio"
+  }
+  data = {
+    root_user     = "admin"
+    root_password = "password123!"
+    access_key    = "admin"
+    secret_key    = "password123!"
+  }
+  depends_on = [kubernetes_job.vault_bootstrap]
+}
+
+resource "kubernetes_secret" "goalert_db_credentials" {
+  metadata {
+    name      = "goalert-db-credentials"
+    namespace = var.alerting_namespace
+  }
+  data = {
+    postgres_password = "goalertpass"
+    connection_url    = "postgres://postgres:goalertpass@goalert-db-postgresql.incident-management.svc.cluster.local:5432/postgres?sslmode=disable"
+  }
+  depends_on = [kubernetes_job.vault_bootstrap]
+}
+
+resource "kubernetes_secret" "grafana_admin" {
+  metadata {
+    name      = "grafana-admin"
+    namespace = var.observability_namespace
+  }
+  data = {
+    password = "admin123"
+  }
+  depends_on = [kubernetes_job.vault_bootstrap]
+}
+
+resource "kubernetes_secret" "ai_agent_credentials" {
+  metadata {
+    name      = "ai-agent-credentials"
+    namespace = var.observability_namespace
+  }
+  data = {
+    redis_url        = "redis://redis.observability.svc.cluster.local:6379/0"
+    minio_access_key = "admin"
+    minio_secret_key = "password123!"
+  }
+  depends_on = [kubernetes_job.vault_bootstrap]
+}

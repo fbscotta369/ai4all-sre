@@ -20,13 +20,14 @@ resource "helm_release" "kube_prometheus_stack" {
     name  = "grafana.grafana\\.ini.auth\\.anonymous.org_role"
     value = "Admin"
   }
-  # ⚠️ LAB LIMITATION: Hardcoded admin password. Production migration path:
-  # 1. Deploy Vault CSI Provider: helm install vault-csi hashicorp/vault --set "csi.enabled=true"
-  # 2. Create SecretProviderClass referencing vault secret/data/grafana/admin
-  # 3. Replace this block with: value = data.vault_generic_secret.grafana.data["password"]
+  # Grafana admin password sourced from Vault-managed Kubernetes Secret
   set {
-    name  = "grafana.adminPassword"
-    value = "admin123"
+    name  = "grafana.admin.existingSecret"
+    value = "grafana-admin"
+  }
+  set {
+    name  = "grafana.admin.passwordKey"
+    value = "password"
   }
   set {
     name  = "grafana.sidecar.datasources.enabled"
@@ -367,9 +368,15 @@ resource "kubernetes_deployment" "ai_agent" {
             name  = "OLLAMA_CHAT_URL"
             value = "http://ollama.ollama.svc.cluster.local:11434/api/chat"
           }
+          # Credentials sourced from Vault-managed Kubernetes Secret
           env {
-            name  = "REDIS_URL"
-            value = "redis://redis.observability.svc.cluster.local:6379/0"
+            name = "REDIS_URL"
+            value_from {
+              secret_key_ref {
+                name = "ai-agent-credentials"
+                key  = "redis_url"
+              }
+            }
           }
           env {
             name  = "CHROMA_HOST"
@@ -383,18 +390,23 @@ resource "kubernetes_deployment" "ai_agent" {
             name  = "MINIO_ENDPOINT"
             value = "minio.minio.svc.cluster.local:9000"
           }
-          # ⚠️ LAB LIMITATION: Hardcoded MinIO credentials.
-          # PRODUCTION: Use Vault Agent Injector annotations on this pod:
-          #   vault.hashicorp.com/agent-inject: "true"
-          #   vault.hashicorp.com/agent-inject-secret-minio: "secret/data/minio/credentials"
-          # Then read from /vault/secrets/minio instead of env vars.
           env {
-            name  = "MINIO_ACCESS_KEY"
-            value = "admin"
+            name = "MINIO_ACCESS_KEY"
+            value_from {
+              secret_key_ref {
+                name = "ai-agent-credentials"
+                key  = "minio_access_key"
+              }
+            }
           }
           env {
-            name  = "MINIO_SECRET_KEY"
-            value = "password123!"
+            name = "MINIO_SECRET_KEY"
+            value_from {
+              secret_key_ref {
+                name = "ai-agent-credentials"
+                key  = "minio_secret_key"
+              }
+            }
           }
           volume_mount {
             name       = "script-volume"
