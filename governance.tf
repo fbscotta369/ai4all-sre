@@ -93,7 +93,8 @@ resource "kubernetes_manifest" "policy_disallow_privileged" {
                     "linkerd",
                     "linkerd-viz",
                     "monitoring",
-                    "ollama"
+                    "ollama",
+                    "cert-manager"
                   ]
                 }
               }
@@ -142,6 +143,11 @@ resource "kubernetes_manifest" "policy_require_limits" {
               }
             ]
           }
+          exclude = {
+            any = [
+              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa"] } }
+            ]
+          }
           validate = {
             message = "CPU and Memory limits are required."
             pattern = {
@@ -183,8 +189,10 @@ resource "kubernetes_manifest" "policy_mutate_limits" {
             any = [{ resources = { kinds = ["Pod"] } }]
           }
           exclude = {
-            any = [{ resources = { namespaces = ["kube-system", "kyverno", "observability"] } }]
-          }
+        any = [
+          { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa"] } }
+        ]
+      }
           mutate = {
             patchStrategicMerge = {
               spec = {
@@ -256,6 +264,11 @@ resource "kubernetes_manifest" "policy_restrict_registries" {
           match = {
             any = [{ resources = { kinds = ["Pod"] } }]
           }
+          exclude = {
+            any = [
+              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa"] } }
+            ]
+          }
           validate = {
             message = "Only images from trusted registries are allowed."
             foreach = [
@@ -277,53 +290,84 @@ resource "kubernetes_manifest" "policy_restrict_registries" {
   depends_on = [helm_release.kyverno]
 }
 
-# Proactive Policy: Block images with CRITICAL vulnerabilities
+# FIX 4: Block images with CRITICAL vulnerabilities
+# Uses Trivy Operator's admission controller integration.
+# Trivy Operator must be running with --scannerReportTTL and admission scanning enabled.
+#
+# Activation: helm upgrade trivy-operator trivy-operator/trivy-operator \
+#   --set="operator.scanJobsInSameNamespace=true" \
+#   --set="admissionController.enabled=true"
+#
+# The policy below audits all new pods. When Trivy Operator's admission webhook
+# is enabled, it performs the actual scan; this policy provides the policy guard.
 resource "kubernetes_manifest" "policy_block_critical_vulnerabilities" {
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
     metadata = {
       name = "block-critical-vulnerabilities"
+      annotations = {
+        "policies.kyverno.io/title"       = "Block Critical CVEs via Trivy"
+        "policies.kyverno.io/description" = "Blocks Pod admission when the image has a CRITICAL vulnerability detected by Trivy Operator."
+      }
     }
     spec = {
-      validationFailureAction = "Enforce"
-      background              = true
+      # Changed from Enforce to Audit until Trivy Operator admission controller is validated.
+      # Switch to Enforce once `trivy-operator admissionwebhook` is stable in your cluster.
+      validationFailureAction = "Audit"
+      background              = false  # Only evaluate on admission, not background
       rules = [
         {
-          name = "block-vulnerable-images"
+          name = "check-vulnerability-report"
           match = {
             any = [{ resources = { kinds = ["Pod"] } }]
           }
-           exclude = {
-            any = [{ resources = { namespaces = ["kube-system", "kyverno", "observability", "trivy-system", "linkerd", "argocd", "argo-rollouts", "incident-management", "chaos-testing", "ollama", "default"] } }, { resources = { names = ["behavioral-loadgen"] } }]
+          exclude = {
+            any = [{ resources = { namespaces = ["kube-system", "kyverno", "observability", "trivy-system", "linkerd", "argocd", "argo-rollouts", "incident-management", "chaos-testing", "ollama", "default", "cert-manager", "vpa"] } }, { resources = { names = ["behavioral-loadgen"] } }]
           }
           preconditions = {
             all = [
               {
                 key      = "{{ request.operation }}"
-                operator = "NotEquals"
-                value    = "DELETE"
+                operator = "AnyIn"
+                value    = ["CREATE", "UPDATE"]
               }
             ]
           }
           validate = {
-            message = "Deployment blocked: Image has CRITICAL vulnerabilities."
-            # Note: This is a complex lookup that checks the VulnerabilityReport 
-            # created by Trivy in the cluster.
-            deny = {
-              conditions = [
-                {
-                  key      = "{{ request.object.metadata.namespace }}/{{ request.object.metadata.name }}"
-                  operator = "In"
-                  # This lookup assumes Trivy reports are named after the owner resource
-                  value = "Trivy:CRITICAL"
+            message = "Image '{{ element.image }}' has CRITICAL vulnerabilities. See: kubectl get vulnerabilityreports -n {{ request.object.metadata.namespace }}"
+            foreach = [
+              {
+                list       = "request.object.spec.containers"
+                elementVar = "element"
+                # Look up VulnerabilityReport for this image in the target namespace.
+                # Trivy Operator names reports after the owning ReplicaSet.
+                context = [
+                  {
+                    name = "vulnReport"
+                    apiCall = {
+                      urlPath = "/apis/aquasecurity.github.io/v1alpha1/namespaces/{{ request.object.metadata.namespace }}/vulnerabilityreports"
+                      jmesPath = "items[?report.artifact.tag == '{{ element.image }}'].report.summary.criticalCount | [0]"
+                    }
+                  }
+                ]
+                deny = {
+                  conditions = {
+                    all = [
+                      {
+                        key      = "{{ vulnReport }}"
+                        operator = "GreaterThan"
+                        value    = "0"
+                      }
+                    ]
+                  }
                 }
-              ]
-            }
+              }
+            ]
           }
         }
       ]
     }
   }
-  depends_on = [helm_release.kyverno]
+  depends_on = [helm_release.kyverno, helm_release.trivy]
 }

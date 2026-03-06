@@ -1,4 +1,6 @@
-requests==2.32.3
-fastapi==0.115.6
-uvicorn==0.34.0
-kubernetes==35.0.0
+redis==5.0.3
+requests==2.31.0
+fastapi==0.110.0
+uvicorn==0.29.0
+kubernetes==29.0.0
+pydantic==2.6.4

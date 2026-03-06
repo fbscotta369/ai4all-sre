@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+LABEL maintainer="ai4all-sre-team"
+LABEL description="Behavioral Load Generator for AI4ALL-SRE Online Boutique"
+
+WORKDIR /app
+
+# Pin dependencies at build time — no runtime pip installs
+COPY requirements-loadgen.txt .
+RUN pip install --no-cache-dir -r requirements-loadgen.txt
+
+COPY behavioral_loadgen.py .
+
+ENV FRONTEND_ADDR=frontend:80
+
+CMD ["python", "behavioral_loadgen.py"]

@@ -425,26 +425,95 @@ resource "kubernetes_manifest" "slo_rules" {
     spec = {
       groups = [
         {
+          # FIX 5: Correct SLO metrics using Linkerd proxy metrics (not gRPC server metrics).
+          # Online Boutique frontend is HTTP (Go net/http), not a gRPC server.
+          # All microservice metrics are exposed by the Linkerd proxy sidecar.
+          # Verify before use: kubectl exec -n observability deploy/prometheus -c prometheus --
+          #   promtool query series '{__name__=~"response_total", deployment="frontend"}'
           name = "frontend-slos"
           rules = [
             {
-              # SLI: Latency < 500ms
-              # Calculating the ratio of requests faster than 500ms
-              record = "frontend_latency_sli"
-              expr   = "sum(rate(grpc_server_handling_seconds_bucket{job=\"frontend\", le=\"0.5\"}[5m])) / sum(rate(grpc_server_handling_seconds_count{job=\"frontend\"}[5m]))"
+              # SLI: % of frontend requests classified as "success" by Linkerd proxy
+              record = "frontend_success_rate_5m"
+              expr   = "sum(rate(response_total{namespace=\"online-boutique\",deployment=\"frontend\",classification=\"success\"}[5m])) / sum(rate(response_total{namespace=\"online-boutique\",deployment=\"frontend\"}[5m]))"
             },
             {
-              # Alert if SLO (99%) is breached
-              alert = "FrontendSLOErrorBudgetBurn"
-              expr  = "frontend_latency_sli < 0.99"
+              # SLI: P95 request latency for the frontend (Linkerd response_latency_ms)
+              record = "frontend_p95_latency_ms"
+              expr   = "histogram_quantile(0.95, sum by (le) (rate(response_latency_ms_bucket{namespace=\"online-boutique\",deployment=\"frontend\"}[5m])))"
+            },
+            {
+              # Alert: Success rate drops below 99% SLO
+              alert = "FrontendAvailabilitySLOBreach"
+              expr  = "frontend_success_rate_5m < 0.99"
               for   = "2m"
               labels = {
                 severity = "critical"
                 team     = "sre"
+                slo      = "frontend-availability-99"
               }
               annotations = {
-                summary     = "Frontend SLO breach: Error Budget burning"
-                description = "The percentage of frontend requests faster than 500ms has dropped below 99%."
+                summary     = "Frontend Availability SLO Breach (target: 99%)"
+                description = "Frontend success rate is {{ $value | humanizePercentage }}. Error budget is burning."
+                runbook_url = "https://github.com/ai4all-sre/runbooks/blob/main/FrontendAvailabilitySLOBreach.md"
+              }
+            },
+            {
+              # Alert: P95 latency exceeds 500ms
+              alert = "FrontendLatencySLOBreach"
+              expr  = "frontend_p95_latency_ms > 500"
+              for   = "5m"
+              labels = {
+                severity = "warning"
+                team     = "sre"
+                slo      = "frontend-latency-p95-500ms"
+              }
+              annotations = {
+                summary     = "Frontend Latency SLO Breach (P95 > 500ms)"
+                description = "Frontend P95 latency is {{ $value }}ms. Target: <500ms."
+              }
+            }
+          ]
+        },
+        {
+          name = "backend-slos"
+          rules = [
+            {
+              # SLI: Paymentservice availability (Linkerd proxy success rate)
+              record = "paymentservice_success_rate_5m"
+              expr   = "sum(rate(response_total{namespace=\"online-boutique\",deployment=\"paymentservice\",classification=\"success\"}[5m])) / sum(rate(response_total{namespace=\"online-boutique\",deployment=\"paymentservice\"}[5m]))"
+            },
+            {
+              alert = "PaymentServiceSLOBreach"
+              expr  = "paymentservice_success_rate_5m < 0.999"
+              for   = "1m"
+              labels = {
+                severity = "critical"
+                team     = "sre"
+                slo      = "paymentservice-availability-99.9"
+              }
+              annotations = {
+                summary     = "PaymentService Availability SLO Breach (target: 99.9%)"
+                description = "PaymentService success rate: {{ $value | humanizePercentage }}. Immediate investigation required."
+                runbook_url = "https://github.com/ai4all-sre/runbooks/blob/main/PaymentServiceSLOBreach.md"
+              }
+            },
+            {
+              # SLI: ProductCatalog P95 latency
+              record = "productcatalog_p95_latency_ms"
+              expr   = "histogram_quantile(0.95, sum by (le) (rate(response_latency_ms_bucket{namespace=\"online-boutique\",deployment=\"productcatalogservice\"}[5m])))"
+            },
+            {
+              alert = "ProductCatalogLatencyHigh"
+              expr  = "productcatalog_p95_latency_ms > 200"
+              for   = "5m"
+              labels = {
+                severity = "warning"
+                team     = "sre"
+              }
+              annotations = {
+                summary     = "ProductCatalog Latency Warning (P95 > 200ms)"
+                description = "ProductCatalog P95 latency is {{ $value }}ms."
               }
             }
           ]
@@ -615,6 +684,57 @@ resource "kubernetes_config_map" "tempo_dashboard" {
             }
           ]
           gridPos = { h = 20, w = 24, x = 0, y = 0 }
+        }
+      ]
+    })
+  }
+}
+
+# Grafana Dashboard for E2E Visual Testing (CTO Dashboard)
+resource "kubernetes_config_map" "e2e_dashboard" {
+  metadata {
+    name      = "e2e-dashboard"
+    namespace = kubernetes_namespace.observability.metadata[0].name
+    labels = {
+      grafana_dashboard = "1"
+    }
+  }
+
+  data = {
+    "e2e-dashboard.json" = jsonencode({
+      title = "CTO: E2E Visual Testing & Resilience"
+      panels = [
+        {
+          title = "Active Chaos Mesh Experiments"
+          type  = "table"
+          targets = [
+            {
+              expr = "chaos_mesh_experiments{}"
+              legendFormat = "{{name}}"
+            }
+          ]
+          gridPos = { h = 10, w = 12, x = 0, y = 0 }
+        },
+        {
+          title = "Frontend Error Rate"
+          type  = "timeseries"
+          targets = [
+            {
+              expr = "sum(rate(grpc_server_handling_seconds_count{job=\"frontend\", grpc_code!=\"OK\"}[1m]))/sum(rate(grpc_server_handling_seconds_count{job=\"frontend\"}[1m])) * 100"
+              legendFormat = "Error Rate %"
+            }
+          ]
+          gridPos = { h = 10, w = 12, x = 12, y = 0 }
+        },
+        {
+          title = "Active GoAlert Incidents (AlertManager)"
+          type  = "table"
+          targets = [
+            {
+              expr = "ALERTS{alertstate=\"firing\"}"
+            }
+          ]
+          gridPos = { h = 10, w = 24, x = 0, y = 10 }
         }
       ]
     })

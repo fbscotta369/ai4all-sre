@@ -24,6 +24,17 @@ resource "helm_release" "linkerd_crds" {
 }
 
 # 2. Install Linkerd Control Plane
+# Certs are sourced from the Cert-Manager-managed secret (Zero secrets on disk).
+# The 'linkerd-identity-issuer' Certificate resource in linkerd-certs.yaml
+# populates the 'linkerd-identity-issuer-secret' K8s secret automatically.
+data "kubernetes_secret" "linkerd_identity_issuer" {
+  metadata {
+    name      = "linkerd-identity-issuer-secret"
+    namespace = kubernetes_namespace.linkerd.metadata[0].name
+  }
+  depends_on = [helm_release.linkerd_crds]
+}
+
 resource "helm_release" "linkerd_control_plane" {
   name       = "linkerd-control-plane"
   repository = "https://helm.linkerd.io/stable"
@@ -31,19 +42,19 @@ resource "helm_release" "linkerd_control_plane" {
   namespace  = kubernetes_namespace.linkerd.metadata[0].name
   version    = "1.16.10"
 
-  depends_on = [helm_release.linkerd_crds]
+  depends_on = [helm_release.linkerd_crds, data.kubernetes_secret.linkerd_identity_issuer]
 
   set {
     name  = "identity.issuer.tls.crtPEM"
-    value = file("${path.module}/issuer.crt")
+    value = lookup(data.kubernetes_secret.linkerd_identity_issuer.data, "tls.crt", "")
   }
   set {
     name  = "identity.issuer.tls.keyPEM"
-    value = file("${path.module}/issuer.key")
+    value = lookup(data.kubernetes_secret.linkerd_identity_issuer.data, "tls.key", "")
   }
   set {
     name  = "identityTrustAnchorsPEM"
-    value = file("${path.module}/trust-anchor.crt")
+    value = lookup(data.kubernetes_secret.linkerd_identity_issuer.data, "ca.crt", "")
   }
 
   set {

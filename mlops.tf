@@ -36,33 +36,34 @@ resource "kubernetes_deployment" "behavioral_loadgen" {
 
       spec {
         container {
+          # FIX 6: Use a pre-built image with pinned dependencies (Dockerfile.loadgen).
+          # No runtime pip installs — deterministic, reproducible, resilient to PyPI outages.
+          # Build: docker build -f Dockerfile.loadgen -t ghcr.io/ai4all-sre/loadgen:latest .
+          # TODO: Replace with your container registry image once CI pipeline is set up.
           name  = "loadgen"
-          image = "python:3.11-slim"
+          image = var.loadgen_image
 
           security_context {
-            privileged = false
+            privileged                = false
+            allow_privilege_escalation = false
+            run_as_non_root           = true
+            run_as_user               = 1000
           }
 
-          command = ["/bin/sh", "-c"]
-          args = [
-            "pip install requests && python /app/behavioral_loadgen.py"
-          ]
+          resources {
+            limits = {
+              cpu    = "200m"
+              memory = "128Mi"
+            }
+            requests = {
+              cpu    = "50m"
+              memory = "64Mi"
+            }
+          }
 
           env {
             name  = "FRONTEND_ADDR"
             value = "frontend:80"
-          }
-
-          volume_mount {
-            name       = "script-volume"
-            mount_path = "/app"
-          }
-        }
-
-        volume {
-          name = "script-volume"
-          config_map {
-            name = kubernetes_config_map.behavioral_loadgen_script.metadata[0].name
           }
         }
       }
