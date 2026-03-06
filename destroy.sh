@@ -43,21 +43,23 @@ echo "------------------------------------------------"
 
 # ── Step 1: Remove problematic resources ──────────────────
 echo -e "${BLUE}[1/5] Removing active Chaos and Policy resources...${NC}"
-kubectl delete stresschaos --all -n chaos-testing   2>/dev/null || true
-kubectl delete networkchaos --all -n chaos-testing  2>/dev/null || true
-kubectl delete podchaos --all -n chaos-testing      2>/dev/null || true
-kubectl delete schedule --all -n chaos-testing      2>/dev/null || true
 
-# Remove finalizers from chaos resources to prevent namespace deletion hangs
+# Remove finalizers from chaos resources BEFORE deleting them to prevent hangs
 kubectl get iochaos,networkchaos,podchaos,stresschaos,schedule -n chaos-testing -o name 2>/dev/null | xargs -r kubectl patch -n chaos-testing --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]' 2>/dev/null || true
 
+# Now safely delete (with --wait=false just in case)
+kubectl delete stresschaos --all -n chaos-testing --wait=false  2>/dev/null || true
+kubectl delete networkchaos --all -n chaos-testing --wait=false  2>/dev/null || true
+kubectl delete podchaos --all -n chaos-testing --wait=false      2>/dev/null || true
+kubectl delete schedule --all -n chaos-testing --wait=false      2>/dev/null || true
+
 # Pre-delete Linkerd policies via kubectl to avoid Terraform refresh hangs
-kubectl delete server --all -n online-boutique  2>/dev/null || true
-kubectl delete serverauthorization --all -n online-boutique  2>/dev/null || true
+kubectl delete server --all -n online-boutique --wait=false  2>/dev/null || true
+kubectl delete serverauthorization --all -n online-boutique --wait=false  2>/dev/null || true
 
 # Remove webhooks that block namespace deletion (e.g. Kyverno)
-kubectl delete validatingwebhookconfigurations --all 2>/dev/null || true
-kubectl delete mutatingwebhookconfigurations --all 2>/dev/null || true
+kubectl delete validatingwebhookconfigurations --all --wait=false 2>/dev/null || true
+kubectl delete mutatingwebhookconfigurations --all --wait=false 2>/dev/null || true
 
 echo -e "${GREEN}✅ Dynamic resources removed.${NC}"
 
@@ -79,8 +81,9 @@ for RES in "${STRICT_RESOURCES[@]}"; do
     terraform state rm "$RES" 2>/dev/null || true
 done
 
-terraform destroy -auto-approve
-echo -e "${GREEN}✅ Terraform resources destroyed.${NC}"
+# Terraform might fail if CRDs are missing, but that's okay, we force-clean in Step 3.
+terraform destroy -auto-approve || echo -e "${YELLOW}⚠️  Terraform destroy encountered errors, continuing to force-cleanup...${NC}"
+echo -e "${GREEN}✅ Terraform resources destroyed (or bypassed).${NC}"
 
 # ── Step 3: Force-delete any stuck namespaces ────────────────
 echo ""
@@ -119,16 +122,20 @@ echo -e "${GREEN}✅ Namespaces cleaned up.${NC}"
 # ── Step 4: Remove Linkerd CRDs ─────────────────────────────
 echo ""
 echo -e "${BLUE}[4/5] Removing Linkerd CRDs (if present)...${NC}"
+
+# Remove finalizers from CRDs to prevent deletion hangs
+kubectl get crds 2>/dev/null | grep "linkerd\|chaos-mesh\|kyverno\|vault" | awk '{print $1}' | xargs -r kubectl patch crd --type=json -p='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
+
 kubectl get crds 2>/dev/null \
     | grep "linkerd\|chaos-mesh\|kyverno\|vault" \
     | awk '{print $1}' \
-    | xargs kubectl delete crd --ignore-not-found 2>/dev/null || true
+    | xargs -r kubectl delete crd --ignore-not-found 2>/dev/null || true
 echo -e "${GREEN}✅ CRDs removed.${NC}"
 
 # ── Step 5: Clean Terraform state lock ──────────────────────
 echo ""
 echo -e "${BLUE}[5/5] Cleaning local Terraform state...${NC}"
-rm -f .terraform.lock.hcl.bak terraform.tfstate.backup 2>/dev/null || true
+rm -rf .terraform .terraform.lock.hcl terraform.tfstate terraform.tfstate.backup .terraform.lock.hcl.bak 2>/dev/null || true
 echo -e "${GREEN}✅ State cleaned.${NC}"
 
 echo ""
