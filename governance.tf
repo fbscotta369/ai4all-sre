@@ -145,7 +145,7 @@ resource "kubernetes_manifest" "policy_require_limits" {
           }
           exclude = {
             any = [
-              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa"] } }
+              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa", "minio"] } }
             ]
           }
           validate = {
@@ -190,7 +190,7 @@ resource "kubernetes_manifest" "policy_mutate_limits" {
           }
           exclude = {
         any = [
-          { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa"] } }
+          { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa", "minio"] } }
         ]
       }
           mutate = {
@@ -266,7 +266,7 @@ resource "kubernetes_manifest" "policy_restrict_registries" {
           }
           exclude = {
             any = [
-              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa"] } }
+              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa", "minio"] } }
             ]
           }
           validate = {
@@ -323,7 +323,7 @@ resource "kubernetes_manifest" "policy_block_critical_vulnerabilities" {
             any = [{ resources = { kinds = ["Pod"] } }]
           }
           exclude = {
-            any = [{ resources = { namespaces = ["kube-system", "kyverno", "observability", "trivy-system", "linkerd", "argocd", "argo-rollouts", "incident-management", "chaos-testing", "ollama", "default", "cert-manager", "vpa"] } }, { resources = { names = ["behavioral-loadgen"] } }]
+            any = [{ resources = { namespaces = ["kube-system", "kyverno", "observability", "trivy-system", "linkerd", "argocd", "argo-rollouts", "incident-management", "chaos-testing", "ollama", "default", "cert-manager", "vpa", "minio"] } }, { resources = { names = ["behavioral-loadgen"] } }]
           }
           preconditions = {
             all = [

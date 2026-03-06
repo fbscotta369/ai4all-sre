@@ -1,25 +1,25 @@
 variable "slack_token" {
   type        = string
   description = "Slack Bot User OAuth Token"
-  default     = ""
+  default     = "xoxb-mock-token-for-lab-environment"
 }
 
 variable "slack_client_id" {
   type        = string
   description = "Slack Client ID"
-  default     = ""
+  default     = "mock-client-id"
 }
 
 variable "slack_client_secret" {
   type        = string
   description = "Slack Client Secret"
-  default     = ""
+  default     = "mock-client-secret"
 }
 
 variable "slack_signing_secret" {
   type        = string
   description = "Slack Signing Secret"
-  default     = ""
+  default     = "mock-signing-secret"
 }
 
 resource "kubernetes_namespace" "alerting" {

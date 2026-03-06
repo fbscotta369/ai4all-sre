@@ -632,11 +632,14 @@ metadata:
   labels:
     app: paymentservice
 spec:
+  replicas: 3
   selector:
     matchLabels:
       app: paymentservice
   template:
     metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-03-06T10:17:01.243595"
       labels:
         app: paymentservice
     spec:

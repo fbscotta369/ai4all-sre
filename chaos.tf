@@ -155,35 +155,105 @@ resource "kubernetes_manifest" "dns_chaos" {
   }
 }
 
-# 5. HTTP Chaos: Inject 500 errors into the Product Catalog Service
-resource "kubernetes_manifest" "http_chaos" {
+# 5. HTTP Chaos - Simulate 500 errors on frontend cart interactions
+resource "kubernetes_manifest" "frontend_http_chaos" {
   depends_on = [helm_release.chaos_mesh]
   manifest = {
     apiVersion = "chaos-mesh.org/v1alpha1"
-    kind       = "Schedule"
+    kind       = "HTTPChaos"
     metadata = {
-      name      = "product-catalog-errors"
+      name      = "frontend-http-errors"
       namespace = "chaos-testing"
+      labels    = { "tier" = "1", "app" = "frontend" }
     }
     spec = {
-      schedule = "@every 20m"
-      type     = "HTTPChaos"
-      httpChaos = {
-        mode = "all"
-        selector = {
-          namespaces = ["online-boutique"]
-          labelSelectors = {
-            "app" = "productcatalogservice"
-          }
-        }
-        target = "Request"
-        port   = 3550
-        abort  = true
+      mode   = "all"
+      selector = {
+        namespaces     = ["online-boutique"]
+        labelSelectors = { "app" = "frontend" }
+      }
+      target = "Request"
+      port   = 8080
+      path   = "/cart"
+      abort  = true
+    }
+  }
+}
+
+# 13. Currency Service - Failed Exchange Rates (HTTP Chaos)
+resource "kubernetes_manifest" "currency_failure" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "HTTPChaos"
+    metadata = {
+      name      = "currency-service-fail"
+      namespace = "chaos-testing"
+      labels    = { "tier" = "1", "app" = "currencyservice" }
+    }
+    spec = {
+      mode   = "all"
+      selector = {
+        namespaces     = ["online-boutique"]
+        labelSelectors = { "app" = "currencyservice" }
+      }
+      target = "Response"
+      port   = 7000
+      replace = {
+        code = 503
       }
     }
   }
 }
 
+# 14. Recommendation Service - Silent Failure (Pod Kill)
+resource "kubernetes_manifest" "recommendation_outage" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "recommendation-outage-schedule"
+      namespace = "chaos-testing"
+      labels    = { "tier" = "1", "app" = "recommendationservice" }
+    }
+    spec = {
+      schedule = "@every 15m"
+      type     = "PodChaos"
+      podChaos = {
+        action = "pod-kill"
+        mode   = "one"
+        selector = {
+          namespaces     = ["online-boutique"]
+          labelSelectors = { "app" = "recommendationservice" }
+        }
+      }
+    }
+  }
+}
+
+# 6. HTTP Chaos - Abort Payment Service
+resource "kubernetes_manifest" "payment_abort" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "HTTPChaos"
+    metadata = {
+      name      = "payment-abort"
+      namespace = "chaos-testing"
+    }
+    spec = {
+      mode   = "all"
+      selector = {
+        namespaces     = ["online-boutique"]
+        labelSelectors = { "app" = "paymentservice" }
+      }
+      target = "Request"
+      port   = 50051
+      abort  = true
+    }
+  }
+}
 # 6. Disaster Workflow: Sequential Pod Kill then Network Latency
 resource "kubernetes_manifest" "disaster_workflow" {
   depends_on = [helm_release.chaos_mesh]
