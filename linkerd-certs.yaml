@@ -8,14 +8,15 @@ spec:
   duration: 48h
   renewBefore: 24h
   issuerRef:
-    name: vault-issuer
-    kind: ClusterIssuer
+    name: linkerd-trust-anchor-issuer
+    kind: Issuer
   commonName: identity.linkerd.cluster.local
   dnsNames:
   - identity.linkerd.cluster.local
   isCA: true
   privateKey:
-    algorithm: ECDSA
+    algorithm: RSA
+    size: 2048
   usages:
   - "cert sign"
   - "crl sign"

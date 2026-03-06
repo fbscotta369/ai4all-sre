@@ -360,7 +360,7 @@ resource "kubernetes_deployment" "ai_agent" {
 
           command = ["/bin/sh", "-c"]
           args = [
-            "pip install requests fastapi uvicorn kubernetes && python /app/ai_agent.py"
+            "pip install requests fastapi uvicorn kubernetes redis pydantic && python /app/ai_agent.py"
           ]
 
           port {
@@ -368,8 +368,40 @@ resource "kubernetes_deployment" "ai_agent" {
           }
 
           env {
+            name  = "OLLAMA_MODEL"
+            value = "llama3"
+          }
+          env {
             name  = "OLLAMA_URL"
             value = "http://ollama.ollama.svc.cluster.local:11434/api/generate"
+          }
+          env {
+            name  = "OLLAMA_CHAT_URL"
+            value = "http://ollama.ollama.svc.cluster.local:11434/api/chat"
+          }
+          env {
+            name  = "REDIS_URL"
+            value = "redis://redis.observability.svc.cluster.local:6379/0"
+          }
+          env {
+            name  = "CHROMA_HOST"
+            value = "chromadb.observability.svc.cluster.local"
+          }
+          env {
+            name  = "CHROMA_PORT"
+            value = "8000"
+          }
+          env {
+            name  = "MINIO_ENDPOINT"
+            value = "minio.minio.svc.cluster.local:9000"
+          }
+          env {
+            name  = "MINIO_ACCESS_KEY"
+            value = "admin"
+          }
+          env {
+            name  = "MINIO_SECRET_KEY"
+            value = "password123!"
           }
 
           volume_mount {

@@ -105,3 +105,37 @@ resource "kubernetes_network_policy" "allow_vault_egress" {
     }
   }
 }
+
+# Fix: Allow sidebar proxies to reach Linkerd Control Plane
+resource "kubernetes_network_policy" "online_boutique_allow_linkerd" {
+  metadata {
+    name      = "allow-linkerd-egress"
+    namespace = kubernetes_namespace.online_boutique.metadata[0].name
+  }
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+    egress {
+      to {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "linkerd" }
+        }
+      }
+      # Identity service
+      ports {
+        port     = 8080
+        protocol = "TCP"
+      }
+      # Destination service
+      ports {
+        port     = 8086
+        protocol = "TCP"
+      }
+      # Policy service
+      ports {
+        port     = 8090
+        protocol = "TCP"
+      }
+    }
+  }
+}

@@ -66,6 +66,31 @@ resource "helm_release" "linkerd_control_plane" {
     name  = "destination.podLabels.sre-privileged-access"
     value = "true"
   }
+
+  set {
+    name  = "controllerReplicas"
+    value = "1"
+  }
+
+  set {
+    name  = "destinationResources.cpu.request"
+    value = "100m"
+  }
+
+  set {
+    name  = "destinationResources.memory.request"
+    value = "256Mi"
+  }
+
+  set {
+    name  = "destinationResources.memory.limit"
+    value = "512Mi"
+  }
+
+  set {
+    name  = "identityResources.memory.request"
+    value = "128Mi"
+  }
 }
 
 # 3. Distributed Zero-Trust Policy (Server & ServerAuthorization)
