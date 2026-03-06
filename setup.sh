@@ -222,7 +222,7 @@ fi
 if [ ! -f "issuer.crt" ] || [ ! -f "issuer.key" ] || [ ! -f "trust-anchor.crt" ]; then
     echo "⚠️ Linkerd mTLS certificates not found. Generating them via Python cryptography..."
     
-    python3 generate_certs.py
+    python3 scripts/internal/generate_certs.py
     
     # Fix permissions if needed
     chmod 600 issuer.key trust-anchor.key 2>/dev/null || true
