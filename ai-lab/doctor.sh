@@ -12,9 +12,9 @@ echo "------------------------------------------------"
 # Conflicted or broken repositories cause 'apt update' to fail globally.
 # We clear our managed repositories early to ensure a fresh state.
 echo "[*] Cleaning up potential repository conflicts..."
-sudo rm -f /etc/apt/sources.list.d/archive_uri-https_developer_download_nvidia_com_compute_cuda_repos_ubuntu2204_x86_64_-jammy.list
-sudo rm -f /etc/apt/sources.list.d/nvidia-cuda.list
-sudo rm -f /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo -n rm -f /etc/apt/sources.list.d/archive_uri-https_developer_download_nvidia_com_compute_cuda_repos_ubuntu2204_x86_64_-jammy.list 2>/dev/null || true
+sudo -n rm -f /etc/apt/sources.list.d/nvidia-cuda.list 2>/dev/null || true
+sudo -n rm -f /etc/apt/sources.list.d/nvidia-container-toolkit.list 2>/dev/null || true
 
 # Function to check for a command and optionally install it
 doctor_check() {

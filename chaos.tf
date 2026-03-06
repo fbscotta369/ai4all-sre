@@ -465,7 +465,7 @@ resource "kubernetes_manifest" "recruiter_first_disaster" {
     apiVersion = "chaos-mesh.org/v1alpha1"
     kind       = "Workflow"
     metadata = {
-      name      = "📦-recruiter-first-disaster"
+      name      = "recruiter-first-disaster"
       namespace = "chaos-testing"
       labels = {
         "sre-library" = "true"

@@ -67,7 +67,7 @@ doctor_check() {
 
 # Check for running services
 docker_daemon_check() {
-    if ! sudo docker info &> /dev/null; then
+    if ! docker info &> /dev/null; then
         echo "❌ Error: Docker daemon is not running or current user has no permissions."
         echo "------------------------------------------------"
         echo "💡 How to fix:"
