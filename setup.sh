@@ -279,4 +279,4 @@ echo "To transform the base LLM into an elite SRE-Kernel brain specialized in th
 echo "  ./ai-lab/specialize-model.sh"
 echo "------------------------------------------------"
 echo "🚀 Launching Dashboards..."
-exec ./start-dashboards.sh
+exec ./scripts/start-dashboards.sh
