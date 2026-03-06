@@ -20,9 +20,9 @@ if not hasattr(nn.Module, "set_submodule"):
 
 def main():
     parser = argparse.ArgumentParser(description="Fine-tune Llama 3 for SRE tasks.")
-    parser.add_argument("--dataset", type=str, default="dataset_template.jsonl", help="Path to the JSONL dataset.")
+    parser.add_argument("--dataset", type=str, default="dataset_generated.jsonl", help="Path to the JSONL dataset.")
     parser.add_argument("--output", type=str, default="sre_kernel_adapter", help="Directory to save the adapter.")
-    parser.add_argument("--max_steps", type=int, default=60, help="Maximum number of training steps.")
+    parser.add_argument("--max_steps", type=int, default=120, help="Maximum number of training steps.")
     args = parser.parse_args()
 
     # 1. Configuration - Optimized for RTX 3060 (12GB VRAM)

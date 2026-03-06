@@ -1,56 +1,55 @@
-# How-to Guide: Slack & GoAlert Integrations 🔗
+# How-to Guide: Enterprise Event Routing (Slack & GoAlert) 🔗
 
-This guide provides step-by-step instructions for manually configuring external notification channels that are not handled by the automated Terraform bootstrap.
-
-**Goal:** Configure Slack and GoAlert for human-in-the-loop notification routing.
+This guide outlines the professional configuration for external notification channels and event sinks. We bridge the gap between cluster-internal observability and human-centric response systems.
 
 ---
 
-## 1. Implement Slack Enterprise Alerts
+## 🌩️ 1. Slack Enterprise Sink (Audit & Logic)
 
-To receive real-time autonomous remediation logs and critical incidents in a Slack channel, you must generate an Incoming Webhook URL.
+To maintain a searchable audit trail of autonomous remediations, we utilize the Slack Webhook API.
 
-### Create a Slack App
-1.  Visit the [Slack API: App Management](https://api.slack.com/apps) portal.
-2.  Click **Create New App** -> **From scratch**.
-3.  Name your app (e.g., `SRE-Agent-Lab`) and select your workspace.
-
-### Enable Incoming Webhooks
-1.  In the app settings sidebar, select **Incoming Webhooks**.
-2.  Toggle **Activate Incoming Webhooks** to **On**.
-3.  Click **Add New Webhook to Workspace**.
-4.  Select the channel (e.g., `#alerts`) and click **Allow**.
-
-### Configure the Laboratory
-1.  Copy the generated **Webhook URL**.
-2.  Open `terraform.tfvars` in the project root.
-3.  Add or update the following variable:
-    ```hcl
-    slack_api_url = "https://hooks.slack.com/services/T000.../B000.../XXXX..."
-    ```
-4.  Apply the changes to synchronize the secret into the cluster:
+### Identity & Secret Governance
+1.  **Slack App Creation**: Visit the [Slack API Portal](https://api.slack.com/apps) and create a "SRE Agent Lab" application.
+2.  **Secret Management**: Avoid hardcoding URLs. We store the webhook in Terraform and inject it as a Kubernetes Secret.
     ```bash
-    terraform apply
+    # Update terraform.tfvars
+    slack_webhook_url = "https://hooks.slack.com/services/T000/B000/XXXX"
     ```
+3.  **Namespace Isolation**: The secret is scoped strictly to the `observability` namespace and is only accessible by the `ai-agent` service account.
+
+### Operational Verification
+1.  Navigate to the `#sre-alerts` channel.
+2.  Verify the message footprint: Look for the `Trace-Link` and `Post-Mortem` URLs in the remediation logs.
 
 ---
 
-## 2. GoAlert Secondary Configuration
+## 🚑 2. GoAlert: High-Availability Incident Management
 
-GoAlert is automatically seeded via a Kubernetes Job (which configures the Prometheus integration API key and Escallation Policies). For advanced tuning like manual on-call schedules or custom rotations, handle configuration via the UI or direct Database access.
+GoAlert acts as the mission-critical switchboard for on-call rotations and escalation logic.
 
-### Dashboard Access
-1. Start the Port Forwards: `./start-dashboards.sh`
-2. Access GoAlert at `http://localhost:8083`
-3. Default Credentials:
-   * **User**: `admin`
-   * **Password**: `admin123`
+### Automated Provisioning (GitOps)
+The laboratory uses the `configure_goalert_v2.py` script to ensure the following are provisioned out-of-the-box:
+- **Rotations**: Weekly SRE on-call rotations linked to the "Admin" team.
+- **Escalation Policies**: 2-step escalation (Schedule -> Direct Page) with 5-minute jittered delays.
+- **Integration Keys**: Prometheus AlertManager v2 generic integration keys.
 
-### Manual Database Access (Break-Glass)
-If you need to query or patch the backend directly:
+### Manual Overrides & Break-Glass
+In the event of a configuration drift, use the dashboard:
+- **URL**: `http://localhost:8083` (Standard) or `http://goalert.local` (Ingress)
+- **RBAC**: Access is controlled via basic auth in the laboratory, but should be integrated with OIDC (e.g., Dex/Okta) in production.
+
+### Direct Backend Access
+For deep troubleshooting or mass-patching rotations:
 ```bash
-# Access the PostgreSQL terminal interactively
 kubectl exec -n incident-management -it goalert-db-postgresql-0 -- /bin/sh -c 'PGPASSWORD=goalertpass psql -U postgres -d postgres'
 ```
 
-For highly sophisticated escalation patterns, refer to the [GoAlert User Guide](https://goalert.org/docs).
+---
+
+## 🛡️ 3. Security Best Practices
+- **Webhook Rotation**: Slack tokens should be rotated every 90 days via the Terraform module.
+- **mTLS Enforcement**: Communication from AlertManager to GoAlert is proxied through the Linkerd service mesh, ensuring encryption in transit even across namespaces.
+- **Rate Limiting**: We implement ingress rate-limiting for the GoAlert API to prevent "Alert Storm" DDoS attacks during cascading failures.
+
+---
+*Platform Engineering: AI4ALL-SRE Laboratory*

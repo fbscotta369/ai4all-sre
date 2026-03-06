@@ -70,5 +70,18 @@ Phase 6 of the project elevates it from "using an LLM" to "building an SRE LLM".
 1.  **Vector DB Scaling**: The current local vectorization (ADR-001) is sufficient for a lab environment but will throttle CPU resources if indexed against years of log history. Moving to a persistent DB like Milvus or Qdrant is the next logical step.
 2.  **Single-Agent Limitation**: The current system relies on one generalized orchestrator. Moving forward, a "Multi-Agent System" (e.g., one agent for network, one for databases) with a voting mechanism would drastically reduce hallucination rates.
 
+## 7. Operational Maturity & Validation
+
+### Endpoint Visibility Gap
+During the analysis, a significant gap was identified in the **End-User Visibility Layer**. While the core infrastructure (Vault, Ollama, AI Agent) is successfully deployed and operational within the cluster, these critical endpoints are missing from the primary `start-dashboards.sh` orchestration script. 
+- **Impact**: Operators cannot easily access the Vault UI for secret management or the Ollama API for model status without manual port-forwarding.
+- **Resolution**: The `start-dashboards.sh` will be updated to include these Tier-1 services.
+
+### Testing Framework Evolution
+The current test suite (`tests/`) focus largely on regex parsing and basic remediation logic. To meet Industrial Tier-1 standards, the project requires:
+1.  **Mocked Integration Tests**: Validating the `configure_goalert.py` and `behavioral_loadgen.py` scripts.
+2.  **State Verification Tests**: Ensuring the `verify_health` logic in the AI Agent correctly interprets Kubernetes API responses.
+3.  **Security Regression Tests**: Integrating results from `scripts/validate.sh` (Linkerd health, OOM detection) into a unified test reporter.
+
 ## Conclusion
-**AI4ALL-SRE** is not merely a monitoring tool; it is a profound blueprint for how engineering teams will manage infrastructure when scale exceeds human capacity. By enforcing Zero Trust and maintaining local state sovereignty, it provides a safe sandbox for the future of AIOps.
+**AI4ALL-SRE** is not merely a monitoring tool; it is a profound blueprint for how engineering teams will manage infrastructure when scale exceeds human capacity. By enforcing Zero Trust and maintaining local state sovereignty, it provides a safe sandbox for the future of AIOps. The planned enhancements in endpoint visibility and testing maturity will graduate this lab from a prototype to a production-ready reference architecture.

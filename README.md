@@ -1,66 +1,112 @@
-# AI4ALL-SRE Laboratory 🚀
+# 🤖 AI4ALL-SRE: The Autonomous Engineering Laboratory
+> **Tier-1 Technical Documentation: v4.2.0**
 
-The **AI4ALL-SRE Laboratory** is an industrial-grade autonomous control plane designed for the next generation of AI-native workloads. It bridges the gap between raw telemetry and corrective action using a sophisticated **Multi-Agent System (MAS)**, ensuring machine-speed resilience for 2026-scale infrastructure.
+[![SRE: Tier-1](https://img.shields.io/badge/SRE-Tier--1-blue.svg)](https://google.github.io/sre/)
+[![DevSecOps: Hardened](https://img.shields.io/badge/DevSecOps-Hardened-green.svg)](https://www.devsecops.org/)
+[![AI: Agentic](https://img.shields.io/badge/AI-Agentic-orange.svg)](https://ollama.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
----
-
-## 📚 Documentation (Diátaxis Framework)
-
-Our documentation is structurally partitioned by user intent. Whether you need to learn, solve a specific problem, understand the architecture, or look up a reference, start here.
-
-### 1. Tutorials (Learning-Oriented)
-*Start here if you want to deploy the cluster from scratch or run an educational pipeline.*
-- [**Quickstart:** Deploying the K3s Control Plane](./docs/tutorials/01-quickstart.md)
-- [**AI Specialization:** Fine-Tuning the SRE-Kernel](./docs/tutorials/02-ai-model-finetuning.md)
-
-### 2. How-To Guides (Problem-Oriented)
-*Read these to perform specific, goal-directed tasks.*
-- [**Chaos Engineering:** Triggering Disasters Safely](./docs/how-to/run-chaos-experiments.md)
-- [**Integrations:** Configuring Slack & GoAlert](./docs/how-to/slack-and-goalert-integrations.md)
-
-### 3. Reference (Information-Oriented)
-*Technical specifications, boundaries, and historical incident instructions.*
-- [**System Architecture:** C4 Model Boundaries](./docs/reference/system-architecture.md)
-- [**Governance:** Kyverno Security Policies](./docs/reference/kyverno-policies.md)
-- [**Disaster Recovery:** Infrastructure Runbooks](./docs/reference/incident-runbooks.md)
-
-### 4. Explanation (Understanding-Oriented)
-*High-level context on "Why" the system operates the way it does.*
-- [**The Autonomous Loop:** MAS and Guardrails](./docs/explanation/the-autonomous-loop.md)
-- [**Platform Engineering:** Zero-Touch Trace Correlation](./docs/explanation/zero-touch-trace-correlation.md)
+AI4ALL-SRE is an enterprise-grade laboratory and **Internal Developer Platform (IDP)** for researching the intersection of SRE, DevSecOps, and Autonomous AI Agents. It provides a full-stack, local-first environment for evolving "Self-Healing" infrastructures.
 
 ---
 
-## 🛡️ Tier-1 Industrial Features
+## 🏗️ Architecture & Philosophy
 
-This laboratory implements elite engineering standards for mission-critical reliability:
+The system is built on a **Zero-Trust Data Mesh** and an **Autonomous Multi-Agent System (MAS)**.
 
-*   **Zero-Trust Networking**: Explicit Linkerd authorization policies (Server/Auth) instead of "default allow."
-*   **Security Governance**: Kyverno-based Admission Control that blocks images with CRITICAL vulnerabilities (sourced from real-time Trivy scans).
-*   **Advanced CI/CD**: Hardened GitHub Actions with Multi-Language Linting, CodeQL (SAST), Secret Scanning (Gitleaks), and Automated SBOM (CycloneDX) generation.
-*   **Modern Deployment**: Argo Canary Rollouts with automated, metrics-driven rollback logic for the frontend.
-*   **FinOps Control**: Strict `ResourceQuotas` and `LimitRanges` to model industrial cost governance and prevent resource exhaustion.
-*   **Incident Hyper-Correlation**: One-click "Alert-to-Trace" integration linking Prometheus with Tempo for sub-second MTTR.
+```mermaid
+graph TD
+    subgraph "SRE CI/CD"
+        GA["GitHub Actions"]
+    end
+
+    subgraph "Autonomous Cluster"
+        CP["Control Plane (K8s)"]
+        Mesh["Linkerd Zero-Trust"]
+        MAS["AI Specialist Swarm"]
+    end
+
+    subgraph "Local HW"
+        GPU["Ollama (Llama 3)"]
+    end
+
+    GA -->|GitOps| CP
+    CP -->|Telemetry| MAS
+    MAS -->|Inference| GPU
+    MAS -->|Remediation| CP
+    style CP fill:#1a1a1a,stroke:#4a4a4a,color:#fff
+    style MAS fill:#2a2a2a,stroke:#6a6a6a,color:#fff
+```
+
+- **Local-First AI**: Specialized "SRE-Kernels" running on local GPUs via Ollama.
+- **Zero-Trust Mesh**: mTLS and Authorization at every hop via Linkerd.
+- **GitOps Core**: Infrastructure and application state managed via Terraform and ArgoCD.
+- **Autonomous Loop**: A feedback-driven system that Detects, Analyzes, and Remediates in < 120s.
 
 ---
 
-## 🏗️ Core Technology Stack
+## 📂 Documentation Structure (Diátaxis Alignment)
 
-The laboratory integrates Tier-1 technologies into a seamless resilience fabric.
+Our documentation hub is designed for professional engineering onboarding.
 
-| Component | Technology | Documentation |
+| Category | Description | Key Documents |
 | :--- | :--- | :--- |
-| **Service Mesh** | Linkerd (Zero-Trust) | [Official Docs](https://linkerd.io/) |
-| **GitOps** | ArgoCD + Rollouts | [Official Docs](https://argoproj.github.io/cd/) |
-| **Chaos Engine** | Chaos Mesh | [Official Docs](https://chaos-mesh.org/) |
-| **Observability** | OTel / Prom / Grafana / Tempo | [OSS Stack](https://prometheus.io/) |
-| **Incident Management**| GoAlert + Slack | [Official Docs](https://goalert.org/) |
-| **Policy Governance** | Kyverno (Admission Control) | [Official Docs](https://kyverno.io/) |
-| **SRE Agent Security** | Gitleaks / CodeQL | [Security Center](https://github.com/features/security) |
-| **Local Inference** | Ollama (Llama 3) | [GitHub](https://ollama.com/) |
+| **🚀 Tutorials** | Guided onboarding for new engineers. | [Quickstart Guide](docs/tutorials/01-quickstart.md) |
+| **🛠️ How-To** | Practical SOPs for operational tasks. | [Disaster Recovery](docs/how-to/disaster-recovery-dry-runs.md) |
+| **🏗️ Reference** | Technical specifications and C4 models. | [System Architecture](docs/reference/system-architecture.md) |
+| **🧠 Explanation** | Deep-dives into our engineering philosophy. | [Platform Manifesto](docs/explanation/platform-engineering-manifesto.md) |
 
 ---
-*Document Version: 4.0.0 (Tier-1 Diátaxis Edition)*
 
-> [!CAUTION]
-> **Maintenance**: To completely wipe the laboratory infrastructure (including all namespaces and Terraform resources), run `./destroy.sh`. To recreate it, run `./setup-all.sh`.
+## ⚡ Quickstart: The Golden Path
+
+```bash
+# 1. Initialize the Hardware & Cluster Plane
+./setup-all.sh
+
+# 2. Deploy the AI SRE Agent
+npx -y pm2 start ai_agent.py --interpreter python3
+
+# 3. Trigger a Chaos Experiment
+kubectl apply -f chaos/network-delay.yaml
+```
+
+---
+
+## 🧪 Operational Validation & Testing
+
+The platform maintains a high standard of reliability through an extensive unit and integration testing suite.
+
+```bash
+# Run the full validation suite
+./scripts/validate.sh
+
+# Run specialized Python unit tests
+python3 -m unittest discover tests/
+```
+
+- **Specialized AI Tests**: Validates MAS Consensus, Safety Guardrails, and Remediation Edge Cases.
+- **Infrastructure Validation**: Terraform linting and security scanning (Trivy/TFSec).
+- **Operational Scripts**: Unit tests for GoAlert configuration, cert generation, and load generators.
+
+---
+
+## 🛡️ Security & Compliance
+
+The laboratory implements strict **Governance-as-Code**:
+- **Kyverno**: Admission gaurdrails blocking CVE-exposed images.
+- **Linkerd**: Mandatory mTLS for all machine-to-machine traffic.
+- **CodeQL**: Automated security scanning of the autonomous agent logic.
+
+---
+
+## 👥 Meet the Specialist Swarm
+
+The **Autonomous MAS** consists of specialized agents that collaborate on incident resolution:
+- 🌐 **Network Specialist**: Linkerd/Traffic Analysis.
+- 💾 **Database Specialist**: State & Storage Integrity.
+- ⚙️ **Compute Specialist**: CPU/Memory profiling.
+- 🎬 **Director Agent**: Consensus and Execution Engine.
+
+---
+*Engineering Lead: AI4ALL-SRE Platform*

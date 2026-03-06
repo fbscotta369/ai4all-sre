@@ -1,10 +1,11 @@
-# Reference: System Architecture (C4 Model) 🏗️
+# 🏗️ Reference: System Architecture (C4 Model)
+> **Tier-1 Engineering Standard: v4.2.0**
 
-This document defines the technical architecture of the AI4ALL-SRE Laboratory. It is structured according to the **C4 Model** and documents the boundaries of the control plane and data mesh.
+This document defines the technical architecture of the AI4ALL-SRE Laboratory. It is structured according to the **C4 Model** and documents the boundaries of the control plane, data mesh, and the autonomous reasoning engine.
 
 ---
 
-## Core Design Principles
+## 🎯 Core Design Principles
 
 1.  **Local-First Autonomy**: All reasoning (LLM) and data storage happen within the laboratory perimeter to ensure 100% data sovereignty and low-latency decision loops.
 2.  **M2M Zero-Trust**: Machine-to-Machine communication is secured via explicit Linkerd **Server/Authorization** resources. Access is denied by default until an identity trust is established.
@@ -13,7 +14,7 @@ This document defines the technical architecture of the AI4ALL-SRE Laboratory. I
 
 ---
 
-## C4 Model - Level 1: System Context
+## 🏢 C4 Model - Level 1: System Context
 
 The AI4ALL-SRE Laboratory operates as an autonomous enclave bridging the gap between raw telemetry and corrective action.
 
@@ -45,7 +46,7 @@ graph TD
 
 ---
 
-## C4 Model - Level 2: Container (Data Mesh)
+## 📦 C4 Model - Level 2: Container (Data Mesh)
 
 The system is a distributed **Data Mesh** where state is synchronized across asynchronous observers.
 
@@ -76,7 +77,7 @@ C4Container
 
 ---
 
-## C4 Model - Level 3: Component (MAS Reasoning)
+## 🧩 C4 Model - Level 3: Component (MAS Reasoning)
 
 The Autonomous SRE Agent is composed of a **Multi-Agent System (MAS)** (see `observability.tf` configmaps).
 
@@ -103,37 +104,37 @@ C4Component
     Rel(db, director, "Submits hypothesis")
     Rel(comp, director, "Submits hypothesis")
     Rel(director, guard, "Proposes remediation")
-    Rel(guard, exec, "Approves action")
+    Rel(guard, exec, "Approved action")
 ```
 
 ---
 
-## Complete Alerting Chain (Sequence Diagram)
+## 🛠️ C4 Model - Level 4: Implementation Detail (SRE-Kernel Flow)
 
-This diagram shows the end-to-end flow from failure injection to autonomous remediation.
+This level describes the internal logic of the Director Agent consensus loop.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant C as Chaos Mesh (Adversary)
-    participant A as Online Boutique (App)
-    participant V as Kyverno (Admission Gate)
-    participant S as Observability (Prom/Tempo)
-    participant AG as AI SRE Agent (Remediator)
-
-    C->>A: Trigger Degradation (Network/CPU)
-    A->>S: Breach Thresholds + Spans
-    S->>AG: Dispatch Alert + TraceID Link
-    AG->>AG: MAS Consensus + Trace Analysis
-    AG->>A: Propose Remediation (Rollout/Restart)
-    A->>V: Validate Action (Security/Auth)
-    V-->>A: Approved (No Critical Vulns)
-    A-->>AG: State Restored (Success)
-```
+| Step | Component | Action | Data Format |
+| :--- | :--- | :--- | :--- |
+| 1 | **Collector** | Aggregates Alert Labels + Distributed Traces. | JSON (Prometheus Webhook) |
+| 2 | **MAS Dispatch** | Parallel inference across Specialist Agents. | Prompt Engineering (Few-Shot) |
+| 3 | **Director** | Synthesizes a single remediation hypothesis. | Consensus Algorithm |
+| 4 | **Guardrail** | Validates command safety (Whitelist/Forbidden). | Regex-based Validation |
+| 5 | **Executor** | Patching the K8s API (Rollout/Scale). | Strategic Merge Patch |
 
 ---
 
-## Failure Modes & Antifragility
+## ⏱️ Service Level Objectives (SLOs)
+
+We measure system resilience using strict Performance SLOs:
+
+- **Mean Time to Remediation (MTTR)**: < 120 seconds from Alert firing to Service Health recovery.
+- **Inference Latency (p99)**: < 45 seconds for consensus across 4 agents (Director + 3 Specialists).
+- **Consensus Fidelity**: > 95% of proposed actions must pass the Safety Guardrail on the first attempt.
+- **Security Compliance**: 100% of remediations must target non-forbidden namespaces and pass Kyverno admission.
+
+---
+
+## 🛡️ Failure Modes & Antifragility
 
 ### 1. LLM Saturation
 - **Strategy**: Jittered Exponential Backoff.
@@ -142,3 +143,6 @@ sequenceDiagram
 ### 2. Mesh Partitioning
 - **Strategy**: Linkerd proxy identity caching.
 - **Result**: The Data Plane continues mTLS enforcement even if the Control Plane is temporarily unreachable.
+
+---
+*Document Version: 4.2.0 (Enterprise Tier-1)*

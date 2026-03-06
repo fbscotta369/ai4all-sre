@@ -44,6 +44,21 @@ start_port_forward "observability" "kube-prometheus-kube-prome-prometheus" 9090 
 # 7. AlertManager Dashboard
 start_port_forward "observability" "kube-prometheus-kube-prome-alertmanager" 9093 9093 "AlertManager Dashboard"
 
+# 8. Docs Portal (Engineering Hub)
+start_port_forward "docs-portal" "docs-portal" 8085 80 "Docs Portal"
+
+# 9. Vault UI (Security & Secrets)
+start_port_forward "vault" "vault" 8200 8200 "Vault UI"
+
+# 10. Ollama API (AI Infrastructure)
+start_port_forward "ollama" "ollama" 11434 11434 "Ollama API"
+
+# 11. AI SRE Agent API
+start_port_forward "observability" "ai-agent" 8000 80 "AI Agent API"
+
+# 12. Loki API (Log Search)
+start_port_forward "observability" "loki" 3100 3100 "Loki API"
+
 echo ""
 echo "✅ All dashboards and apps are now accessible!"
 echo "------------------------------------------------"
@@ -51,10 +66,14 @@ echo "Online Boutique: http://localhost:8084"
 echo "ArgoCD:          http://localhost:8080"
 echo "Grafana:         http://localhost:8082"
 echo "GoAlert:         http://localhost:8083 (or http://goalert.local)"
-echo "Chaos Mesh:      http://localhost:2333 (or http://chaos.local)"
-echo "  ↳ Token:       $CHAOS_TOKEN"
+echo "Chaos Mesh:      http://localhost:2333 (Predefined 📦 Store)"
 echo "Prometheus:      http://localhost:9090"
 echo "AlertManager:    http://localhost:9093"
+echo "Docs Portal:     http://localhost:8085"
+echo "Vault UI:        http://localhost:8200"
+echo "Ollama API:      http://localhost:11434"
+echo "AI Agent API:    http://localhost:8000"
+echo "Loki API:        http://localhost:3100"
 echo "------------------------------------------------"
 echo "Press Ctrl+C to stop all port-forwards."
 

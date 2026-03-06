@@ -52,7 +52,8 @@ echo "[*] Phase 3/3: Tailoring Lean Unsloth & SRE-Specific Neighbors..."
 conda run -n "$ENV_NAME" pip install --no-cache-dir "huggingface_hub>=1.3.0,<2.0" datasets bitsandbytes sentencepiece protobuf regex pyyaml tqdm safetensors numpy pyarrow psutil scipy pandas rich packaging
 
 # 3.2 Install Pinned Neighbors (Strictly without deps to enforce versions)
-conda run -n "$ENV_NAME" conda install -y -c conda-forge cmake gxx gcc
+# Proactively install build tools for GGUF conversion to avoid sudo prompts later
+conda run -n "$ENV_NAME" conda install -y -c conda-forge cmake gxx gcc gxx_linux-64 gcc_linux-64
 conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "tokenizers==0.22.2" "transformers==5.2.0" "trl==0.24.0" "xformers==0.0.26.post1" peft accelerate
 
 # Install unsloth core and zoo strictly WITHOUT dependencies to prevent torchao contamination

@@ -17,7 +17,7 @@ resource "helm_release" "chaos_mesh" {
   }
 
   set {
-    name  = "dashboard.security.rbac"
+    name  = "dashboard.securityMode"
     value = "false"
   }
 
@@ -458,7 +458,63 @@ resource "kubernetes_manifest" "az_outage_workflow" {
   }
 }
 
-# --- Chaos Mesh RBAC for Dashboard ---
+# 12. PREDEFINED 📦 STORE: Recruiter's First Disaster (Safe & Visual)
+resource "kubernetes_manifest" "recruiter_first_disaster" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Workflow"
+    metadata = {
+      name      = "📦-recruiter-first-disaster"
+      namespace = "chaos-testing"
+      labels = {
+        "sre-library" = "true"
+        "store-item"  = "true"
+      }
+    }
+    spec = {
+      entry = "the-showcase"
+      templates = [
+        {
+          name         = "the-showcase"
+          templateType = "Serial"
+          children     = ["intro-delay", "visual-cpu-spike", "wait-healing"]
+        },
+        {
+          name         = "intro-delay"
+          templateType = "NetworkChaos"
+          networkChaos = {
+            action = "delay"
+            mode   = "all"
+            selector = {
+              namespaces = ["online-boutique"]
+              labelSelectors = { "app" = "productcatalogservice" }
+            }
+            delay = { latency = "1000ms" }
+          }
+        },
+        {
+          name         = "visual-cpu-spike"
+          templateType = "StressChaos"
+          stressChaos = {
+            mode = "all"
+            selector = {
+              namespaces = ["online-boutique"]
+              labelSelectors = { "app" = "frontend" }
+            }
+            stressors = { cpu = { workers = 2, load = 80 } }
+          }
+        },
+        {
+          name         = "wait-healing"
+          templateType = "Suspend"
+          deadline     = "2m"
+          suspend      = { duration = "1m" }
+        }
+      ]
+    }
+  }
+}
 
 resource "kubernetes_service_account" "chaos_admin" {
   metadata {

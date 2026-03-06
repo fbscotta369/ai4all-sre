@@ -1,46 +1,73 @@
 # Reference: Zero-Trust Policy Governance (Kyverno) 🛡️
 
-The AI4ALL-SRE Laboratory enforces strict operational boundaries using **Kyverno**. This ensures that even in an autonomous environment, all actions (both human and agentic) comply with industrial security standards and infrastructure constraints.
+The AI4ALL-SRE Laboratory enforces strict operational boundaries using **Kyverno**. This ensures that even in an autonomous environment, all actions compliance with industrial security standards and infrastructure constraints.
 
 ---
 
-## Policy Architecture
+## 🏛️ Policy Architecture
 
-Policies are categorized by their enforcement mode: `Enforce` (blocks non-compliant actions) or `Audit` (logs violations but allows progress). In this lab, we prioritize **Enforce** for all critical production namespaces.
+Policies are categorized by their enforcement mode: `Enforce` (blocks non-compliant actions) or `Audit` (logs violations). Our "Security-by-Default" stance prioritizes **Enforce** for all namespaces.
 
----
-
-## Active Security Policies
-
-| Policy Name | Group/Kind | Target Action | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Disallow Privileged** | `ClusterPolicy` | Block `privileged: true` | Prevents container escapes and unauthorized node access. |
-| **Require Resource Limits**| `ClusterPolicy` | Validate `cpu`/`memory` limits | Prevents resource exhaustion (noisy neighbor effect). |
-| **Auto-Mutate Limits** | `ClusterPolicy` | Inject default limits | Ensures baseline stability for microservices that miss resource tags. |
-| **Block Critical Vulns** | `ClusterPolicy` | Block images with vulnerabilities| Admission gate that prevents deploying pods with CRITICAL CVEs. |
-
----
-
-## AI Agent Constraints
-
-The SRE AI Agent operates within a specialized cryptographic context. Kyverno policies are specifically tuned to recognize the `sre-privileged-access: "true"` label.
-
-1.  **Identity Verification**: The agent must present a valid ServiceAccount token and the correct mTLS identity via Linkerd.
-2.  **Explicit Permission**: Only workloads labeled for AI intervention can be modified by the agent.
-3.  **Kyverno Bypass?**: No. Even the high-privilege agent cannot bypass the "Disallow Privileged" policy, ensuring that an autonomous "hallucination" cannot escalate into a node-level compromise.
-
----
-
-## Policy Enforcement Logs
-
-To view policy violations or enforcement events in real-time, execute the following commands:
-
-```bash
-# View ClusterPolicy status
-kubectl get clusterpolicies
-
-# Check for policy reports (audit/violations)
-kubectl get policyreports -A
+### 1. Resource Governance
+To prevent "Noisy Neighbor" effects and resource exhaustion:
+```yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-requests-limits
+spec:
+  rules:
+  - name: validate-resources
+    match:
+      any:
+      - resources:
+          kinds: ["Pod"]
+    validate:
+      message: "CPU and memory requests and limits are required."
+      pattern:
+        spec:
+          containers:
+          - resources:
+              requests:
+                cpu: "?*"
+                memory: "?*"
+              limits:
+                cpu: "?*"
+                memory: "?*"
 ```
 
-*For technical implementation details, see `governance.tf`.*
+### 2. Supply Chain Security
+We prevent the deployment of untrusted or vulnerable code:
+- **Image Verification**: Policies can be extended to verify Cosign signatures.
+- **Vulnerability Gating**: Pods containing `CRITICAL` vulnerabilities (Trivy scans) are blocked at the admission gate.
+
+---
+
+## 🧠 AI Agent specific Constraints
+
+The SRE AI Agent operates with elevated privileges but remains subject to policy-as-code guardrails.
+
+| Constraint | Mechanism | Rationale |
+| :--- | :--- | :--- |
+| **No-Privileged-Escalation** | Kyverno `validate` | Prevents the agent from accidentally creating root-access containers. |
+| **Label Enforcement** | Kyverno `validate` | The agent can only modify workloads tagged with `sre-intervention: "true"`. |
+| **Automation Boundaries** | Kyverno `precondition` | Ensures the agent doesn't touch system namespaces (`kube-system`). |
+
+---
+
+## 📊 Compliance Monitoring
+
+To audit policy hits and violations in real-time:
+
+```bash
+# Get a summary of all policy reports
+kubectl get policyreports -A
+
+# Inspect a specific violation
+kubectl describe policyreport <report-name> -n <namespace>
+```
+
+*For technical implementation details, see `governance.tf` and the `/policies` directory.*
+
+---
+*Governance Lead: AI4ALL-SRE Laboratory*

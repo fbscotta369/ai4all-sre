@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: server
-          image: frontend:latest # Placeholder image
+          image: us-central1-docker.pkg.dev/google-samples/microservices-demo/frontend:v0.10.4
           ports:
             - containerPort: 8080
           env:

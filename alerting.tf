@@ -88,6 +88,26 @@ resource "kubernetes_deployment" "goalert" {
             name  = "GOALERT_DB_URL"
             value = "postgres://postgres:goalertpass@goalert-db-postgresql.incident-management.svc.cluster.local:5432/postgres?sslmode=disable"
           }
+
+          env {
+            name  = "GOALERT_SLACK_CLIENT_ID"
+            value = var.slack_client_id
+          }
+
+          env {
+            name  = "GOALERT_SLACK_CLIENT_SECRET"
+            value = var.slack_client_secret
+          }
+
+          env {
+            name  = "GOALERT_SLACK_SIGNING_SECRET"
+            value = var.slack_signing_secret
+          }
+
+          env {
+            name  = "GOALERT_SLACK_BOT_TOKEN"
+            value = var.slack_token
+          }
         }
       }
     }

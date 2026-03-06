@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docs-portal
+  namespace: docs-portal
+  labels:
+    app: docs-portal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: docs-portal
+  template:
+    metadata:
+      labels:
+        app: docs-portal
+    spec:
+      containers:
+      - name: docs-portal
+        image: fbscotta369/docs-portal:latest # Placeholder image name
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docs-portal
+  namespace: docs-portal
+spec:
+  selector:
+    app: docs-portal
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP

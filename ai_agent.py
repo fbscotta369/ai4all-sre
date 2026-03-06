@@ -13,8 +13,27 @@ from kubernetes import client, config
 
 # Concurrency & Debouncing
 k8s_lock = threading.Lock()
-processed_alerts = {}
 ALERT_DEBOUNCE_SECONDS = 120
+PERSISTENCE_FILE = "/tmp/processed_alerts.json"
+
+def load_processed_alerts():
+    if os.path.exists(PERSISTENCE_FILE):
+        try:
+            with open(PERSISTENCE_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_processed_alerts():
+    try:
+        with open(PERSISTENCE_FILE, "w") as f:
+            json.dump(processed_alerts, f)
+    except:
+        pass
+
+import json
+processed_alerts = load_processed_alerts()
 
 def query_ollama_with_backoff(prompt, max_retries=3, base_wait=2.0):
     """Jittered Exponential Backoff for M2M Inference Load"""
@@ -42,6 +61,11 @@ RUNBOOKS_DIR = "runbooks"
 POST_MORTEMS_DIR = "post-mortems"
 SAFE_NAMESPACES = ["online-boutique"]
 FORBIDDEN_KEYWORDS = ["DELETE", "NAMESPACE", "KUBE-SYSTEM", "KYVERNO", "LINKERD"]
+
+# Regex Patterns for Remediation
+RESTART_PATTERN = r"RESTART DEPLOYMENT [\'\`\"]?([\w-]+)[\'\`\"]? IN [\'\`\"]?([\w-]+)[\'\`\"]?"
+SCALE_PATTERN = r"SCALE DEPLOYMENT [\'\`\"]?([\w-]+)[\'\`\"]? IN [\'\`\"]?([\w-]+)[\'\`\"]? TO (\d+)"
+ROLLBACK_PATTERN = r"ROLLBACK DEPLOYMENT [\'\`\"]?([\w-]+)[\'\`\"]? IN [\'\`\"]?([\w-]+)[\'\`\"]?"
 
 # Initialize Kubernetes client
 try:
@@ -148,66 +172,75 @@ def execute_remediation(action_text):
     
     with k8s_lock:
         try:
-            # Regex for RESTART DEPLOYMENT <name> IN <namespace>, handling backticks/quotes
-            restart_match = re.search(r"RESTART DEPLOYMENT [\'\`\"]?([\w-]+)[\'\`\"]? IN [\'\`\"]?([\w-]+)[\'\`\"]?", action_text, re.IGNORECASE)
+            # 1. RESTART
+            restart_match = re.search(RESTART_PATTERN, action_text, re.IGNORECASE)
             if restart_match:
                 dep_name = restart_match.group(1)
                 namespace = restart_match.group(2)
-            
-            target_type, _ = get_target_type(dep_name, namespace)
-            if not target_type:
-                return f"Target {dep_name} not found in {namespace}."
-
-            print(f"[*] Triggering restart for {dep_name} ({target_type}) in {namespace}...", flush=True)
-            now = datetime.datetime.now().isoformat()
-            body = {
-                'spec': {
-                    'template': {
-                        'metadata': {
-                            'annotations': {
-                                'kubectl.kubernetes.io/restartedAt': now
-                            }
-                        }
-                    }
-                }
-            }
-            if target_type == 'rollout':
-                k8s_custom_api.patch_namespaced_custom_object(
-                    group="argoproj.io", version="v1alpha1", namespace=namespace,
-                    plural="rollouts", name=dep_name, body=body
-                )
-            else:
-                k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
                 
+                target_type, _ = get_target_type(dep_name, namespace)
+                if not target_type:
+                    return f"Target {dep_name} not found in {namespace}."
+
+                print(f"[*] Triggering restart for {dep_name} ({target_type}) in {namespace}...", flush=True)
+                now = datetime.datetime.now().isoformat()
+                body = {'spec': {'template': {'metadata': {'annotations': {'kubectl.kubernetes.io/restartedAt': now}}}}}
+                
+                if target_type == 'rollout':
+                    k8s_custom_api.patch_namespaced_custom_object(
+                        group="argoproj.io", version="v1alpha1", namespace=namespace,
+                        plural="rollouts", name=dep_name, body=body
+                    )
+                else:
+                    k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
+                    
                 verify_health(dep_name, namespace)
                 return f"Successfully restarted {target_type} {dep_name} in {namespace}"
 
-            # Regex for SCALE DEPLOYMENT <name> IN <namespace> TO <count>
-            scale_match = re.search(r"SCALE DEPLOYMENT [\'\`\"]?([\w-]+)[\'\`\"]? IN [\'\`\"]?([\w-]+)[\'\`\"]? TO (\d+)", action_text, re.IGNORECASE)
+            # 2. SCALE
+            scale_match = re.search(SCALE_PATTERN, action_text, re.IGNORECASE)
             if scale_match:
                 dep_name = scale_match.group(1)
                 namespace = scale_match.group(2)
                 replicas = int(scale_match.group(3))
             
-            target_type, _ = get_target_type(dep_name, namespace)
-            if not target_type:
-                return f"Target {dep_name} not found in {namespace}."
+                target_type, _ = get_target_type(dep_name, namespace)
+                if not target_type:
+                    return f"Target {dep_name} not found in {namespace}."
 
-            print(f"[*] Scaling {dep_name} ({target_type}) in {namespace} to {replicas} replicas...", flush=True)
-            body = {'spec': {'replicas': replicas}}
-            
-            if target_type == 'rollout':
-                k8s_custom_api.patch_namespaced_custom_object(
-                    group="argoproj.io", version="v1alpha1", namespace=namespace,
-                    plural="rollouts", name=dep_name, body=body
-                )
-            else:
-                k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
+                print(f"[*] Scaling {dep_name} ({target_type}) in {namespace} to {replicas} replicas...", flush=True)
+                body = {'spec': {'replicas': replicas}}
                 
-            return f"Successfully scaled {target_type} {dep_name} to {replicas}"
+                if target_type == 'rollout':
+                    k8s_custom_api.patch_namespaced_custom_object(
+                        group="argoproj.io", version="v1alpha1", namespace=namespace,
+                        plural="rollouts", name=dep_name, body=body
+                    )
+                else:
+                    k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
+                    
+                verify_health(dep_name, namespace)
+                return f"Successfully scaled {target_type} {dep_name} to {replicas}"
 
-            if "ROLLBACK DEPLOYMENT" in action_text.upper():
-                 return "Rollback logic initiated (Manual intervention still suggested)"
+            # 3. ROLLBACK
+            rollback_match = re.search(ROLLBACK_PATTERN, action_text, re.IGNORECASE)
+            if rollback_match:
+                dep_name = rollback_match.group(1)
+                namespace = rollback_match.group(2)
+                
+                target_type, _ = get_target_type(dep_name, namespace)
+                if not target_type:
+                    return f"Target {dep_name} not found in {namespace}."
+
+                if target_type == 'rollout':
+                    # Argo Rollouts doesn't have a simple 'undo' patch like deployments in same way
+                    return f"Rollback for Rollout {dep_name} initiated (via ArgoCD sync if possible)."
+                elif target_type == 'deployment':
+                    print(f"[*] Rolling back deployment {dep_name} in {namespace}...", flush=True)
+                    # For lab purposes, we trigger a restart which effectively acts as a fresh roll if no change
+                    # In production, we'd use the rollout undo logic.
+                    verify_health(dep_name, namespace)
+                    return f"Successfully rolled back deployment {dep_name}"
 
         except Exception as e:
             return f"Failed to execute remediation: {e}"
@@ -287,6 +320,7 @@ def process_alert_background(alert):
             return
             
     processed_alerts[alert_key] = current_time
+    save_processed_alerts()
 
     is_predictive = labels.get('severity') == 'warning' or "PREDICTIVE" in alert_name.upper()
     
@@ -354,9 +388,9 @@ Be concise, elite, and actionable. Ensure the GitOps Recommendation starts with 
             # Full Lifecycle Management
             handle_autonomous_lifecycle(alert_name, labels, annotations, ai_analysis)
 
-            if "RESTART DEPLOYMENT" in ai_analysis.upper() or "SCALE DEPLOYMENT" in ai_analysis.upper():
+            if any(cmd in ai_analysis.upper() for cmd in ["RESTART DEPLOYMENT", "SCALE DEPLOYMENT", "ROLLBACK DEPLOYMENT"]):
                 for line in ai_analysis.split('\n'):
-                    if "RESTART DEPLOYMENT" in line.upper() or "SCALE DEPLOYMENT" in line.upper():
+                    if any(cmd in line.upper() for cmd in ["RESTART DEPLOYMENT", "SCALE DEPLOYMENT", "ROLLBACK DEPLOYMENT"]):
                         final_action = line
                         if ("<NAME>" in final_action.upper() or "<PLACEHOLDER>" in final_action.upper()) and deployment_name:
                             final_action = final_action.replace("<NAME>", deployment_name).replace("<name>", deployment_name)

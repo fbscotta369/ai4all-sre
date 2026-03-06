@@ -1,0 +1,89 @@
+site_name: AI4ALL-SRE Docs Portal
+site_description: Enterprise-grade SRE Laboratory Documentation
+site_author: AI4ALL-SRE Team
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+
+# Fail the build if there are broken links
+strict: true
+
+nav:
+  - Home: index.md
+  - Tutorials:
+    - Overview: tutorials/index.md
+    - Quickstart: tutorials/01-quickstart.md
+    - AI Model Finetuning: tutorials/02-ai-model-finetuning.md
+  - How-to Guides:
+    - Overview: how-to/index.md
+    - Command Reference: how-to/command-reference.md
+    - Disaster Recovery: how-to/disaster-recovery-dry-runs.md
+    - Performance & Scaling: how-to/performance-and-scaling.md
+    - Chaos Experiments: how-to/run-chaos-experiments.md
+    - Integrations: how-to/slack-and-goalert-integrations.md
+  - Reference:
+    - Overview: reference/index.md
+    - Incident Governance: reference/incident-lifecycle-governance.md
+    - Incident Runbooks: reference/incident-runbooks.md
+    - Kyverno Policies: reference/kyverno-policies.md
+    - MLOps SOPs: reference/mlops-standard-operating-procedures.md
+    - Architecture: reference/system-architecture.md
+    - Testing Framework: reference/testing-framework.md
+    - Hardware Optimizations: reference/hardware-optimizations.md
+    - Dependencies: reference/dependencies.md
+  - Explanation:
+    - Overview: explanation/index.md
+    - Compliance: explanation/devsecops-and-compliance.md
+    - Manifesto: explanation/platform-engineering-manifesto.md
+    - MAS Logic: explanation/mas-logic.md
+    - Autonomous Loop: explanation/the-autonomous-loop.md
+    - Trace Correlation: explanation/zero-touch-trace-correlation.md
+  - Templates:
+    - Post-Mortem: POST_MORTEM_TEMPLATE.md
+    - Experiment Log: reference/experiment-log-template.md

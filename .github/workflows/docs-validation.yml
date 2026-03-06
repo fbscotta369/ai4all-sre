@@ -1,0 +1,46 @@
+name: Docs Validation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'mkdocs.yml'
+      - '.vale.ini'
+      - '.markdownlint.json'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'mkdocs.yml'
+      - '.vale.ini'
+      - '.markdownlint.json'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Markdownlint
+        uses: davidanson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            docs/**/*.md
+            README.md
+
+      - name: Vale (Prose Linter)
+        uses: errata-ai/vale-action@v2
+        with:
+          files: docs README.md
+          vale_flags: --minAlertLevel suggestion
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Link Check
+        run: |
+          pip install mkdocs-material "mkdocstrings[python]"
+          mkdocs build --strict
