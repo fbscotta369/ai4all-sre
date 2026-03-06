@@ -134,6 +134,25 @@ resource "kubernetes_manifest" "authz_frontend_to_productcatalog" {
   depends_on = [helm_release.linkerd_crds]
 }
 
+# Fix: Allow Kubelet health checks (unauthenticated) for productcatalog gRPC
+resource "kubernetes_manifest" "authz_productcatalog_health" {
+  manifest = {
+    apiVersion = "policy.linkerd.io/v1alpha1"
+    kind       = "ServerAuthorization"
+    metadata = {
+      name      = "productcatalog-health"
+      namespace = "online-boutique"
+    }
+    spec = {
+      server = { name = "productcatalog-grpc" }
+      client = {
+        unauthenticated = true
+      }
+    }
+  }
+  depends_on = [helm_release.linkerd_crds]
+}
+
 # Only allow loadgenerator to talk to frontend
 resource "kubernetes_manifest" "frontend_server" {
   manifest = {
@@ -163,7 +182,7 @@ resource "kubernetes_manifest" "authz_loadgen_to_frontend" {
       namespace = "online-boutique"
     }
     spec = {
-      server = { name = "frontend-server" }
+      server = { name = "frontend-http" }
       client = {
         unauthenticated = true # Frontend is external facing via LB/Ingress
       }

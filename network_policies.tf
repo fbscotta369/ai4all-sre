@@ -50,6 +50,11 @@ resource "kubernetes_network_policy" "allow_frontend_ingress" {
           match_labels = { app = "behavioral-loadgen" }
         }
       }
+      from {
+        pod_selector {
+          match_labels = { app = "loadgenerator" }
+        }
+      }
     }
     ingress {
       from {
@@ -134,6 +139,57 @@ resource "kubernetes_network_policy" "online_boutique_allow_linkerd" {
       # Policy service
       ports {
         port     = 8090
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# Fix: Allow outbound egress for loadgen dependencies (PyPI/Internet)
+resource "kubernetes_network_policy" "behavioral_loadgen_egress" {
+  metadata {
+    name      = "allow-loadgen-egress"
+    namespace = kubernetes_namespace.online_boutique.metadata[0].name
+  }
+  spec {
+    pod_selector {
+      match_labels = { app = "behavioral-loadgen" }
+    }
+    policy_types = ["Egress"]
+    egress {
+      # Allow HTTP/HTTPS to any external IP
+      ports {
+        port     = 80
+        protocol = "TCP"
+      }
+      ports {
+        port     = 443
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+# Fix: Allow Kubelet (kube-system) to perform health checks on all pods
+resource "kubernetes_network_policy" "online_boutique_allow_health_checks" {
+  metadata {
+    name      = "allow-health-checks"
+    namespace = kubernetes_namespace.online_boutique.metadata[0].name
+  }
+  spec {
+    pod_selector {}
+    policy_types = ["Ingress"]
+    ingress {
+      from {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "kube-system" }
+        }
+      }
+    }
+    # Fallback for clusters where kubelet probes come from node/host IPs
+    ingress {
+      ports {
+        port     = 3550
         protocol = "TCP"
       }
     }

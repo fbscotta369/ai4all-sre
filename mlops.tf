@@ -43,11 +43,15 @@ resource "kubernetes_deployment" "behavioral_loadgen" {
           name  = "loadgen"
           image = var.loadgen_image
 
+          # Fix: Restore command and script mount for behavioral load generator
+          command = ["/bin/sh", "-c"]
+          args    = ["pip install --user requests && python /app/behavioral_loadgen.py"]
+
           security_context {
-            privileged                = false
+            privileged                 = false
             allow_privilege_escalation = false
-            run_as_non_root           = true
-            run_as_user               = 1000
+            run_as_non_root            = true
+            run_as_user                = 1000
           }
 
           resources {
@@ -64,6 +68,19 @@ resource "kubernetes_deployment" "behavioral_loadgen" {
           env {
             name  = "FRONTEND_ADDR"
             value = "frontend:80"
+          }
+
+          volume_mount {
+            name       = "script"
+            mount_path = "/app/behavioral_loadgen.py"
+            sub_path   = "behavioral_loadgen.py"
+          }
+        }
+
+        volume {
+          name = "script"
+          config_map {
+            name = kubernetes_config_map.behavioral_loadgen_script.metadata[0].name
           }
         }
       }

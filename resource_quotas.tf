@@ -21,8 +21,8 @@ resource "kubernetes_resource_quota" "online_boutique_quota" {
   }
   spec {
     hard = {
-      cpu    = "4"
-      memory = "8Gi"
+      cpu    = "10"
+      memory = "16Gi"
       pods   = "50"
     }
   }
