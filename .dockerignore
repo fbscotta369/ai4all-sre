@@ -1,0 +1,67 @@
+# ──────────────────────────────────────────────────────────────
+# .dockerignore — AI4ALL-SRE Platform
+# Excludes unnecessary files from Docker build context
+# ──────────────────────────────────────────────────────────────
+
+# Version control
+.git
+.github
+.gitignore
+
+# Terraform state and provider cache
+.terraform
+*.tfstate
+*.tfstate.backup
+*.tfvars
+backend.tf.example
+
+# Python virtual environments and caches
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+unsloth_compiled_cache
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.cursorrules
+
+# Documentation build artifacts
+site/
+docs/
+
+# AI model artifacts (large files)
+sre-kernel-q4_k_m/
+ollama
+
+# Test artifacts
+tests/
+e2e_test.sh
+lifecycle_test.sh
+
+# Certificates and keys (never embed in images)
+*.key
+*.crt
+*.pem
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Agent config
+.agent
+.vale.ini
+.markdownlint.json
+
+# Miscellaneous
+*.md
+LICENSE
+mkdocs.yml
+oneuptime/
+outputs/
+adr/

@@ -20,6 +20,10 @@ resource "helm_release" "kube_prometheus_stack" {
     name  = "grafana.grafana\\.ini.auth\\.anonymous.org_role"
     value = "Admin"
   }
+  # ⚠️ LAB LIMITATION: Hardcoded admin password. Production migration path:
+  # 1. Deploy Vault CSI Provider: helm install vault-csi hashicorp/vault --set "csi.enabled=true"
+  # 2. Create SecretProviderClass referencing vault secret/data/grafana/admin
+  # 3. Replace this block with: value = data.vault_generic_secret.grafana.data["password"]
   set {
     name  = "grafana.adminPassword"
     value = "admin123"
@@ -138,13 +142,56 @@ resource "helm_release" "opentelemetry_collector" {
     value = "daemonset"
   }
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # Unified OTel Pipeline: Traces + Metrics + Logs
+  # Insurance policy against vendor lock-in (Datadog, New Relic, etc.)
+  # All telemetry flows through OTel Collector before reaching backends.
+  # ────────────────────────────────────────────────────────────────────────────
   values = [
     yamlencode({
       config = {
+        receivers = {
+          otlp = {
+            protocols = {
+              grpc = { endpoint = "0.0.0.0:4317" }
+              http = { endpoint = "0.0.0.0:4318" }
+            }
+          }
+        }
+        processors = {
+          memory_limiter = {
+            check_interval  = "1s"
+            limit_mib       = 512
+            spike_limit_mib = 128
+          }
+          batch = {
+            send_batch_size = 1024
+            timeout         = "5s"
+          }
+          # Resource detection for K8s metadata enrichment
+          resource = {
+            attributes = [
+              { key = "service.namespace", from_attribute = "k8s.namespace.name", action = "upsert" }
+            ]
+          }
+        }
         exporters = {
+          # Traces → Tempo
           otlp = {
             endpoint = "tempo:4317"
             tls      = { insecure = true }
+          }
+          # Metrics → Prometheus (remote-write)
+          prometheusremotewrite = {
+            endpoint = "http://kube-prometheus-prometheus.observability.svc.cluster.local:9090/api/v1/write"
+            tls      = { insecure = true }
+          }
+          # Logs → Loki (via loki exporter)
+          loki = {
+            endpoint = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+            labels = {
+              attributes = { "k8s.namespace.name" = "namespace", "k8s.pod.name" = "pod" }
+            }
           }
         }
         service = {
@@ -153,6 +200,16 @@ resource "helm_release" "opentelemetry_collector" {
               receivers  = ["otlp"]
               processors = ["memory_limiter", "batch"]
               exporters  = ["otlp"]
+            }
+            metrics = {
+              receivers  = ["otlp"]
+              processors = ["memory_limiter", "batch"]
+              exporters  = ["prometheusremotewrite"]
+            }
+            logs = {
+              receivers  = ["otlp"]
+              processors = ["memory_limiter", "batch"]
+              exporters  = ["loki"]
             }
           }
         }
@@ -291,10 +348,10 @@ resource "kubernetes_deployment" "ai_agent" {
       spec {
         service_account_name = kubernetes_service_account.ai_agent.metadata[0].name
         container {
-          name  = "ai-agent"
-          image = "python:3.11-slim"
+          name    = "ai-agent"
+          image   = "python:3.11-slim"
           command = ["/bin/sh", "-c"]
-          args = ["pip install requests fastapi uvicorn kubernetes redis pydantic && python /app/ai_agent.py"]
+          args    = ["pip install requests fastapi uvicorn kubernetes redis pydantic && python /app/ai_agent.py"]
           port {
             container_port = 8000
           }
@@ -326,6 +383,11 @@ resource "kubernetes_deployment" "ai_agent" {
             name  = "MINIO_ENDPOINT"
             value = "minio.minio.svc.cluster.local:9000"
           }
+          # ⚠️ LAB LIMITATION: Hardcoded MinIO credentials.
+          # PRODUCTION: Use Vault Agent Injector annotations on this pod:
+          #   vault.hashicorp.com/agent-inject: "true"
+          #   vault.hashicorp.com/agent-inject-secret-minio: "secret/data/minio/credentials"
+          # Then read from /vault/secrets/minio instead of env vars.
           env {
             name  = "MINIO_ACCESS_KEY"
             value = "admin"
@@ -540,8 +602,8 @@ resource "kubernetes_config_map" "loki_dashboard" {
       title = "SRE: Pod Log Search (Loki)"
       panels = [
         {
-          title = "Live Pod Logs"
-          type  = "logs"
+          title   = "Live Pod Logs"
+          type    = "logs"
           targets = [{ expr = "{namespace=~\"online-boutique|observability|incident-management\"}", refId = "A" }]
           gridPos = { h = 20, w = 24, x = 0, y = 0 }
         }
@@ -561,14 +623,14 @@ resource "kubernetes_config_map" "slo_dashboard" {
       title = "SRE: SLO & Error Budgets"
       panels = [
         {
-          title = "Frontend Latency SLO (99.0% < 500ms)"
-          type  = "stat"
+          title   = "Frontend Latency SLO (99.0% < 500ms)"
+          type    = "stat"
           targets = [{ expr = "frontend_latency_sli * 100" }]
           fieldConfig = {
             defaults = {
               unit = "percent"
               thresholds = {
-                mode = "absolute"
+                mode  = "absolute"
                 steps = [{ color = "red", value = null }, { color = "green", value = 99 }]
               }
             }
@@ -612,22 +674,179 @@ resource "kubernetes_config_map" "e2e_dashboard" {
       title = "CTO: E2E Visual Testing & Resilience"
       panels = [
         {
-          title = "Active Chaos Mesh Experiments"
-          type  = "table"
+          title   = "Active Chaos Mesh Experiments"
+          type    = "table"
           targets = [{ expr = "chaos_mesh_experiments{}", legendFormat = "{{name}}" }]
           gridPos = { h = 10, w = 12, x = 0, y = 0 }
         },
         {
-          title = "Frontend Error Rate"
-          type  = "timeseries"
+          title   = "Frontend Error Rate"
+          type    = "timeseries"
           targets = [{ expr = "sum(rate(grpc_server_handling_seconds_count{job=\"frontend\", grpc_code!=\"OK\"}[1m]))/sum(rate(grpc_server_handling_seconds_count{job=\"frontend\"}[1m])) * 100", legendFormat = "Error Rate %" }]
           gridPos = { h = 10, w = 12, x = 12, y = 0 }
         },
         {
-          title = "Active GoAlert Incidents (AlertManager)"
-          type  = "table"
+          title   = "Active GoAlert Incidents (AlertManager)"
+          type    = "table"
           targets = [{ expr = "ALERTS{alertstate=\"firing\"}" }]
           gridPos = { h = 10, w = 24, x = 0, y = 10 }
+        }
+      ]
+    })
+  }
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Dashboard: Error Budget Burn-Rate (SRE Executive Decision Tool)
+# When the budget is blown, feature velocity stops — no exceptions.
+# ──────────────────────────────────────────────────────────────────────────────
+resource "kubernetes_config_map" "error_budget_dashboard" {
+  metadata {
+    name      = "error-budget-dashboard"
+    namespace = var.observability_namespace
+    labels    = { grafana_dashboard = "1" }
+  }
+  data = {
+    "error-budget.json" = jsonencode({
+      title       = "SRE: Error Budget Burn-Rate"
+      description = "Tracks SLO error budget consumption across critical services. When remaining budget < 0%, feature releases MUST halt."
+      panels = [
+        # ── Frontend Availability (SLO: 99%) ──
+        {
+          title = "Frontend — Remaining Error Budget (%)"
+          type  = "gauge"
+          targets = [{
+            expr         = "1 - ((1 - frontend_success_rate_5m) / (1 - 0.99))"
+            legendFormat = "Budget Remaining"
+          }]
+          fieldConfig = {
+            defaults = {
+              unit = "percentunit"
+              min  = 0
+              max  = 1
+              thresholds = {
+                mode = "absolute"
+                steps = [
+                  { color = "red", value = null },
+                  { color = "orange", value = 0.25 },
+                  { color = "green", value = 0.50 }
+                ]
+              }
+            }
+          }
+          gridPos = { h = 8, w = 8, x = 0, y = 0 }
+        },
+        {
+          title = "Frontend — 1h Burn Rate"
+          type  = "stat"
+          targets = [{
+            expr         = "(1 - avg_over_time(frontend_success_rate_5m[1h])) / (1 - 0.99)"
+            legendFormat = "1h Burn"
+          }]
+          fieldConfig = {
+            defaults = {
+              unit = "percentunit"
+              thresholds = {
+                mode = "absolute"
+                steps = [
+                  { color = "green", value = null },
+                  { color = "orange", value = 1.0 },
+                  { color = "red", value = 14.4 }
+                ]
+              }
+            }
+          }
+          gridPos = { h = 4, w = 4, x = 8, y = 0 }
+        },
+        {
+          title = "Frontend — 6h Burn Rate"
+          type  = "stat"
+          targets = [{
+            expr         = "(1 - avg_over_time(frontend_success_rate_5m[6h])) / (1 - 0.99)"
+            legendFormat = "6h Burn"
+          }]
+          fieldConfig = {
+            defaults = {
+              unit = "percentunit"
+              thresholds = {
+                mode = "absolute"
+                steps = [
+                  { color = "green", value = null },
+                  { color = "orange", value = 1.0 },
+                  { color = "red", value = 6.0 }
+                ]
+              }
+            }
+          }
+          gridPos = { h = 4, w = 4, x = 12, y = 0 }
+        },
+        {
+          title = "Frontend — 3d Burn Rate"
+          type  = "stat"
+          targets = [{
+            expr         = "(1 - avg_over_time(frontend_success_rate_5m[3d])) / (1 - 0.99)"
+            legendFormat = "3d Burn"
+          }]
+          fieldConfig = {
+            defaults = {
+              unit = "percentunit"
+              thresholds = {
+                mode = "absolute"
+                steps = [
+                  { color = "green", value = null },
+                  { color = "orange", value = 0.5 },
+                  { color = "red", value = 1.0 }
+                ]
+              }
+            }
+          }
+          gridPos = { h = 4, w = 4, x = 16, y = 0 }
+        },
+        # ── Frontend Burn Over Time ──
+        {
+          title = "Frontend — Availability Over Time"
+          type  = "timeseries"
+          targets = [
+            { expr = "frontend_success_rate_5m * 100", legendFormat = "Availability %" },
+            { expr = "99", legendFormat = "SLO Target (99%)" }
+          ]
+          fieldConfig = { defaults = { unit = "percent" } }
+          gridPos     = { h = 8, w = 12, x = 0, y = 8 }
+        },
+        # ── PaymentService Availability (SLO: 99.9%) ──
+        {
+          title = "PaymentService — Remaining Error Budget (%)"
+          type  = "gauge"
+          targets = [{
+            expr         = "1 - ((1 - paymentservice_success_rate_5m) / (1 - 0.999))"
+            legendFormat = "Budget Remaining"
+          }]
+          fieldConfig = {
+            defaults = {
+              unit = "percentunit"
+              min  = 0
+              max  = 1
+              thresholds = {
+                mode = "absolute"
+                steps = [
+                  { color = "red", value = null },
+                  { color = "orange", value = 0.25 },
+                  { color = "green", value = 0.50 }
+                ]
+              }
+            }
+          }
+          gridPos = { h = 8, w = 8, x = 12, y = 8 }
+        },
+        # ── Decision Banner ──
+        {
+          title = "🚦 Error Budget Policy"
+          type  = "text"
+          options = {
+            mode    = "markdown"
+            content = "## Error Budget Policy\\n\\n| Condition | Action |\\n|:---|:---|\\n| **Budget > 50%** | Normal feature velocity ✅ |\\n| **Budget 25-50%** | Reduce blast radius, extra review gates ⚠️ |\\n| **Budget < 25%** | Feature freeze — reliability engineering only 🛑 |\\n| **Budget exhausted** | All hands on reliability. P0 incident declared. 🚨 |"
+          }
+          gridPos = { h = 6, w = 24, x = 0, y = 16 }
         }
       ]
     })

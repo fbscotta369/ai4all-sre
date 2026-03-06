@@ -1,0 +1,23 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Kyverno Policy Test: disallow-privileged-containers
+# Run with: kyverno test tests/kyverno/
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: test-disallow-privileged
+policies:
+  - ../../platforms/terraform/governance/governance.tf  # Policy defined in Terraform
+resources:
+  - resources.yaml
+results:
+  - policy: disallow-privileged-containers
+    rule: privileged-containers
+    resource: test-privileged-pod
+    kind: Pod
+    result: fail
+  - policy: disallow-privileged-containers
+    rule: privileged-containers
+    resource: test-nonprivileged-pod
+    kind: Pod
+    result: pass

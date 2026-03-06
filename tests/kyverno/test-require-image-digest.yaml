@@ -1,0 +1,22 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Kyverno Policy Test: require-image-digest
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: test-require-image-digest
+policies:
+  - ../../platforms/terraform/governance/governance.tf
+resources:
+  - resources.yaml
+results:
+  - policy: require-image-digest
+    rule: require-digest
+    resource: test-latest-tag-pod
+    kind: Pod
+    result: fail
+  - policy: require-image-digest
+    rule: require-digest
+    resource: test-pinned-tag-pod
+    kind: Pod
+    result: pass

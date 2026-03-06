@@ -15,11 +15,11 @@ resource "kubernetes_deployment" "redis" {
         container {
           name  = "redis"
           image = "redis:7.2-alpine"
-          port  { container_port = 6379 }
-          args  = ["--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+          port { container_port = 6379 }
+          args = ["--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
           resources {
             limits   = { cpu = "200m", memory = "128Mi" }
-            requests = { cpu = "50m",  memory = "64Mi"  }
+            requests = { cpu = "50m", memory = "64Mi" }
           }
           liveness_probe {
             exec { command = ["redis-cli", "ping"] }
@@ -136,7 +136,7 @@ resource "kubernetes_deployment" "chromadb" {
         container {
           name  = "chromadb"
           image = "ghcr.io/chroma-core/chroma:0.4.24"
-          port  { container_port = 8000 }
+          port { container_port = 8000 }
           env {
             name  = "IS_PERSISTENT"
             value = "TRUE"
@@ -146,8 +146,8 @@ resource "kubernetes_deployment" "chromadb" {
             value = "/chroma/data"
           }
           resources {
-            limits   = { cpu = "1000m", memory = "1Gi"  }
-            requests = { cpu = "200m",  memory = "256Mi" }
+            limits   = { cpu = "1000m", memory = "1Gi" }
+            requests = { cpu = "200m", memory = "256Mi" }
           }
           volume_mount {
             name       = "chroma-data"

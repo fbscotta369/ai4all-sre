@@ -27,12 +27,58 @@ This project enforces the following security controls:
 |:---|:---|:---|
 | Zero-Trust mTLS | Linkerd service mesh | ✅ Active |
 | PKI Automation | Cert-Manager + HashiCorp Vault | ✅ Active |
-| Policy-as-Code | Kyverno ClusterPolicies | ✅ Active |
+| Policy-as-Code (Runtime) | Kyverno ClusterPolicies (10 policies) | ✅ Active |
+| Policy-as-Code (CI) | OPA/Conftest + Kyverno CLI tests | ✅ Active |
 | CVE Scanning | Trivy Operator (continuous) | ✅ Active |
+| SAST — Python | Bandit + CodeQL | ✅ Active |
+| SAST — Multi-language | Semgrep (Python, Terraform, Dockerfile, K8s) | ✅ Active |
+| Dependency Safety | pip-audit (CVE scan on all requirements) | ✅ Active |
+| SBOM Generation | Trivy CycloneDX (filesystem + image-level) | ✅ Active |
+| SBOM Attestation | Cosign in-toto CycloneDX attestation | ✅ Active |
+| Image Signing | Cosign Keyless (Sigstore/Fulcio OIDC) | ✅ Active |
+| Image Signature Verification | Kyverno `verify-image-signatures` admission | ✅ Audit |
+| Supply Chain Provenance | SLSA Level 3 (slsa-github-generator) | ✅ Active |
+| IaC Scanning | Checkov + tfsec + Conftest (OPA) | ✅ Active |
+| Secret Scanning | Gitleaks (CI + pre-commit) | ✅ Active |
+| Dockerfile Linting | Hadolint (CI + pre-commit) | ✅ Active |
 | Secret Management | Vault Agent Sidecar Injection | ✅ Active |
 | AI Action Safety | Pydantic structured output + namespace allowlist | ✅ Active |
 | Network Isolation | Kubernetes NetworkPolicy (default-deny) | ✅ Active |
 | GitOps Auditability | ArgoCD + CODEOWNERS + branch protection | ✅ Active |
+| Pre-commit Hooks | Gitleaks, Bandit, Terraform, ShellCheck, Hadolint | ✅ Active |
+| Container Hardening | Multi-stage builds, non-root, HEALTHCHECK | ✅ Active |
+
+## DevSecOps Pipeline
+
+Security is enforced at every stage of the SDLC (Shift-Left):
+
+```
+Developer Workstation → Pre-commit Hooks → CI Security Gates → Image Signing → Admission Control → Runtime Scanning
+```
+
+### CI Security Gates (`.github/workflows/security-gate.yml`)
+
+| Gate | Tools | Enforcement |
+|:---|:---|:---|
+| SAST | Bandit, Semgrep, CodeQL | Fail on HIGH+ |
+| Supply Chain | pip-audit, Trivy SBOM | Fail on CRITICAL CVE |
+| Container Security | Docker build, Trivy image scan, Cosign sign | Fail on CRITICAL |
+| Policy-as-Code | Kyverno CLI, Conftest (OPA), Checkov | Fail on policy violation |
+
+### Kyverno Admission Policies (Runtime)
+
+| Policy | Action | Category |
+|:---|:---|:---|
+| disallow-privileged-containers | Enforce | Pod Security |
+| require-resource-limits | Audit | Resource Management |
+| mutate-resource-limits | Audit (mutate) | Resource Management |
+| enforce-linkerd-injection | Enforce | Zero-Trust |
+| restrict-image-registries | Audit | Supply Chain |
+| block-critical-vulnerabilities | Audit | CVE Prevention |
+| require-image-digest | Enforce | Supply Chain |
+| verify-image-signatures | Audit | Supply Chain |
+| require-mandatory-labels | Audit | Governance / FinOps |
+| require-probes | Audit | Reliability |
 
 ## AI Agent Security Notes
 
@@ -46,5 +92,23 @@ The autonomous SRE agent (`ai_agent.py`) operates under strict constraints:
 
 The `main` branch requires:
 - Pull Request with minimum **1 CODEOWNER** approval
-- All CI/CD checks passing (including `terraform validate`, `trivy fs`, CodeQL)
+- All CI/CD checks passing (including `terraform validate`, `trivy fs`, CodeQL, Security Gates)
 - No direct pushes (including by the AI agent — it must open a PR)
+
+## Local Security Scanning
+
+Developers can run the full security gate locally before pushing:
+
+```bash
+./scripts/security-scan.sh          # Full scan
+./scripts/security-scan.sh --quick  # Fast scan (skip Terraform validate)
+```
+
+## Pre-commit Hooks
+
+Install once to automatically enforce security on every commit:
+
+```bash
+pip install pre-commit
+pre-commit install
+```

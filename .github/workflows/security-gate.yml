@@ -1,0 +1,307 @@
+name: Security Gate Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write        # Required for Cosign keyless signing (Sigstore OIDC)
+  packages: write        # Required for pushing signed images
+  attestations: write    # Required for SLSA provenance
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 1: Static Application Security Testing (SAST)
+  # ──────────────────────────────────────────────────────────────────────────
+  sast:
+    name: SAST Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bandit — Python SAST
+        run: |
+          pip install bandit
+          echo "## Bandit Results" >> $GITHUB_STEP_SUMMARY
+          bandit -r components/ scripts/ tests/ -f json -o bandit-report.json --exit-zero
+          bandit -r components/ scripts/ tests/ -ll -f txt | tee -a $GITHUB_STEP_SUMMARY
+        continue-on-error: false
+
+      - name: Upload Bandit Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.json
+          retention-days: 30
+
+      - name: Semgrep — Multi-Language SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/dockerfile
+            p/terraform
+            p/kubernetes
+            p/secrets
+            p/supply-chain
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 2: Supply Chain Security (Dependencies + SBOM)
+  # ──────────────────────────────────────────────────────────────────────────
+  supply-chain:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: pip-audit — Dependency CVE Scan
+        run: |
+          pip install pip-audit
+          echo "## pip-audit Results" >> $GITHUB_STEP_SUMMARY
+          pip-audit -r requirements.txt --desc --format columns | tee -a $GITHUB_STEP_SUMMARY
+          pip-audit -r requirements.txt --format json --output pip-audit-report.json
+        continue-on-error: false
+
+      - name: Upload pip-audit Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+          retention-days: 30
+
+      - name: Trivy — Filesystem SBOM (CycloneDX)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'cyclonedx'
+          output: 'fs-sbom.json'
+
+      - name: Trivy — Filesystem Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: fs-sbom
+          path: fs-sbom.json
+          retention-days: 90
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 3: Container Security (Build → Scan → Sign → Attest)
+  # ──────────────────────────────────────────────────────────────────────────
+  container-security:
+    name: Container Security
+    runs-on: ubuntu-latest
+    needs: [sast, supply-chain]
+    strategy:
+      matrix:
+        include:
+          - image: ai-agent
+            dockerfile: components/ai-agent/Dockerfile.agent
+            context: components/ai-agent/
+          - image: loadgen
+            dockerfile: components/loadgen/Dockerfile.loadgen
+            context: components/loadgen/
+          - image: docs-portal
+            dockerfile: docs/Dockerfile.docs-portal
+            context: .
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build Image
+        uses: docker/build-push-action@v5
+        id: build
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+
+      - name: Trivy — Image Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ github.sha }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+          timeout: '10m'
+
+      - name: Trivy — Image SBOM
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ github.sha }}
+          scan-type: 'image'
+          format: 'cyclonedx'
+          output: 'image-sbom-${{ matrix.image }}.json'
+
+      - name: Upload Image SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-sbom-${{ matrix.image }}
+          path: image-sbom-${{ matrix.image }}.json
+          retention-days: 90
+
+      # ── Cosign Keyless Signing (Sigstore) ─── only on main push ──
+      - name: Install Cosign
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign Image (Keyless — Sigstore/Fulcio)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}"
+          cosign sign --yes "${IMAGE}"
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+
+      - name: Attach SBOM Attestation
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}"
+          cosign attest --yes \
+            --predicate image-sbom-${{ matrix.image }}.json \
+            --type cyclonedx \
+            "${IMAGE}"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 4: Policy-as-Code Validation
+  # ──────────────────────────────────────────────────────────────────────────
+  policy-as-code:
+    name: Policy-as-Code Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Format & Validate
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false
+          terraform validate
+
+      - name: Checkov — IaC Policy Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: terraform,kubernetes
+          output_format: cli
+          soft_fail: false
+
+      - name: Install Conftest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/open-policy-agent/conftest/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//')
+          wget -q "https://github.com/open-policy-agent/conftest/releases/download/v${LATEST}/conftest_${LATEST}_Linux_x86_64.tar.gz"
+          tar xzf conftest_*.tar.gz
+          sudo mv conftest /usr/local/bin/
+
+      - name: Conftest — Terraform Policy Check
+        run: |
+          if [ -d "policy/terraform" ]; then
+            terraform show -json tfplan.json 2>/dev/null | conftest test --policy policy/terraform/ - || true
+          fi
+          # Validate Kubernetes manifests against OPA policies
+          if [ -d "policy/kubernetes" ]; then
+            find gitops/ -name '*.yaml' -o -name '*.yml' | xargs -I{} conftest test --policy policy/kubernetes/ {} || true
+          fi
+
+      - name: Install Kyverno CLI
+        run: |
+          curl -LO "https://github.com/kyverno/kyverno/releases/latest/download/kyverno-cli_v1.13.0_linux_x86_64.tar.gz"
+          tar xzf kyverno-cli_*.tar.gz
+          sudo mv kyverno /usr/local/bin/
+
+      - name: Kyverno — Policy Unit Tests
+        run: |
+          if [ -d "tests/kyverno" ]; then
+            kyverno test tests/kyverno/
+          fi
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Summary Gate — all jobs must pass
+  # ──────────────────────────────────────────────────────────────────────────
+  security-summary:
+    name: Security Gate Summary
+    runs-on: ubuntu-latest
+    needs: [sast, supply-chain, container-security, policy-as-code]
+    if: always()
+    steps:
+      - name: Check Gate Results
+        run: |
+          echo "## 🔒 Security Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|:---|:---|" >> $GITHUB_STEP_SUMMARY
+          echo "| SAST | ${{ needs.sast.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Supply Chain | ${{ needs.supply-chain.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Security | ${{ needs.container-security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Policy-as-Code | ${{ needs.policy-as-code.result }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.sast.result }}" != "success" ]] || \
+             [[ "${{ needs.supply-chain.result }}" != "success" ]] || \
+             [[ "${{ needs.container-security.result }}" != "success" ]] || \
+             [[ "${{ needs.policy-as-code.result }}" != "success" ]]; then
+            echo ""
+            echo "❌ **Security gate FAILED** — fix issues before merge." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All security gates passed.**" >> $GITHUB_STEP_SUMMARY

@@ -28,6 +28,14 @@ lifecycle_test.sh @ai4all-sre/platform-team
 e2e_test.sh @ai4all-sre/platform-team
 .github/ @ai4all-sre/platform-team
 
+# DevSecOps & Security Gate — requires Security team review
+.github/workflows/security-gate.yml @ai4all-sre/security-team @ai4all-sre/platform-team
+policy/ @ai4all-sre/security-team @ai4all-sre/senior-sre
+tests/kyverno/ @ai4all-sre/security-team
+.pre-commit-config.yaml @ai4all-sre/security-team @ai4all-sre/platform-team
+.dockerignore @ai4all-sre/platform-team
+scripts/security-scan.sh @ai4all-sre/security-team @ai4all-sre/platform-team
+
 # Documentation
 docs/ @ai4all-sre/platform-team
 README.md @ai4all-sre/platform-team

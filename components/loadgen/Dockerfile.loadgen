@@ -1,16 +1,36 @@
+# Build Stage
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+COPY requirements-loadgen.txt .
+RUN pip install --user --no-cache-dir -r requirements-loadgen.txt
+
+# Final Stage
 FROM python:3.11-slim
 
 LABEL maintainer="ai4all-sre-team"
 LABEL description="Behavioral Load Generator for AI4ALL-SRE Online Boutique"
+LABEL org.opencontainers.image.source="https://github.com/ai4all-sre"
+LABEL org.opencontainers.image.vendor="AI4ALL-SRE"
 
 WORKDIR /app
 
-# Pin dependencies at build time — no runtime pip installs
-COPY requirements-loadgen.txt .
-RUN pip install --no-cache-dir -r requirements-loadgen.txt
+# Create a non-root user
+RUN groupadd -g 10001 sre-group && \
+    useradd -u 10001 -g sre-group -s /bin/false sre-user
 
+# Copy installed packages from builder
+COPY --from=builder /root/.local /home/sre-user/.local
 COPY behavioral_loadgen.py .
 
+# Ensure permissions
+RUN chown -R sre-user:sre-group /app /home/sre-user
+
+USER sre-user
+ENV PATH="/home/sre-user/.local/bin:${PATH}"
 ENV FRONTEND_ADDR=frontend:80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD python -c "import sys; sys.exit(0)" || exit 1
 
 CMD ["python", "behavioral_loadgen.py"]

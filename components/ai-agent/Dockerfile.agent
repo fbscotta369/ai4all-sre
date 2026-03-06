@@ -1,6 +1,11 @@
 # Build Stage
 FROM python:3.11-slim AS builder
 
+LABEL org.opencontainers.image.source="https://github.com/ai4all-sre"
+LABEL org.opencontainers.image.vendor="AI4ALL-SRE"
+LABEL org.opencontainers.image.title="AI SRE Agent"
+LABEL org.opencontainers.image.description="Autonomous SRE agent with Pydantic-constrained remediation"
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
@@ -25,5 +30,8 @@ USER sre-user
 ENV PATH="/home/sre-user/.local/bin:${PATH}"
 
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')" || exit 1
 
 CMD ["python", "ai_agent.py"]

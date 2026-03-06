@@ -162,7 +162,7 @@ resource "kubernetes_manifest" "frontend_http_chaos" {
       labels    = { "tier" = "1", "app" = "frontend" }
     }
     spec = {
-      mode   = "all"
+      mode = "all"
       selector = {
         namespaces     = [var.online_boutique_namespace]
         labelSelectors = { "app" = "frontend" }
@@ -187,7 +187,7 @@ resource "kubernetes_manifest" "currency_failure" {
       labels    = { "tier" = "1", "app" = "currencyservice" }
     }
     spec = {
-      mode   = "all"
+      mode = "all"
       selector = {
         namespaces     = [var.online_boutique_namespace]
         labelSelectors = { "app" = "currencyservice" }
@@ -238,7 +238,7 @@ resource "kubernetes_manifest" "payment_abort" {
       namespace = var.chaos_namespace
     }
     spec = {
-      mode   = "all"
+      mode = "all"
       selector = {
         namespaces     = [var.online_boutique_namespace]
         labelSelectors = { "app" = "paymentservice" }
@@ -552,7 +552,7 @@ resource "kubernetes_manifest" "recruiter_first_disaster" {
             action = "delay"
             mode   = "all"
             selector = {
-              namespaces = [var.online_boutique_namespace]
+              namespaces     = [var.online_boutique_namespace]
               labelSelectors = { "app" = "productcatalogservice" }
             }
             delay = { latency = "1000ms" }
@@ -564,7 +564,7 @@ resource "kubernetes_manifest" "recruiter_first_disaster" {
           stressChaos = {
             mode = "all"
             selector = {
-              namespaces = [var.online_boutique_namespace]
+              namespaces     = [var.online_boutique_namespace]
               labelSelectors = { "app" = "frontend" }
             }
             stressors = { cpu = { workers = 2, load = 80 } }
