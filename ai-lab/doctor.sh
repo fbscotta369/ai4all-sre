@@ -276,7 +276,7 @@ if kubectl get svc ollama -n ollama &> /dev/null; then
         echo "⚠️  Ollama deployment is NOT READY yet. Waiting for rollout..."
     fi
 else
-    echo "❌ Ollama service NOT found in cluster. Please run ./setup-all.sh"
+    echo "❌ Ollama service NOT found in cluster. Please run ./setup.sh"
 fi
 
 # 8. Summary & Next Steps

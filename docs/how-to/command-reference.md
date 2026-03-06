@@ -7,7 +7,7 @@ This document provides a comprehensive list of commands for managing the AI4ALL-
 
 | Command | Description | Risk Level |
 | :--- | :--- | :--- |
-| `./setup-all.sh` | Full environment bootstrap (K8s, TF, Argo). | 🟢 Low |
+| `./setup.sh` | Full environment bootstrap (K8s, TF, Argo). | 🟢 Low |
 | `./cleanup.sh` | Soft cleanup of temporary resources/logs. | 🟢 Low |
 | `./destroy.sh` | Complete teardown of all infrastructure. | 🔴 High |
 | `./start-dashboards.sh` | Port-forward all Tier-1 dashboards (Grafana, Chaos, etc.). | 🟢 Low |

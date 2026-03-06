@@ -66,7 +66,7 @@ Clone the repository and run the master setup script:
 git clone https://github.com/fbscotta369/ai4all-sre.git && cd ai4all-sre
 
 # The setup script will provision K3s, apply Terraform, and install ArgoCD
-./setup-all.sh
+./setup.sh
 ```
 
 ### Verification

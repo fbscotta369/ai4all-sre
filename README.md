@@ -62,7 +62,7 @@ Our documentation hub is designed for professional engineering onboarding.
 
 ```bash
 # 1. Initialize the Hardware & Cluster Plane
-./setup-all.sh
+./setup.sh
 
 # 2. Deploy the AI SRE Agent
 npx -y pm2 start ai_agent.py --interpreter python3

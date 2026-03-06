@@ -74,7 +74,7 @@ Operational procedures for restoring the AI4ALL-SRE Laboratory in the event of m
 
 2.  **Fresh Rebuild**: Once the cluster is clean, trigger the full bootstrap again.
     ```bash
-    ./setup-all.sh
+    ./setup.sh
     ```
 
 ---
@@ -99,4 +99,4 @@ Operational procedures for restoring the AI4ALL-SRE Laboratory in the event of m
 Every critical alert in the laboratory is now **Trace-Linked**. When an incident fires in GoAlert or Slack, look for the `trace_link` annotation. Clicking this will take you directly to the Grafana Tempo query for the specific microservice and timeframe, significantly reducing Mean Time to Discovery (MTTD).
 
 ---
-*For environment re-builds from scratch, always use `./setup-all.sh`.*
+*For environment re-builds from scratch, always use `./setup.sh`.*

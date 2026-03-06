@@ -5,10 +5,10 @@
 #  Usage: ./destroy.sh
 #
 #  This script tears down the entire lab cleanly and in the
-#  correct order so that `./setup-all.sh` can reproduce it
+#  correct order so that `./setup.sh` can reproduce it
 #  from scratch. It is safe to run at any time.
 #
-#  Recruiter note: Run this, then run ./setup-all.sh to
+#  Recruiter note: Run this, then run ./setup.sh to
 #  prove the entire infrastructure is 100% IaC-reproducible.
 # ============================================================
 
@@ -26,7 +26,7 @@ echo -e "${BLUE}║  AI4ALL-SRE  |  Laboratory Destroy Script  🗑️          
 echo -e "${BLUE}╚══════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${YELLOW}⚠️  This will destroy ALL lab infrastructure.${NC}"
-echo -e "${YELLOW}   To recreate it, run: ./setup-all.sh${NC}"
+echo -e "${YELLOW}   To recreate it, run: ./setup.sh${NC}"
 echo ""
 
 # ── Confirm (skip with -y flag) ─────────────────────────────
@@ -48,9 +48,16 @@ kubectl delete networkchaos --all -n chaos-testing  2>/dev/null || true
 kubectl delete podchaos --all -n chaos-testing      2>/dev/null || true
 kubectl delete schedule --all -n chaos-testing      2>/dev/null || true
 
+# Remove finalizers from chaos resources to prevent namespace deletion hangs
+kubectl get iochaos,networkchaos,podchaos,stresschaos,schedule -n chaos-testing -o name 2>/dev/null | xargs -r kubectl patch -n chaos-testing --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]' 2>/dev/null || true
+
 # Pre-delete Linkerd policies via kubectl to avoid Terraform refresh hangs
 kubectl delete server --all -n online-boutique  2>/dev/null || true
 kubectl delete serverauthorization --all -n online-boutique  2>/dev/null || true
+
+# Remove webhooks that block namespace deletion (e.g. Kyverno)
+kubectl delete validatingwebhookconfigurations --all 2>/dev/null || true
+kubectl delete mutatingwebhookconfigurations --all 2>/dev/null || true
 
 echo -e "${GREEN}✅ Dynamic resources removed.${NC}"
 
@@ -129,6 +136,6 @@ echo -e "${GREEN}╔════════════════════
 echo -e "${GREEN}║  ✅  Laboratory destroyed successfully!              ║${NC}"
 echo -e "${GREEN}║                                                      ║${NC}"
 echo -e "${GREEN}║  To recreate the entire lab from scratch, run:      ║${NC}"
-echo -e "${GREEN}║     ./setup-all.sh                                   ║${NC}"
+echo -e "${GREEN}║     ./setup.sh                                       ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
 echo ""

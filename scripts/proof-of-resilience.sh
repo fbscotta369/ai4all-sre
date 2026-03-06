@@ -13,7 +13,7 @@ echo "------------------------------------------------"
 # 1. State Verification
 echo "[*] Step 1: Verifying laboratory baseline..."
 if ! ./scripts/validate.sh &> /dev/null; then
-    echo "❌ Error: Laboratory is not in a healthy state. Please run ./setup-all.sh first."
+    echo "❌ Error: Laboratory is not in a healthy state. Please run ./setup.sh first."
     exit 1
 fi
 echo "✅ Baseline healthy."
