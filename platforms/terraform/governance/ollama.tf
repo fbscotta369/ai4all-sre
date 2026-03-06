@@ -1,14 +1,7 @@
-# Industrial-grade Ollama Deployment
-resource "kubernetes_namespace" "ollama" {
-  metadata {
-    name = "ollama"
-  }
-}
-
 resource "kubernetes_persistent_volume_claim" "ollama_storage" {
   metadata {
     name      = "ollama-storage"
-    namespace = kubernetes_namespace.ollama.metadata[0].name
+    namespace = var.ollama_namespace
   }
   spec {
     access_modes = ["ReadWriteOnce"]
@@ -24,12 +17,11 @@ resource "kubernetes_persistent_volume_claim" "ollama_storage" {
 resource "kubernetes_deployment" "ollama" {
   metadata {
     name      = "ollama"
-    namespace = kubernetes_namespace.ollama.metadata[0].name
+    namespace = var.ollama_namespace
     labels = {
       app = "ollama"
     }
   }
-
   spec {
     replicas = 1
     selector {
@@ -37,27 +29,22 @@ resource "kubernetes_deployment" "ollama" {
         app = "ollama"
       }
     }
-
     template {
       metadata {
         labels = {
           app = "ollama"
         }
       }
-
       spec {
         container {
           name  = "ollama"
           image = "ollama/ollama:latest"
-
           port {
             container_port = 11434
           }
-
           security_context {
             privileged = false
           }
-
           resources {
             limits = {
               cpu    = "500m"
@@ -68,7 +55,6 @@ resource "kubernetes_deployment" "ollama" {
               memory = "128Mi"
             }
           }
-
           liveness_probe {
             http_get {
               path = "/api/tags"
@@ -77,7 +63,6 @@ resource "kubernetes_deployment" "ollama" {
             initial_delay_seconds = 60
             period_seconds        = 20
           }
-
           readiness_probe {
             http_get {
               path = "/api/tags"
@@ -86,13 +71,11 @@ resource "kubernetes_deployment" "ollama" {
             initial_delay_seconds = 30
             period_seconds        = 10
           }
-
           volume_mount {
             name       = "ollama-storage"
             mount_path = "/root/.ollama"
           }
         }
-
         volume {
           name = "ollama-storage"
           persistent_volume_claim {
@@ -107,19 +90,16 @@ resource "kubernetes_deployment" "ollama" {
 resource "kubernetes_service" "ollama" {
   metadata {
     name      = "ollama"
-    namespace = kubernetes_namespace.ollama.metadata[0].name
+    namespace = var.ollama_namespace
   }
-
   spec {
     selector = {
       app = "ollama"
     }
-
     port {
       port        = 11434
       target_port = 11434
     }
-
     type = "ClusterIP"
   }
 }

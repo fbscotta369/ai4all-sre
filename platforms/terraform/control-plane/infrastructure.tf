@@ -48,9 +48,6 @@ resource "kubernetes_service" "redis" {
 }
 
 # MinIO — Fix 8 + Fix 12: Remote state backend + post-mortem persistence store
-resource "kubernetes_namespace" "minio" {
-  metadata { name = "minio" }
-}
 
 resource "kubernetes_deployment" "minio" {
   metadata {

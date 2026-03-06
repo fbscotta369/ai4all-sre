@@ -44,7 +44,7 @@ resource "kubernetes_manifest" "m2m_flow_schema" {
               kind = "ServiceAccount"
               serviceAccount = {
                 name      = "ai-agent"
-                namespace = kubernetes_namespace.observability.metadata[0].name
+                namespace = var.observability_namespace
               }
             }
           ]
@@ -56,7 +56,7 @@ resource "kubernetes_manifest" "m2m_flow_schema" {
 
 resource "null_resource" "wait_for_deployments" {
   provisioner "local-exec" {
-    command = "echo 'Waiting for ArgoCD to sync deployments...' && sleep 20 && kubectl wait --for=condition=available deployment/productcatalogservice -n online-boutique --timeout=300s || true"
+    command = "echo 'Waiting for ArgoCD to sync deployments...' && sleep 20 && kubectl wait --for=condition=available deployment/productcatalogservice -n ${var.online_boutique_namespace} --timeout=300s || true"
   }
   depends_on = [kubernetes_manifest.argocd_app_boutique]
 }
@@ -67,7 +67,7 @@ resource "kubernetes_manifest" "frontend_scaledobject" {
     kind       = "ScaledObject"
     metadata = {
       name      = "frontend-cpu-scaledobject"
-      namespace = kubernetes_namespace.online_boutique.metadata[0].name
+      namespace = var.online_boutique_namespace
     }
     spec = {
       scaleTargetRef = {
@@ -83,7 +83,7 @@ resource "kubernetes_manifest" "frontend_scaledobject" {
           metadata = {
             serverAddress = "http://kube-prometheus-prometheus.observability.svc.cluster.local:9090"
             metricName    = "frontend_cpu_usage"
-            query         = "sum(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{namespace='online-boutique', pod=~'frontend-.*'})"
+            query         = "sum(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{namespace='${var.online_boutique_namespace}', pod=~'frontend-.*'})"
             threshold     = "0.5" # Scale up if CPU usage > 0.5 cores
           }
         }
@@ -99,7 +99,7 @@ resource "kubernetes_manifest" "productcatalog_scaledobject" {
     kind       = "ScaledObject"
     metadata = {
       name      = "productcatalog-cpu-scaledobject"
-      namespace = kubernetes_namespace.online_boutique.metadata[0].name
+      namespace = var.online_boutique_namespace
     }
     spec = {
       scaleTargetRef = {

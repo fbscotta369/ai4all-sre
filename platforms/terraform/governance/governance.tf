@@ -369,5 +369,5 @@ resource "kubernetes_manifest" "policy_block_critical_vulnerabilities" {
       ]
     }
   }
-  depends_on = [helm_release.kyverno, helm_release.trivy]
+  depends_on = [helm_release.kyverno]
 }

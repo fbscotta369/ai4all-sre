@@ -1,12 +1,7 @@
-resource "kubernetes_namespace" "chaos" {
-  metadata {
-    name = "chaos-testing"
-  }
-}
 
 resource "helm_release" "chaos_mesh" {
   name       = "chaos-mesh"
-  namespace  = kubernetes_namespace.chaos.metadata[0].name
+  namespace  = var.chaos_namespace
   repository = "https://charts.chaos-mesh.org"
   chart      = "chaos-mesh"
   version    = "2.7.0"
@@ -50,7 +45,7 @@ resource "kubernetes_manifest" "frontend_podkill" {
     kind       = "Schedule"
     metadata = {
       name      = "kill-frontend"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       schedule = "@every 2m"
@@ -59,7 +54,7 @@ resource "kubernetes_manifest" "frontend_podkill" {
         action = "pod-kill"
         mode   = "one"
         selector = {
-          namespaces = ["online-boutique"]
+          namespaces = [var.online_boutique_namespace]
           labelSelectors = {
             "app" = "frontend"
           }
@@ -77,7 +72,7 @@ resource "kubernetes_manifest" "frontend_latency" {
     kind       = "Schedule"
     metadata = {
       name      = "frontend-latency"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       schedule = "@every 5m"
@@ -86,7 +81,7 @@ resource "kubernetes_manifest" "frontend_latency" {
         action = "delay"
         mode   = "all"
         selector = {
-          namespaces = ["online-boutique"]
+          namespaces = [var.online_boutique_namespace]
           labelSelectors = {
             "app" = "frontend"
           }
@@ -107,7 +102,7 @@ resource "kubernetes_manifest" "frontend_cpu_spike" {
     kind       = "Schedule"
     metadata = {
       name      = "frontend-cpu-spike"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       schedule = "@every 10m"
@@ -115,7 +110,7 @@ resource "kubernetes_manifest" "frontend_cpu_spike" {
       stressChaos = {
         mode = "all"
         selector = {
-          namespaces = ["online-boutique"]
+          namespaces = [var.online_boutique_namespace]
           labelSelectors = {
             "app" = "frontend"
           }
@@ -139,7 +134,7 @@ resource "kubernetes_manifest" "dns_chaos" {
     kind       = "Schedule"
     metadata = {
       name      = "dns-failure-schedule"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       schedule = "@every 15m"
@@ -148,7 +143,7 @@ resource "kubernetes_manifest" "dns_chaos" {
         action = "error"
         mode   = "all"
         selector = {
-          namespaces = ["online-boutique"]
+          namespaces = [var.online_boutique_namespace]
         }
       }
     }
@@ -163,13 +158,13 @@ resource "kubernetes_manifest" "frontend_http_chaos" {
     kind       = "HTTPChaos"
     metadata = {
       name      = "frontend-http-errors"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
       labels    = { "tier" = "1", "app" = "frontend" }
     }
     spec = {
       mode   = "all"
       selector = {
-        namespaces     = ["online-boutique"]
+        namespaces     = [var.online_boutique_namespace]
         labelSelectors = { "app" = "frontend" }
       }
       target = "Request"
@@ -188,13 +183,13 @@ resource "kubernetes_manifest" "currency_failure" {
     kind       = "HTTPChaos"
     metadata = {
       name      = "currency-service-fail"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
       labels    = { "tier" = "1", "app" = "currencyservice" }
     }
     spec = {
       mode   = "all"
       selector = {
-        namespaces     = ["online-boutique"]
+        namespaces     = [var.online_boutique_namespace]
         labelSelectors = { "app" = "currencyservice" }
       }
       target = "Response"
@@ -214,7 +209,7 @@ resource "kubernetes_manifest" "recommendation_outage" {
     kind       = "Schedule"
     metadata = {
       name      = "recommendation-outage-schedule"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
       labels    = { "tier" = "1", "app" = "recommendationservice" }
     }
     spec = {
@@ -224,7 +219,7 @@ resource "kubernetes_manifest" "recommendation_outage" {
         action = "pod-kill"
         mode   = "one"
         selector = {
-          namespaces     = ["online-boutique"]
+          namespaces     = [var.online_boutique_namespace]
           labelSelectors = { "app" = "recommendationservice" }
         }
       }
@@ -240,12 +235,12 @@ resource "kubernetes_manifest" "payment_abort" {
     kind       = "HTTPChaos"
     metadata = {
       name      = "payment-abort"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       mode   = "all"
       selector = {
-        namespaces     = ["online-boutique"]
+        namespaces     = [var.online_boutique_namespace]
         labelSelectors = { "app" = "paymentservice" }
       }
       target = "Request"
@@ -262,7 +257,7 @@ resource "kubernetes_manifest" "disaster_workflow" {
     kind       = "Workflow"
     metadata = {
       name      = "cascading-failure-workflow"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       entry = "the-sequence"
@@ -279,7 +274,7 @@ resource "kubernetes_manifest" "disaster_workflow" {
             action = "pod-kill"
             mode   = "one"
             selector = {
-              namespaces     = ["online-boutique"]
+              namespaces     = [var.online_boutique_namespace]
               labelSelectors = { "app" = "cartservice" }
             }
           }
@@ -299,7 +294,7 @@ resource "kubernetes_manifest" "disaster_workflow" {
             action = "delay"
             mode   = "all"
             selector = {
-              namespaces = ["online-boutique"]
+              namespaces = [var.online_boutique_namespace]
             }
             delay = {
               latency = "200ms"
@@ -318,7 +313,7 @@ resource "kubernetes_manifest" "death_spiral_workflow" {
     kind       = "Workflow"
     metadata = {
       name      = "the-death-spiral"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       entry = "spiral-entry"
@@ -335,7 +330,7 @@ resource "kubernetes_manifest" "death_spiral_workflow" {
             action = "delay"
             mode   = "all"
             selector = {
-              namespaces     = ["online-boutique"]
+              namespaces     = [var.online_boutique_namespace]
               labelSelectors = { "app" = "adservice" }
             }
             delay = {
@@ -349,7 +344,7 @@ resource "kubernetes_manifest" "death_spiral_workflow" {
           stressChaos = {
             mode = "all"
             selector = {
-              namespaces     = ["online-boutique"]
+              namespaces     = [var.online_boutique_namespace]
               labelSelectors = { "app" = "paymentservice" }
             }
             stressors = {
@@ -364,7 +359,7 @@ resource "kubernetes_manifest" "death_spiral_workflow" {
             action = "pod-kill"
             mode   = "all"
             selector = {
-              namespaces     = ["online-boutique"]
+              namespaces     = [var.online_boutique_namespace]
               labelSelectors = { "app" = "frontend" }
             }
           }
@@ -388,7 +383,7 @@ resource "kubernetes_manifest" "cart_split_brain" {
     kind       = "Schedule"
     metadata = {
       name      = "split-brain-cart"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       schedule = "@every 30m"
@@ -398,7 +393,7 @@ resource "kubernetes_manifest" "cart_split_brain" {
         mode      = "all"
         direction = "both"
         selector = {
-          namespaces = ["online-boutique"]
+          namespaces = [var.online_boutique_namespace]
           labelSelectors = {
             "app" = "cartservice"
           }
@@ -406,7 +401,7 @@ resource "kubernetes_manifest" "cart_split_brain" {
         target = {
           mode = "all"
           selector = {
-            namespaces = ["online-boutique"]
+            namespaces = [var.online_boutique_namespace]
             labelSelectors = {
               "app" = "redis-cart"
             }
@@ -425,7 +420,7 @@ resource "kubernetes_manifest" "redis_io_latency" {
     kind       = "Schedule"
     metadata = {
       name      = "redis-io-latency"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       schedule = "@every 25m"
@@ -434,7 +429,7 @@ resource "kubernetes_manifest" "redis_io_latency" {
         action = "latency"
         mode   = "all"
         selector = {
-          namespaces = ["online-boutique"]
+          namespaces = [var.online_boutique_namespace]
           labelSelectors = {
             "app" = "redis-cart"
           }
@@ -454,7 +449,7 @@ resource "kubernetes_manifest" "payment_time_skew" {
     kind       = "Schedule"
     metadata = {
       name      = "payment-time-skew"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       schedule = "@every 40m"
@@ -462,7 +457,7 @@ resource "kubernetes_manifest" "payment_time_skew" {
       timeChaos = {
         mode = "all"
         selector = {
-          namespaces = ["online-boutique"]
+          namespaces = [var.online_boutique_namespace]
           labelSelectors = {
             "app" = "paymentservice"
           }
@@ -481,7 +476,7 @@ resource "kubernetes_manifest" "az_outage_workflow" {
     kind       = "Workflow"
     metadata = {
       name      = "az-route-flapping"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
     }
     spec = {
       entry = "flapping-sequence"
@@ -498,7 +493,7 @@ resource "kubernetes_manifest" "az_outage_workflow" {
             action = "loss"
             mode   = "all"
             selector = {
-              namespaces     = ["online-boutique"]
+              namespaces     = [var.online_boutique_namespace]
               labelSelectors = { "app" = "frontend" }
             }
             loss = { loss = "100" }
@@ -517,7 +512,7 @@ resource "kubernetes_manifest" "az_outage_workflow" {
             action = "loss"
             mode   = "all"
             selector = {
-              namespaces     = ["online-boutique"]
+              namespaces     = [var.online_boutique_namespace]
               labelSelectors = { "app" = "productcatalogservice" }
             }
             loss = { loss = "100" }
@@ -536,7 +531,7 @@ resource "kubernetes_manifest" "recruiter_first_disaster" {
     kind       = "Workflow"
     metadata = {
       name      = "recruiter-first-disaster"
-      namespace = "chaos-testing"
+      namespace = var.chaos_namespace
       labels = {
         "sre-library" = "true"
         "store-item"  = "true"
@@ -557,7 +552,7 @@ resource "kubernetes_manifest" "recruiter_first_disaster" {
             action = "delay"
             mode   = "all"
             selector = {
-              namespaces = ["online-boutique"]
+              namespaces = [var.online_boutique_namespace]
               labelSelectors = { "app" = "productcatalogservice" }
             }
             delay = { latency = "1000ms" }
@@ -569,7 +564,7 @@ resource "kubernetes_manifest" "recruiter_first_disaster" {
           stressChaos = {
             mode = "all"
             selector = {
-              namespaces = ["online-boutique"]
+              namespaces = [var.online_boutique_namespace]
               labelSelectors = { "app" = "frontend" }
             }
             stressors = { cpu = { workers = 2, load = 80 } }
@@ -647,7 +642,7 @@ resource "kubernetes_secret" "chaos_admin_token" {
 resource "kubernetes_ingress_v1" "chaos_dashboard" {
   metadata {
     name      = "chaos-dashboard"
-    namespace = kubernetes_namespace.chaos.metadata[0].name
+    namespace = var.chaos_namespace
     annotations = {
       "kubernetes.io/ingress.class" = "traefik"
     }

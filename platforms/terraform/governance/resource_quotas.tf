@@ -1,23 +1,9 @@
-resource "kubernetes_namespace" "online_boutique" {
-  metadata {
-    name = "online-boutique"
-    annotations = {
-      "linkerd.io/inject" = "enabled"
-    }
-  }
-}
-
-resource "kubernetes_namespace" "ai_lab" {
-  metadata {
-    name = "ai-lab"
-  }
-}
 
 # FinOps Governance: Resource Quotas for Online Boutique
 resource "kubernetes_resource_quota" "online_boutique_quota" {
   metadata {
     name      = "online-boutique-quota"
-    namespace = kubernetes_namespace.online_boutique.metadata[0].name
+    namespace = var.online_boutique_namespace
   }
   spec {
     hard = {
@@ -31,7 +17,7 @@ resource "kubernetes_resource_quota" "online_boutique_quota" {
 resource "kubernetes_limit_range" "online_boutique_limits" {
   metadata {
     name      = "online-boutique-limits"
-    namespace = "online-boutique"
+    namespace = var.online_boutique_namespace
   }
   spec {
     limit {
@@ -52,7 +38,7 @@ resource "kubernetes_limit_range" "online_boutique_limits" {
 resource "kubernetes_resource_quota" "ai_lab_quota" {
   metadata {
     name      = "ai-lab-quota"
-    namespace = kubernetes_namespace.ai_lab.metadata[0].name
+    namespace = var.ai_lab_namespace
   }
   spec {
     hard = {

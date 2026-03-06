@@ -1,12 +1,7 @@
-resource "kubernetes_namespace" "argocd" {
-  metadata {
-    name = "argocd"
-  }
-}
 
 resource "helm_release" "argocd" {
   name       = "argocd"
-  namespace  = kubernetes_namespace.argocd.metadata[0].name
+  namespace  = var.argocd_namespace
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
   version    = "6.7.1" # Stable current version
@@ -29,15 +24,10 @@ resource "helm_release" "argocd" {
   }
 }
 
-resource "kubernetes_namespace" "trivy" {
-  metadata {
-    name = "trivy-system"
-  }
-}
 
 resource "helm_release" "trivy" {
   name       = "trivy-operator"
-  namespace  = kubernetes_namespace.trivy.metadata[0].name
+  namespace  = var.trivy_namespace
   repository = "https://aquasecurity.github.io/helm-charts/"
   chart      = "trivy-operator"
   version    = "0.24.1" # Reverted to stable; 0.32.0 had CRD mismatches
@@ -63,15 +53,10 @@ resource "helm_release" "trivy" {
   }
 }
 
-resource "kubernetes_namespace" "keda" {
-  metadata {
-    name = "keda"
-  }
-}
 
 resource "helm_release" "keda" {
   name       = "keda"
-  namespace  = kubernetes_namespace.keda.metadata[0].name
+  namespace  = var.keda_namespace
   repository = "https://kedacore.github.io/charts"
   chart      = "keda"
   version    = "2.14.0"
@@ -98,7 +83,7 @@ resource "kubernetes_role_binding" "keda_auth_reader_binding" {
   subject {
     kind      = "ServiceAccount"
     name      = "keda-metrics-server"
-    namespace = kubernetes_namespace.keda.metadata[0].name
+    namespace = var.keda_namespace
   }
 }
 
@@ -119,7 +104,7 @@ resource "kubernetes_manifest" "argocd_app_boutique" {
       }
       destination = {
         server    = "https://kubernetes.default.svc"
-        namespace = "online-boutique"
+        namespace = var.online_boutique_namespace
       }
       syncPolicy = {
         automated = {

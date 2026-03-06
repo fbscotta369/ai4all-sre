@@ -1,12 +1,3 @@
-resource "kubernetes_namespace" "linkerd" {
-  metadata {
-    name = "linkerd"
-    labels = {
-      "linkerd.io/is-control-plane"          = "true"
-      "config.linkerd.io/admission-webhooks" = "disabled"
-    }
-  }
-}
 
 # 1. Install Linkerd CRDs
 # 1. Install Linkerd CRDs

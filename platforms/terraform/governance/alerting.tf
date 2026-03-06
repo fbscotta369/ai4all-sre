@@ -22,15 +22,9 @@ variable "slack_signing_secret" {
   default     = "mock-signing-secret"
 }
 
-resource "kubernetes_namespace" "alerting" {
-  metadata {
-    name = "incident-management"
-  }
-}
-
 resource "helm_release" "postgresql" {
   name       = "goalert-db"
-  namespace  = kubernetes_namespace.alerting.metadata[0].name
+  namespace  = var.alerting_namespace
   repository = "oci://registry-1.docker.io/bitnamicharts"
   chart      = "postgresql"
   version    = "18.4.1"
@@ -48,7 +42,7 @@ resource "helm_release" "postgresql" {
 resource "kubernetes_deployment" "goalert" {
   metadata {
     name      = "goalert"
-    namespace = kubernetes_namespace.alerting.metadata[0].name
+    namespace = var.alerting_namespace
     labels = {
       app = "goalert"
     }
@@ -119,7 +113,7 @@ resource "kubernetes_deployment" "goalert" {
 resource "kubernetes_service" "goalert" {
   metadata {
     name      = "goalert"
-    namespace = kubernetes_namespace.alerting.metadata[0].name
+    namespace = var.alerting_namespace
   }
 
   spec {
@@ -142,7 +136,7 @@ resource "kubernetes_manifest" "high_cpu_alert" {
     kind       = "PrometheusRule"
     metadata = {
       name      = "online-boutique-alerts"
-      namespace = "observability"
+      namespace = var.observability_namespace
       labels = {
         release = "kube-prometheus"
       }
@@ -193,18 +187,18 @@ resource "kubernetes_manifest" "high_cpu_alert" {
 resource "kubernetes_config_map" "goalert_config_script" {
   metadata {
     name      = "goalert-config-script"
-    namespace = kubernetes_namespace.alerting.metadata[0].name
+    namespace = var.alerting_namespace
   }
 
   data = {
-    "seed_goalert.sql" = file("${path.module}/seed_goalert.sql")
+    "seed_goalert.sql" = file("${path.root}/seed_goalert.sql")
   }
 }
 
 resource "kubernetes_job" "goalert_iac_config" {
   metadata {
     name      = "goalert-iac-config"
-    namespace = kubernetes_namespace.alerting.metadata[0].name
+    namespace = var.alerting_namespace
   }
 
   spec {
@@ -259,7 +253,7 @@ resource "kubernetes_job" "goalert_iac_config" {
 resource "kubernetes_ingress_v1" "goalert" {
   metadata {
     name      = "goalert"
-    namespace = kubernetes_namespace.alerting.metadata[0].name
+    namespace = var.alerting_namespace
     annotations = {
       "kubernetes.io/ingress.class" = "traefik"
     }
