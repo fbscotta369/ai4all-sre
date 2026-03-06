@@ -70,9 +70,9 @@ git clone https://github.com/fbscotta369/ai4all-sre.git && cd ai4all-sre
 ```
 
 ### Verification
-Run the validation script to ensure all pods are running and mTLS is enforced:
+Run the comprehensive end-to-end testing script to guarantee all pods successfully initialized and HTTP services are responding with 200 OK statuses:
 ```bash
-./scripts/validate.sh
+./e2e_test.sh
 ```
 
 ---

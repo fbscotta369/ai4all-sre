@@ -11,6 +11,7 @@ This document provides a comprehensive list of commands for managing the AI4ALL-
 | `./cleanup.sh` | Soft cleanup of temporary resources/logs. | 🟢 Low |
 | `./destroy.sh` | Complete teardown of all infrastructure. | 🔴 High |
 | `./start-dashboards.sh` | Port-forward all Tier-1 dashboards (Grafana, Chaos, etc.). | 🟢 Low |
+| `./lifecycle_test.sh` | Zero-to-hero teardown and rebuild testing loop. | 🔴 High |
 
 ---
 
@@ -34,8 +35,11 @@ kubectl logs -l app=ai-agent -n observability -f
 
 ### Full Validation Suite
 ```bash
-# Run the standardized validation script
+# Run the standardized validation script (Linting, TFSec, Security)
 ./scripts/validate.sh
+
+# Run the live cluster A-to-Z endpoint and service tests
+./e2e_test.sh
 ```
 
 ### Python Unit Tests

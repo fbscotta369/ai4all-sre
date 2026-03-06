@@ -78,13 +78,17 @@ kubectl apply -f chaos/network-delay.yaml
 The platform maintains a high standard of reliability through an extensive unit and integration testing suite.
 
 ```bash
-# Run the full validation suite
-./scripts/validate.sh
+# Provide a 100% reproducible zero-to-hero lifecycle (Destroy -> Setup -> Verify)
+./lifecycle_test.sh
+
+# Run the comprehensive A-to-Z End-to-End Test Suite against live endpoints
+./e2e_test.sh
 
 # Run specialized Python unit tests
 python3 -m unittest discover tests/
 ```
 
+- **Lifecycle reproducibility**: `lifecycle_test.sh` proves that the entire infrastructure and data mesh can be fully destroyed and rebuilt from scratch and validated autonomously.
 - **Specialized AI Tests**: Validates MAS Consensus, Safety Guardrails, and Remediation Edge Cases.
 - **Infrastructure Validation**: Terraform linting and security scanning (Trivy/TFSec).
 - **Operational Scripts**: Unit tests for GoAlert configuration, cert generation, and load generators.

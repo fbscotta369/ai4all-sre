@@ -53,9 +53,24 @@ Validates that our **Infrastructure-as-Code (IaC)** correctly models the desired
 ./scripts/validate.sh
 ```
 
+## 3. End-to-End & Lifecycle Validation
+
+We employ specialized automation scripts to guarantee the end-to-end reliability of the platform.
+
+| Validation Script | Scope | Purpose |
+| :--- | :--- | :--- |
+| `./e2e_test.sh` | Infrastructure & Live Endpoints | An "A-to-Z" test suite that drops an ephemeral pod inside the cluster to validate all namespaced workloads and `curl` HTTP endpoints. |
+| `./lifecycle_test.sh` | Full Environment Reproducibility | The ultimate confidence check. This script performs an automated total wipe (`destroy.sh`), a from-scratch provision (`setup.sh`), and a full test run (`e2e_test.sh`). |
+
+**Run Command:**
+```bash
+# Verify the active cluster health
+./e2e_test.sh
+```
+
 ---
 
-## 3. Operational Chaos (The Stress Test)
+## 4. Operational Chaos (The Stress Test)
 We use **Chaos Mesh** to inject controlled failures into the system.
 
 | Experiment | Target | Expected SRE Outcome |
