@@ -20,12 +20,19 @@ module "eks" {
   }
 }
 
+variable "enable_kubernetes_manifests" {
+  type    = bool
+  default = true
+}
+
 # Call the SRE Kernel once the cluster is ready
 module "sre_kernel" {
   source = "../../modules/sre-kernel"
 
   cluster_name = var.cluster_name
   environment  = var.environment
+
+  enable_kubernetes_manifests = var.enable_kubernetes_manifests
 
   depends_on = [module.eks]
 }

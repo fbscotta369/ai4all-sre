@@ -439,6 +439,7 @@ resource "kubernetes_service" "ai_agent" {
 }
 
 resource "kubernetes_manifest" "slo_rules" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "monitoring.coreos.com/v1"
     kind       = "PrometheusRule"

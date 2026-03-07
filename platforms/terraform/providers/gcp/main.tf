@@ -32,11 +32,18 @@ module "gke" {
   ]
 }
 
+variable "enable_kubernetes_manifests" {
+  type    = bool
+  default = true
+}
+
 module "sre_kernel" {
   source = "../../modules/sre-kernel"
 
   cluster_name = var.cluster_name
   environment  = var.environment
+
+  enable_kubernetes_manifests = var.enable_kubernetes_manifests
 
   depends_on = [module.gke]
 }

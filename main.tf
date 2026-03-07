@@ -5,7 +5,8 @@
 # Switch to ./platforms/terraform/providers/aws or ./gcp for cloud deployments.
 
 module "platform" {
-  source = "./platforms/terraform/providers/local"
+  source                      = "./platforms/terraform/providers/local"
+  enable_kubernetes_manifests = var.enable_kubernetes_manifests
 }
 
 output "platform_status" {

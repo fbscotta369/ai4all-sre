@@ -235,11 +235,40 @@ fi
 # 4. Terraform Initialization
 echo "------------------------------------------------"
 echo "Initializing Terraform..."
-terraform init
+max_retries=3
+count=1
+success=false
+
+while [ $count -le $max_retries ]; do
+    echo "[*] Attempt $count: running terraform init..."
+    if terraform init; then
+        success=true
+        break
+    fi
+    echo "⚠️ Terraform init failed. Retrying in 10 seconds... ($count/$max_retries)"
+    sleep 10
+    count=$((count + 1))
+done
+
+if [ "$success" = false ]; then
+    echo "❌ Terraform init failed after $max_retries attempts. Please check your internet connection."
+    exit 1
+fi
 
 # 5. Terraform Apply (Multi-Stage to resolve CRD dependencies)
 echo "Applying Base Helm Charts (CRDs & Controllers)..."
-terraform apply -target=helm_release.chaos_mesh -target=helm_release.kyverno -target=helm_release.argo_rollouts -target=helm_release.argocd -target=helm_release.kube_prometheus_stack -target=helm_release.linkerd_crds -target=helm_release.vault -target=helm_release.trivy -target=helm_release.keda -target=kubernetes_deployment.ollama -auto-approve
+terraform apply \
+  -target=module.platform.module.sre_kernel.helm_release.chaos_mesh \
+  -target=module.platform.module.sre_kernel.helm_release.kyverno \
+  -target=module.platform.module.sre_kernel.helm_release.argo_rollouts \
+  -target=module.platform.module.sre_kernel.helm_release.argocd \
+  -target=module.platform.module.sre_kernel.helm_release.kube_prometheus_stack \
+  -target=module.platform.module.sre_kernel.helm_release.linkerd_crds \
+  -target=module.platform.module.sre_kernel.helm_release.vault \
+  -target=module.platform.module.sre_kernel.helm_release.trivy \
+  -target=module.platform.module.sre_kernel.helm_release.keda \
+  -target=module.platform.module.sre_kernel.kubernetes_deployment.ollama \
+  -var="enable_kubernetes_manifests=false" -auto-approve
 
 echo "------------------------------------------------"
 echo "⏳ Waiting for CRDs to register in the Kubernetes API..."

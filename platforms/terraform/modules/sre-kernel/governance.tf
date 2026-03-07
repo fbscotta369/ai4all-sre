@@ -45,6 +45,7 @@ resource "helm_release" "kyverno" {
 
 # Sample Policy: Disallow Privileged Containers
 resource "kubernetes_manifest" "policy_disallow_privileged" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
@@ -125,6 +126,7 @@ resource "kubernetes_manifest" "policy_disallow_privileged" {
 
 # Sample Policy: Require Resource Limits
 resource "kubernetes_manifest" "policy_require_limits" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
@@ -175,6 +177,7 @@ resource "kubernetes_manifest" "policy_require_limits" {
 }
 # Proactive Policy: Inject Resource Limits if missing (Mutation)
 resource "kubernetes_manifest" "policy_mutate_limits" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
@@ -219,6 +222,7 @@ resource "kubernetes_manifest" "policy_mutate_limits" {
   depends_on = [helm_release.kyverno]
 } # Proactive Policy: Enforce Linkerd Injection (Zero-Trust mTLS)
 resource "kubernetes_manifest" "policy_enforce_linkerd" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
@@ -252,6 +256,7 @@ resource "kubernetes_manifest" "policy_enforce_linkerd" {
 
 # Proactive Policy: Restrict Image Registries
 resource "kubernetes_manifest" "policy_restrict_registries" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
@@ -303,6 +308,7 @@ resource "kubernetes_manifest" "policy_restrict_registries" {
 # The policy below audits all new pods. When Trivy Operator's admission webhook
 # is enabled, it performs the actual scan; this policy provides the policy guard.
 resource "kubernetes_manifest" "policy_block_critical_vulnerabilities" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
@@ -378,6 +384,7 @@ resource "kubernetes_manifest" "policy_block_critical_vulnerabilities" {
 # Policy: Require Image Digest — Block :latest and untagged images
 # ──────────────────────────────────────────────────────────────────────────────
 resource "kubernetes_manifest" "policy_require_image_digest" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
@@ -436,6 +443,7 @@ resource "kubernetes_manifest" "policy_require_image_digest" {
 # Start in Audit mode; switch to Enforce once CI pipeline signing is validated.
 # ──────────────────────────────────────────────────────────────────────────────
 resource "kubernetes_manifest" "policy_verify_image_signatures" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
@@ -488,6 +496,7 @@ resource "kubernetes_manifest" "policy_verify_image_signatures" {
 # Policy: Require Mandatory Labels (Governance + FinOps)
 # ──────────────────────────────────────────────────────────────────────────────
 resource "kubernetes_manifest" "policy_require_mandatory_labels" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
@@ -537,6 +546,7 @@ resource "kubernetes_manifest" "policy_require_mandatory_labels" {
 # Policy: Require Probes (Liveness + Readiness)
 # ──────────────────────────────────────────────────────────────────────────────
 resource "kubernetes_manifest" "policy_require_probes" {
+  count = var.enable_kubernetes_manifests ? 1 : 0
   manifest = {
     apiVersion = "kyverno.io/v1"
     kind       = "ClusterPolicy"
