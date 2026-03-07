@@ -118,4 +118,36 @@ The **Autonomous MAS** consists of specialized agents that collaborate on incide
 - 🎬 **Director Agent**: Consensus and Execution Engine.
 
 ---
+---
+
+## 🛠️ The Global Stack & Methodologies
+
+The AI4ALL-SRE platform is built on the shoulders of giants. Below is an organized list of the core technologies, methodologies, and best practices that power this Autonomous Engineering Laboratory.
+
+### 🏗️ Infrastructure & Orchestration
+- **[K8s (Kubernetes)](https://kubernetes.io/)**: Container orchestration for automated deployment, scaling, and management.
+- **[TF (Terraform)](https://www.terraform.io/)**: Infrastructure-as-Code (IaC) for reproducible cluster provisioning.
+- **[ArgoCD (Argo Continuous Delivery)](https://argoproj.github.io/cd/)**: Declarative GitOps tool for Kubernetes.
+- **[Karpenter](https://karpenter.sh/)**: Just-in-time, efficient node provisioning for Kubernetes clusters.
+
+### 🛡️ Security & Compliance
+- **[VDP (Vulnerability Disclosure Program)](https://www.cisa.gov/vulnerability-disclosure-policy-vdp)**: Standardized methodology for security vulnerability reporting.
+- **[SLSA (Supply-chain Levels for Software Artifacts)](https://slsa.dev/)**: A security framework from Google to ensure software supply chain integrity.
+- **[Zero-Trust (Zero-Trust Architecture)](https://www.nist.gov/publications/zero-trust-architecture)**: Security model based on the principle of "never trust, always verify".
+- **[mTLS (Mutual TLS)](https://www.cloudflare.com/learning/access-management/what-is-mutual-tls/)**: Authentication mechanism where both parties verify each other's certificates.
+- **[Kyverno](https://kyverno.io/)**: Policy engine designed for Kubernetes (Policy-as-Code).
+
+### 🧠 AI & MLOps
+- **[Ollama](https://ollama.com/)**: Tool for running large language models locally.
+- **[HNSW (Hierarchical Navigable Small Worlds)](https://arxiv.org/abs/1603.09320)**: Algorithm for efficient approximate nearest neighbor search in vector databases.
+- **[MAS (Multi-Agent System)](https://en.wikipedia.org/wiki/Multi-agent_system)**: A computerized system composed of multiple interacting intelligent agents.
+- **[RAG (Retrieval-Augmented Generation)](https://aws.amazon.com/what-is/retrieval-augmented-generation/)**: Technique for enhancing LLM responses with external knowledge.
+
+### 📊 Observability & Reliability
+- **[SRE (Site Reliability Engineering)](https://sre.google/)**: Discipline that incorporates aspects of software engineering and applies them to IT operations.
+- **[OTel (OpenTelemetry)](https://opentelemetry.io/)**: Observability framework for cloud-native software.
+- **[eBPF (Extended Berkeley Packet Filter)](https://ebpf.io/)**: Technology for running sandboxed programs in the Linux kernel without changing kernel source code.
+- **[SLO/SLI/SLA (Service Level Objectives/Indicators/Agreements)](https://sre.google/sre-book/service-level-objectives/)**: Framework for measuring and maintaining service reliability.
+
+---
 *Engineering Lead: AI4ALL-SRE Platform*

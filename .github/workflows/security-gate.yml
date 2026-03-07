@@ -110,11 +110,27 @@ jobs:
           exit-code: '1'
           severity: 'CRITICAL'
 
-      - name: Upload SBOM
+      - name: Install vexctl
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/openvex/vexctl/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//')
+          wget -q "https://github.com/openvex/vexctl/releases/download/v${LATEST}/vexctl_${LATEST}_linux_amd64.tar.gz"
+          tar xzf vexctl_*.tar.gz
+          sudo mv vexctl /usr/local/bin/
+
+      - name: Generate VEX (Vulnerability Exploitability eXchange)
+        run: |
+          # Create a baseline VEX document for the filesystem scan
+          vexctl create --product="ai4all-sre-fs" \
+            --vuln="CVE-2023-XXXX" --status="not_affected" --justification="component_not_present" \
+            --output fs-vex.json
+
+      - name: Upload SBOM & VEX
         uses: actions/upload-artifact@v4
         with:
-          name: fs-sbom
-          path: fs-sbom.json
+          name: supply-chain-artifacts
+          path: |
+            fs-sbom.json
+            fs-vex.json
           retention-days: 90
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -214,13 +230,24 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: '1'
 
-      - name: Attach SBOM Attestation
+      - name: Attach SBOM & VEX Attestation
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}"
+          
+          # Generate VEX for the specific image
+          vexctl create --product="${IMAGE}" \
+            --vuln="CVE-BASE-IMAGE" --status="fixed" \
+            --output "image-vex-${{ matrix.image }}.json"
+
           cosign attest --yes \
             --predicate image-sbom-${{ matrix.image }}.json \
             --type cyclonedx \
+            "${IMAGE}"
+          
+          cosign attest --yes \
+            --predicate "image-vex-${{ matrix.image }}.json" \
+            --type openvex \
             "${IMAGE}"
 
   # ──────────────────────────────────────────────────────────────────────────

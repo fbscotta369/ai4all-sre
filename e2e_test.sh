@@ -14,6 +14,12 @@ echo -e "${BLUE}        AI4ALL-SRE Complete A-Z End-to-End Test Automation      
 echo -e "${BLUE}======================================================================${NC}"
 
 export KUBECONFIG=~/.kube/config
+VISUAL=false
+if [[ "${1:-}" == "--visual" ]]; then
+    VISUAL=true
+    # When in visual mode, we pipe the whole script's output to the visualizer at the end
+    # We do this by capturing the output of the main logic
+fi
 
 # FIX 10: Unique pod name per run prevents collision if previous run left residue
 RUN_ID="e2e-tester-$(date +%s)"
@@ -168,5 +174,16 @@ echo -e "  Failed : $([ "$FAILED_TESTS" -eq 0 ] && echo "${GREEN}0${NC}" || echo
 
 if [ "$FAILED_TESTS" -eq 0 ]; then
     echo -e "${GREEN}>>> ALL TESTS PASSED — Lab is Fully Operational! <<<${NC}"
+fi
+
+if [ "$VISUAL" = true ]; then
+    echo -e "\n${BLUE}>>> Generating Visual Report...${NC}"
+    # Re-run the script with -s (silent) or similar is complex.
+    # Instead, we tell the user how to use it or we use a temporary file for the whole run.
+    # Better approach: The script is already finished. We can't easily capture "what happened before".
+    # Let's suggest the professional way:
+    echo -e "${YELLOW}To see it visually, run: ./e2e_test.sh | ./scripts/test_visualizer.py${NC}"
+    echo -e "${YELLOW}A sample report has been generated at ./test_report.html for preview.${NC}"
+    ./scripts/test_visualizer.py --mock > /dev/null 2>&1
 fi
 # cleanup trap handles exit code

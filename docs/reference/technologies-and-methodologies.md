@@ -9,6 +9,8 @@ As a Lead Senior SRE DevSecGitOps AI ML Ops Platform Engineer, here is the compr
 - **HELM**: Package management for Kubernetes.
 - **Karpenter**: Just-in-time node provisioning.
 - **VPC** (Virtual Private Cloud): Isolated network environment.
+- **FinOps** (Cloud Financial Management): Optimizing cloud spend and accountability.
+- **HPA** (Horizontal Pod Autoscaler): Scaling pods based on resource utilization.
 
 ## 🛡️ Security & Compliance (DevSecOps)
 - **VDP** (Vulnerability Disclosure Program): Formal process for reporting security issues.
@@ -42,6 +44,8 @@ As a Lead Senior SRE DevSecGitOps AI ML Ops Platform Engineer, here is the compr
 - **FAISS** (Facebook AI Similarity Search): Library for efficient similarity search.
 - **VDB** (Vector Database): Specialized storage for embeddings (Qdrant/Milvus).
 - **DDA** (Dynamic Detection and Analysis): AI-driven threat/incident analysis.
+- **Model Lineage**: Tracking the origin, version, and training data of AI models.
+- **Provenance**: Documented record of the origin and history of an artifact.
 
 ## 🛠️ Methodologies
 - **Shift-Left**: Integrating security and testing early in the SDLC.
