@@ -1,0 +1,10 @@
+# security.txt according to RFC 9116
+Contact: mailto:security@ai4all-sre.internal
+Contact: https://ai4all-sre.internal/security-portal
+Expires: 2027-01-01T00:00:00.000Z
+Encryption: https://ai4all-sre.internal/pgp-key.asc
+Preferred-Languages: en, es, pt
+Vulnerability-Reporting: https://ai4all-sre.internal/report-vulnerability
+Policy: https://github.com/fbscotta369/ai4all-sre/blob/main/SECURITY.md
+Hiring: https://ai4all-sre.internal/careers
+Last-Updated: 2026-03-07T07:35:00Z

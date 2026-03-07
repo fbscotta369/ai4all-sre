@@ -1,0 +1,48 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: ai-remediation-guardrails
+  annotations:
+    policies.kyverno.io/title: AI Remediation Guardrails
+    policies.kyverno.io/category: SRE Governance
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Enforces limits on AI-driven actions to prevent runaway automated remediations.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: limit-ai-restarts
+      match:
+        any:
+        - resources:
+            kinds:
+              - Deployment
+            namespaces:
+              - online-boutique
+      preconditions:
+        all:
+        - key: "{{ request.object.metadata.annotations.\"kubectl.kubernetes.io/restartedAt\" || '' }}"
+          operator: NotEquals
+          value: ""
+      validate:
+        message: "AI-driven restarts are limited for stability. Manual intervention required if instability persists."
+        deny:
+          conditions:
+            all:
+            - key: "{{ request.object.metadata.annotations.\"ai-remediation.internal/restart-count\" || '0' | range(0, 100) }}"
+              # Note: In a real environment, we would use a more complex logic or 
+              # a lookup to a stateful store. For this lab, we demonstrate the policy structure.
+              operator: GreaterThan
+              value: "3"
+    - name: restrict-ai-namespaces
+      match:
+        any:
+        - resources:
+            annotations:
+              ai-remediation.internal/managed: "true"
+      validate:
+        message: "AI agent is only permitted to act on designated safe namespaces."
+        pattern:
+          metadata:
+            namespace: "online-boutique"

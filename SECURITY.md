@@ -7,17 +7,30 @@
 | 4.x+    | ✅ Active           |
 | < 4.0   | ❌ Not supported    |
 
-## Reporting a Vulnerability
+## Vulnerability Disclosure Program (VDP)
+
+This project maintains a formal **Vulnerability Disclosure Program (VDP)**. We value the input of security researchers and the community to keep our platform secure.
+
+### Disclosure Policy
+- **Responsible Disclosure**: We ask that you provide us a reasonable amount of time to resolve the issue before disclosing it to the public or a third party.
+- **Good Faith**: Researchers should make a good faith effort to avoid privacy violations, destruction of data, and interruption or degradation of our services.
+- **Standard Contact**: Please see our standardized [security.txt](docs/well-known/security.txt) for technical contact details and encryption keys.
+
+### Reporting a Vulnerability
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Please report security issues via **private disclosure**:
+Please report security issues via **Private Disclosure**:
 
-1. Email: `security@ai4all-sre.internal` (or the team's private channel)
-2. Include: description, reproduction steps, impact assessment, and suggested fix
-3. CVSSv3 score if known
+1. **Email**: `security@ai4all-sre.internal`
+2. **Technical Details**: Include a summary, reproduction steps (with PoC if possible), impact assessment, and any suggested remediation.
+3. **Classification**: Use CVSSv3.1 scoring to help us prioritize.
 
-We will acknowledge receipt within **24 hours** and aim to release a fix within **72 hours** for Critical issues.
+### Our Commitment
+- **Acknowledgment**: We will acknowledge receipt of your report within **12-24 hours**.
+- **Triage**: High and Critical issues will be triaged within **24 hours**.
+- **Resolution**: We aim to release a fix for Critical issues within **72 hours**.
+- **Recognition**: Valid disclosures that lead to a fix will be credited in our monthly Security Bulletin.
 
 ## Security Architecture
 

@@ -27,6 +27,22 @@ from kubernetes import client, config
 from pydantic import BaseModel, ValidationError
 
 # ---------------------------------------------------------------------------
+# AI/ML Memory: HNSW Vector Store
+# ---------------------------------------------------------------------------
+try:
+    import faiss
+    import numpy as np
+    from sentence_transformers import SentenceTransformer
+    EMBED_MODEL = SentenceTransformer('all-MiniLM-L6-v2')
+    VECTOR_DIM = 384
+    _index = faiss.IndexHNSWFlat(VECTOR_DIM, 32)
+    _pm_metadata = []
+    print("[+] HNSW Vector Memory initialized.", flush=True)
+except Exception as e:
+    print(f"[!] Vector memory unavailable ({e}).", flush=True)
+    _index = None
+
+# ---------------------------------------------------------------------------
 # FIX 3: Redis-backed distributed debounce state (replaces /tmp)
 # ---------------------------------------------------------------------------
 try:
@@ -108,6 +124,36 @@ except Exception:
 
 k8s_apps_v1 = client.AppsV1Api()
 k8s_custom_api = client.CustomObjectsApi()
+
+
+def index_post_mortems():
+    """Index historical post-mortems for RAG."""
+    if _index is None:
+        return
+    pm_dir = os.path.join(GIT_REPO_DIR, POST_MORTEMS_DIR)
+    if not os.path.exists(pm_dir):
+        return
+    for f in os.listdir(pm_dir):
+        if f.endswith(".md"):
+            with open(os.path.join(pm_dir, f), 'r') as file:
+                content = file.read()
+                embedding = EMBED_MODEL.encode([content])[0].astype('float32')
+                _index.add(np.array([embedding]))
+                _pm_metadata.append(content)
+    print(f"[*] Indexed {len(_pm_metadata)} post-mortems.", flush=True)
+
+
+def retrieve_context(query: str, k: int = 2) -> str:
+    """Retrieve relevant post-mortems."""
+    if _index is None or _index.ntotal == 0:
+        return "No historical context available."
+    query_vec = EMBED_MODEL.encode([query])[0].astype('float32')
+    distances, indices = _index.search(np.array([query_vec]), k)
+    context = []
+    for idx in indices[0]:
+        if idx != -1:
+            context.append(_pm_metadata[idx])
+    return "\n---\n".join(context)
 
 
 # ---------------------------------------------------------------------------
@@ -445,6 +491,9 @@ Specialist Analyses:
 - DatabaseAgent: {agent_responses.get('DatabaseAgent', 'N/A')}
 - ComputeAgent: {agent_responses.get('ComputeAgent', 'N/A')}
 
+Historical Context (Relevant Post-Mortems):
+{retrieve_context(alert_context)}
+
 Target deployment is '{deployment_name}' in namespace '{namespace}'.
 
 Output a JSON object with exactly these fields:
@@ -499,4 +548,5 @@ async def handle_alert(request: Request, background_tasks: BackgroundTasks):
 
 if __name__ == "__main__":
     print("[*] Starting Tier-1 SRE Agent v5.0.0...", flush=True)
+    index_post_mortems()
     uvicorn.run(app, host="0.0.0.0", port=8000)

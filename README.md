@@ -6,7 +6,12 @@
 [![AI: Agentic](https://img.shields.io/badge/AI-Agentic-orange.svg)](https://ollama.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-AI4ALL-SRE is an enterprise-grade laboratory and **Internal Developer Platform (IDP)** for researching the intersection of SRE, DevSecOps, and Autonomous AI Agents. It provides a full-stack, local-first environment for evolving "Self-Healing" infrastructures.
+AI4ALL-SRE is an enterprise-grade laboratory and **Internal Developer Platform (IDP)** for researching the intersection of SRE, DevSecOps, and Autonomous AI Agents.
+
+### 🆕 New in v5.0.0
+- **🧠 Contextual Memory**: HNSW-indexed vector memory for historical incident RAG.
+- **🚀 Dynamic Scaling**: Just-in-time node provisioning via Karpenter integration.
+- **🛡️ Enhanced VDP**: Standardized security disclosure program (RFC 9116).
 
 ---
 

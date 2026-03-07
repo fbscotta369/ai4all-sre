@@ -133,7 +133,13 @@ class PostMortemVectorStore:
         self.collection = self.client.get_or_create_collection(
             name=self.COLLECTION,
             embedding_function=self.ef,
-            metadata={"hnsw:space": "cosine"},
+            metadata={
+                "hnsw:space": "cosine",
+                "hnsw:construction_ef": 200,  # Higher accuracy during indexing
+                "hnsw:M": 32,                 # More connections for better recall
+                "hnsw:search_ef": 100,        # Higher accuracy during query
+                "hnsw:num_threads": 4         # Parallel indexing
+            },
         )
         print(f"[+] ChromaDB collection '{self.COLLECTION}' ready ({self.collection.count()} docs).", flush=True)
 
