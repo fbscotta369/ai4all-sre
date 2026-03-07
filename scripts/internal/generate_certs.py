@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives import serialization
 
 def verify_certs():
     """Validates if the existing certificates are present and valid."""
-    required_files = ["trust-anchor.crt", "trust-anchor.key", "issuer.crt", "issuer.key"]
+    required_files = [".certs/trust-anchor.crt", ".certs/trust-anchor.key", ".certs/issuer.crt", ".certs/issuer.key"]
     for f in required_files:
         if not os.path.exists(f):
             print(f"[-] Missing file: {f}")
@@ -18,11 +18,11 @@ def verify_certs():
     
     try:
         # Check Trust Anchor
-        with open("trust-anchor.crt", "rb") as f:
+        with open(".certs/trust-anchor.crt", "rb") as f:
             root_cert = x509.load_pem_x509_certificate(f.read())
         
         # Check Issuer
-        with open("issuer.crt", "rb") as f:
+        with open(".certs/issuer.crt", "rb") as f:
             issuer_cert = x509.load_pem_x509_certificate(f.read())
         
         now = datetime.datetime.utcnow()
@@ -68,13 +68,13 @@ def generate_cert(force=False):
             x509.BasicConstraints(ca=True, path_length=1), critical=True,
         ).sign(root_key, hashes.SHA256())
 
-        with open("trust-anchor.key", "wb") as f:
+        with open(".certs/trust-anchor.key", "wb") as f:
             f.write(root_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=serialization.NoEncryption(),
             ))
-        with open("trust-anchor.crt", "wb") as f:
+        with open(".certs/trust-anchor.crt", "wb") as f:
             f.write(root_cert.public_bytes(serialization.Encoding.PEM))
 
         # Generate Issuer
@@ -98,13 +98,13 @@ def generate_cert(force=False):
             x509.BasicConstraints(ca=True, path_length=0), critical=True,
         ).sign(root_key, hashes.SHA256())
 
-        with open("issuer.key", "wb") as f:
+        with open(".certs/issuer.key", "wb") as f:
             f.write(issuer_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=serialization.NoEncryption(),
             ))
-        with open("issuer.crt", "wb") as f:
+        with open(".certs/issuer.crt", "wb") as f:
             f.write(issuer_cert.public_bytes(serialization.Encoding.PEM))
 
         print("[+] Linkerd certificates generated successfully.")

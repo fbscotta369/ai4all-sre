@@ -2,10 +2,10 @@
 set -e
 
 # Linkerd 2.14+ compliant certificate generation
-TRUST_ANCHOR_CERT="trust-anchor.crt"
-TRUST_ANCHOR_KEY="trust-anchor.key"
-ISSUER_CERT="issuer.crt"
-ISSUER_KEY="issuer.key"
+TRUST_ANCHOR_CERT=".certs/trust-anchor.crt"
+TRUST_ANCHOR_KEY=".certs/trust-anchor.key"
+ISSUER_CERT=".certs/issuer.crt"
+ISSUER_KEY=".certs/issuer.key"
 
 # 1. Create Trust Anchor (Self-signed Root CA)
 openssl req -x509 -newkey rsa:4096 -keyout $TRUST_ANCHOR_KEY -out $TRUST_ANCHOR_CERT -nodes -days 3650 \

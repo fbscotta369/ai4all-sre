@@ -219,16 +219,17 @@ else
 fi
 
 # 3.8 Linkerd Certificate Generation
-if [ ! -f "issuer.crt" ] || [ ! -f "issuer.key" ] || [ ! -f "trust-anchor.crt" ]; then
+if [ ! -f ".certs/issuer.crt" ] || [ ! -f ".certs/issuer.key" ] || [ ! -f ".certs/trust-anchor.crt" ]; then
     echo "⚠️ Linkerd mTLS certificates not found. Generating them via Python cryptography..."
     
+    mkdir -p .certs
     python3 scripts/internal/generate_certs.py
     
     # Fix permissions if needed
-    chmod 600 issuer.key trust-anchor.key 2>/dev/null || true
+    chmod 600 .certs/issuer.key .certs/trust-anchor.key 2>/dev/null || true
     echo "✅ Linkerd certificates generated successfully."
 else
-    echo "✅ Linkerd certificates found."
+    echo "✅ Linkerd certificates found in .certs/."
 fi
 
 # 4. Terraform Initialization

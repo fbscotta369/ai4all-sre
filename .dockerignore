@@ -45,6 +45,7 @@ e2e_test.sh
 lifecycle_test.sh
 
 # Certificates and keys (never embed in images)
+.certs/
 *.key
 *.crt
 *.pem

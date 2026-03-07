@@ -10,7 +10,8 @@ kubectl exec -n vault $VAULT_POD -- vault secrets enable pki || echo "PKI alread
 kubectl exec -n vault $VAULT_POD -- vault secrets tune -max-lease-ttl=87600h pki
 
 # 2. Generate Root CA
-kubectl exec -n vault $VAULT_POD -- vault write -field=certificate pki/root/generate/internal     common_name="ai4all.sre.cluster.local"     ttl=87600h > root-ca.crt
+mkdir -p .certs
+kubectl exec -n vault $VAULT_POD -- vault write -field=certificate pki/root/generate/internal     common_name="ai4all.sre.cluster.local"     ttl=87600h > .certs/root-ca.crt
 
 # 3. Configure URLs
 kubectl exec -n vault $VAULT_POD -- vault write pki/config/urls     issuing_certificates="http://vault.vault.svc:8200/v1/pki/ca"     crl_distribution_points="http://vault.vault.svc:8200/v1/pki/crl"
