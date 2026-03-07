@@ -164,19 +164,9 @@ resource "kubernetes_job" "vault_bootstrap" {
 # In production, these would be injected via Vault CSI or Agent Injector.
 # ──────────────────────────────────────────────────────────────────────────────
 
-resource "kubernetes_secret" "minio_credentials" {
-  metadata {
-    name      = "minio-credentials"
-    namespace = "minio"
-  }
-  data = {
-    root_user     = "admin"
-    root_password = "password123!"
-    access_key    = "admin"
-    secret_key    = "password123!"
-  }
-  depends_on = [kubernetes_job.vault_bootstrap]
-}
+
+# NOTE: minio_credentials is defined in control-plane/infrastructure.tf
+# to avoid circular dependency (MinIO deployment needs the secret before governance runs)
 
 resource "kubernetes_secret" "goalert_db_credentials" {
   metadata {

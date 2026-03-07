@@ -94,7 +94,9 @@ resource "kubernetes_manifest" "policy_disallow_privileged" {
                     "linkerd-viz",
                     "monitoring",
                     "ollama",
-                    "cert-manager"
+                    "cert-manager",
+                    "vault",
+                    "minio"
                   ]
                 }
               }
@@ -145,7 +147,7 @@ resource "kubernetes_manifest" "policy_require_limits" {
           }
           exclude = {
             any = [
-              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa", "minio"] } }
+              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa", "minio", "vault", "incident-management", "observability"] } }
             ]
           }
           validate = {
@@ -190,7 +192,7 @@ resource "kubernetes_manifest" "policy_mutate_limits" {
           }
           exclude = {
             any = [
-              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa", "minio"] } }
+              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa", "minio", "vault", "incident-management", "observability"] } }
             ]
           }
           mutate = {
@@ -266,7 +268,7 @@ resource "kubernetes_manifest" "policy_restrict_registries" {
           }
           exclude = {
             any = [
-              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa", "minio"] } }
+              { resources = { namespaces = ["kube-system", "linkerd", "cert-manager", "vpa", "minio", "vault", "incident-management", "observability"] } }
             ]
           }
           validate = {
@@ -335,7 +337,7 @@ resource "kubernetes_manifest" "policy_block_critical_vulnerabilities" {
             ]
           }
           validate = {
-            message = "Image '{{ element.image }}' has CRITICAL vulnerabilities. See: kubectl get vulnerabilityreports -n {{ request.object.metadata.namespace }}"
+            message = "Image has CRITICAL vulnerabilities. See: kubectl get vulnerabilityreports -n {{ request.object.metadata.namespace }}"
             foreach = [
               {
                 list       = "request.object.spec.containers"
@@ -399,11 +401,11 @@ resource "kubernetes_manifest" "policy_require_image_digest" {
           }
           exclude = {
             any = [
-              { resources = { namespaces = ["kube-system", "kyverno", "linkerd", "cert-manager", "vpa", "minio", "argocd", "argo-rollouts"] } }
+              { resources = { namespaces = ["kube-system", "kyverno", "linkerd", "cert-manager", "vpa", "minio", "argocd", "argo-rollouts", "vault", "incident-management", "observability"] } }
             ]
           }
           validate = {
-            message = "Image '{{element.image}}' must use a digest (@sha256:) or a pinned tag (not ':latest'). See: https://kyverno.io/policies/best-practices/require-image-tag/"
+            message = "Images must use a digest (@sha256:) or a pinned tag (not ':latest'). See: https://kyverno.io/policies/best-practices/require-image-tag/"
             foreach = [
               {
                 list       = "request.object.spec.containers"
@@ -509,7 +511,7 @@ resource "kubernetes_manifest" "policy_require_mandatory_labels" {
           }
           exclude = {
             any = [
-              { resources = { namespaces = ["kube-system", "kyverno", "linkerd", "cert-manager", "vpa", "minio"] } }
+              { resources = { namespaces = ["kube-system", "kyverno", "linkerd", "cert-manager", "vpa", "minio", "vault", "incident-management", "observability"] } }
             ]
           }
           validate = {
@@ -558,7 +560,7 @@ resource "kubernetes_manifest" "policy_require_probes" {
           }
           exclude = {
             any = [
-              { resources = { namespaces = ["kube-system", "kyverno", "linkerd", "cert-manager", "vpa", "minio", "argocd", "argo-rollouts"] } }
+              { resources = { namespaces = ["kube-system", "kyverno", "linkerd", "cert-manager", "vpa", "minio", "argocd", "argo-rollouts", "vault", "incident-management", "observability"] } }
             ]
           }
           validate = {

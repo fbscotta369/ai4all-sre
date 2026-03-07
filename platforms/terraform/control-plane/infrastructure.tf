@@ -49,6 +49,20 @@ resource "kubernetes_service" "redis" {
 
 # MinIO — Fix 8 + Fix 12: Remote state backend + post-mortem persistence store
 
+# Secret must exist before deployment (avoids cross-module dependency)
+resource "kubernetes_secret" "minio_credentials" {
+  metadata {
+    name      = "minio-credentials"
+    namespace = kubernetes_namespace.minio.metadata[0].name
+  }
+  data = {
+    root_user     = "admin"
+    root_password = "password123!"
+    access_key    = "admin"
+    secret_key    = "password123!"
+  }
+}
+
 resource "kubernetes_deployment" "minio" {
   metadata {
     name      = "minio"

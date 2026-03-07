@@ -187,30 +187,27 @@ resource "helm_release" "opentelemetry_collector" {
             endpoint = "http://kube-prometheus-prometheus.observability.svc.cluster.local:9090/api/v1/write"
             tls      = { insecure = true }
           }
-          # Logs → Loki (via loki exporter)
-          loki = {
-            endpoint = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
-            labels = {
-              attributes = { "k8s.namespace.name" = "namespace", "k8s.pod.name" = "pod" }
-            }
+          # Debug exporter for logs
+          debug = {
+            verbosity = "basic"
           }
         }
         service = {
           pipelines = {
             traces = {
               receivers  = ["otlp"]
-              processors = ["memory_limiter", "batch"]
+              processors = ["memory_limiter", "resource", "batch"]
               exporters  = ["otlp"]
             }
             metrics = {
               receivers  = ["otlp"]
-              processors = ["memory_limiter", "batch"]
+              processors = ["memory_limiter", "resource", "batch"]
               exporters  = ["prometheusremotewrite"]
             }
             logs = {
               receivers  = ["otlp"]
-              processors = ["memory_limiter", "batch"]
-              exporters  = ["loki"]
+              processors = ["memory_limiter", "resource", "batch"]
+              exporters  = ["debug"]
             }
           }
         }

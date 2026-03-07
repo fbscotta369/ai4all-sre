@@ -30,7 +30,10 @@ resource "kubernetes_deployment" "behavioral_loadgen" {
     template {
       metadata {
         labels = {
-          app = "behavioral-loadgen"
+          app           = "behavioral-loadgen"
+          team          = "sre"
+          environment   = "lab"
+          cost-center   = "ai4all"
         }
       }
 
@@ -56,8 +59,8 @@ resource "kubernetes_deployment" "behavioral_loadgen" {
 
           resources {
             limits = {
-              cpu    = "200m"
-              memory = "128Mi"
+              cpu    = "500m"
+              memory = "256Mi"
             }
             requests = {
               cpu    = "50m"
@@ -68,6 +71,11 @@ resource "kubernetes_deployment" "behavioral_loadgen" {
           env {
             name  = "FRONTEND_ADDR"
             value = "frontend:80"
+          }
+
+          env {
+            name  = "HOME"
+            value = "/tmp"
           }
 
           volume_mount {
