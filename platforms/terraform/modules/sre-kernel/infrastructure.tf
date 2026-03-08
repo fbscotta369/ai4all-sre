@@ -47,6 +47,19 @@ resource "kubernetes_service" "redis" {
   }
 }
 
+# AI Agent Credentials — Fix: Provides necessary ENV vars for the autonomous logic
+resource "kubernetes_secret" "ai_agent_credentials" {
+  metadata {
+    name      = "ai-agent-credentials"
+    namespace = kubernetes_namespace.observability.metadata[0].name
+  }
+  data = {
+    redis_url        = "redis://redis.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:6379/0"
+    minio_access_key = "admin"
+    minio_secret_key = "password123!"
+  }
+}
+
 # MinIO — Fix 8 + Fix 12: Remote state backend + post-mortem persistence store
 
 # Secret must exist before deployment (avoids cross-module dependency)

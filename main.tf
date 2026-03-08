@@ -5,8 +5,9 @@
 # Switch to ./platforms/terraform/providers/aws or ./gcp for cloud deployments.
 
 module "platform" {
-  # Fortune 500 Standard: Source modules from versioned Git tags to prevent breaking changes.
-  source                      = "git::https://github.com/fbscotta369/ai4all-sre.git//platforms/terraform/providers/local?ref=v1.0.0"
+  # Standardized entry point for the Multi-Cloud SRE Laboratory.
+  # Use local relative path to ensure local changes are applied during development.
+  source = "./platforms/terraform/providers/local"
 }
 
 output "platform_status" {

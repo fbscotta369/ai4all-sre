@@ -7,6 +7,15 @@ echo "Starting AI4ALL-SRE Laboratory Setup..."
 echo "------------------------------------------------"
 
 # 0. Environment Bootstrap 🌐
+# Parse global flags
+NON_INTERACTIVE=false
+for arg in "$@"; do
+    if [ "$arg" == "--non-interactive" ]; then
+        NON_INTERACTIVE=true
+        break
+    fi
+done
+
 # Ensure local bin is in PATH for webi installs (k9s, etc.)
 export PATH="$HOME/.local/bin:$PATH"
 [ -f "$HOME/.config/envman/PATH.env" ] && source "$HOME/.config/envman/PATH.env"
@@ -30,7 +39,7 @@ doctor_check() {
         echo "------------------------------------------------"
         
         # Proactively offer to run the command if in an interactive terminal
-        if [ -t 0 ]; then
+        if [ -t 0 ] && [ "$NON_INTERACTIVE" = false ]; then
             read -p "Would you like me to try installing $cmd for you? (y/N) " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -222,6 +231,12 @@ fi
 if [ ! -f ".certs/issuer.crt" ] || [ ! -f ".certs/issuer.key" ] || [ ! -f ".certs/trust-anchor.crt" ]; then
     echo "⚠️ Linkerd mTLS certificates not found. Generating them via Python cryptography..."
     
+    # Ensure cryptography is installed
+    if ! python3 -c "import cryptography" &> /dev/null; then
+        echo "[*] Installing python3-cryptography..."
+        sudo apt-get update && sudo apt-get install -y python3-cryptography
+    fi
+
     mkdir -p .certs
     python3 scripts/internal/generate_certs.py
     

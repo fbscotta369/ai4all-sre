@@ -370,6 +370,10 @@ resource "kubernetes_deployment" "ai_agent" {
             name  = "OLLAMA_CHAT_URL"
             value = "http://ollama.ollama.svc.cluster.local:11434/api/chat"
           }
+          env {
+            name  = "GIT_REPO_DIR"
+            value = "/workspace"
+          }
           # Credentials sourced from Vault-managed Kubernetes Secret
           env {
             name = "REDIS_URL"
@@ -414,12 +418,31 @@ resource "kubernetes_deployment" "ai_agent" {
             name       = "script-volume"
             mount_path = "/app"
           }
+          volume_mount {
+            name       = "workspace"
+            mount_path = "/workspace"
+          }
+        }
+        # Init container to clone the repo for the agent (simulated for lab)
+        init_container {
+          name  = "git-init"
+          image = "alpine/git"
+          command = ["/bin/sh", "-c"]
+          args    = ["git clone https://github.com/fbscotta369/ai4all-sre.git /workspace && cd /workspace && git checkout main"]
+          volume_mount {
+            name       = "workspace"
+            mount_path = "/workspace"
+          }
         }
         volume {
           name = "script-volume"
           config_map {
             name = kubernetes_config_map.ai_agent_script.metadata[0].name
           }
+        }
+        volume {
+          name = "workspace"
+          empty_dir {}
         }
       }
     }
