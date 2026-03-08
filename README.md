@@ -15,11 +15,15 @@ AI4ALL-SRE is an enterprise-grade laboratory and **Internal Developer Platform (
 
 ---
 
+---
+
 ## 🏗️ Architecture & Philosophy
 
 The system is built on a **Zero-Trust Data Mesh** and an **Autonomous Multi-Agent System (MAS)** that dispatches specialized "SRE Kernels" for domain-specific incident analysis.
 
 ### 🐝 The Specialist Swarm (High-Tech)
+> **Lead SRE Perspective**: This is a non-linear, event-driven orchestration layer. It utilizes **Asynchronous Message Passing** and **Vectorized Context Injection (RAG)** to provide "Context-Aware" reasoning at the edge. The Swarm uses a **Consensus Mechanism** where the Director Agent acts as the *Raft* leader for operational decisions.
+
 ```mermaid
 graph TB
     subgraph "Observability Layer"
@@ -52,7 +56,11 @@ graph TB
     DIR -->|Consensus Decision| EXEC["Execution Loop"]
 ```
 
+> **Simple Explanation**: Think of this as a team of expert robot doctors. When the cluster gets "sick" (an alert), the Director Robot (the surgeon) calls in specialists (Network, Database, Compute). They look at the patient's history (Vector Memory) and local charts (Observability) to decide together how to fix the problem without asking for a human's help.
+
 ### 🔄 The Autonomous Loop (Simplified)
+> **Lead SRE Perspective**: A closed-loop control system utilizing **GitOps as the Source of Truth**. By enforcing **Desired State vs. Actual State** reconciliation via ArgoCD, we ensure that the AI Agent's remediations are idempotent, auditable, and reversible.
+
 ```mermaid
 sequenceDiagram
     participant C as Cluster (K8s)
@@ -67,6 +75,8 @@ sequenceDiagram
     G->>C: Sync State
     C->>A: Verify & Resolve
 ```
+
+> **Simple Explanation**: It's like a smart thermostat for your software. 1. It sees the temperature change (Incident). 2. It checks what the temperature *should* be (GitOps). 3. It turns on the AC (Remediation). 4. It checks again to make sure everything is okay.
 
 For a deeper dive into these patterns, see the [Full System Architecture](docs/reference/ARCHITECTURE.md).
 
@@ -84,7 +94,7 @@ Our documentation hub is designed for professional engineering onboarding.
 | Category | Description | Key Documents |
 | :--- | :--- | :--- |
 | **🚀 Tutorials** | Guided onboarding for new engineers. | [Quickstart Guide](docs/tutorials/01-quickstart.md) |
-| **🛠️ How-To** | Practical SOPs for operational tasks. | [Disaster Recovery](docs/how-to/disaster-recovery-dry-runs.md) |
+| **🛠️ How-To** | Practical SOPs for operational tasks. | [Disaster Recovery](docs/how-to/disaster-recovery-dry-runs.md), [Remote State Migration](docs/how-to/remote-state-migration.md) |
 | **🏗️ Reference** | Technical specifications and C4 models. | [System Architecture](docs/reference/system-architecture.md) |
 | **🧠 Explanation** | Deep-dives into our engineering philosophy. | [Platform Manifesto](docs/explanation/platform-engineering-manifesto.md) |
 
@@ -145,9 +155,8 @@ The **Autonomous MAS** consists of specialized agents that collaborate on incide
 - 🎬 **Director Agent**: Consensus and Execution Engine.
 
 ---
----
 
-## 🛠️ The Global Stack & Methodologies
+## 🛠️ The Global Stack & Methodologies (Fortune 500 Standards)
 
 The AI4ALL-SRE platform is built on the shoulders of giants. Below is a detailed map of the core technologies, methodologies, and best practices that power this Autonomous Engineering Laboratory.
 
@@ -164,7 +173,7 @@ The AI4ALL-SRE platform is built on the shoulders of giants. Below is a detailed
 ### 🛡️ Security & Compliance (DevSecOps)
 - **[VDP (Vulnerability Disclosure Program)](https://www.cisa.gov/vulnerability-disclosure-policy-vdp)**: Structured way to receive security vulnerabilities from the public.
 - **[SLSA (Supply-chain Levels for Software Artifacts)](https://slsa.dev/)**: Security framework to improve supply chain integrity.
-- **[Zero-Trust (Zero-Trust Architecture)](https://www.nist.gov/publications/zero-trust-architecture)**: Security model requiring continuous validation of every user and device.
+- **[ZTA (Zero-Trust Architecture)](https://www.nist.gov/publications/zero-trust-architecture)**: Security model requiring continuous validation of every user and device.
 - **[mTLS (Mutual Transport Layer Security)](https://www.cloudflare.com/learning/access-management/what-is-mutual-tls/)**: Mutual verification of certificates between client and server.
 - **[PaC (Policy as Code / Kyverno)](https://kyverno.io/)**: Native Kubernetes policy engine for admission control.
 - **[Cosign (Sigstore)](https://github.com/sigstore/cosign)**: Standard for signing and verifying OCI container images.
@@ -197,6 +206,8 @@ The AI4ALL-SRE platform is built on the shoulders of giants. Below is a detailed
 - **[Pre-commit](https://pre-commit.com/)**: Multi-language framework for pre-commit hooks.
 - **[Vale](https://vale.sh/)**: Syntax-aware linter for technical documentation.
 - **[Diátaxis](https://diataxis.fr/)**: Systematic framework for documentation authoring.
+
+---
 
 ---
 *Engineering Lead: AI4ALL-SRE Platform*

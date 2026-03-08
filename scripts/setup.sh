@@ -232,6 +232,19 @@ else
     echo "✅ Linkerd certificates found in .certs/."
 fi
 
+# 3.9 Backend Bootstrap (Fortune 500 Standard)
+if [ -f "backend.tf" ]; then
+    echo "------------------------------------------------"
+    echo "🔍 Remote Backend Detected (S3/DynamoDB)..."
+    if [ -t 0 ]; then
+        read -p "Would you like me to bootstrap the remote state assets (S3/DynamoDB)? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            ./scripts/bootstrap-backend.sh
+        fi
+    fi
+fi
+
 # 4. Terraform Initialization
 echo "------------------------------------------------"
 echo "Initializing Terraform..."
@@ -255,36 +268,43 @@ if [ "$success" = false ]; then
     exit 1
 fi
 
-# 5. Terraform Apply (Multi-Stage to resolve CRD dependencies)
-echo "Applying Base Helm Charts (CRDs & Controllers)..."
-terraform apply \
-  -target=module.platform.module.sre_kernel.kubernetes_namespace.argocd \
-  -target=module.platform.module.sre_kernel.kubernetes_namespace.observability \
-  -target=module.platform.module.sre_kernel.kubernetes_namespace.keda \
-  -target=module.platform.module.sre_kernel.kubernetes_namespace.trivy \
-  -target=module.platform.module.sre_kernel.kubernetes_namespace.kyverno \
-  -target=module.platform.module.sre_kernel.kubernetes_namespace.linkerd \
-  -target=module.platform.module.sre_kernel.kubernetes_namespace.vault \
-  -target=module.platform.module.sre_kernel.kubernetes_namespace.minio \
-  -target=module.platform.module.sre_kernel.kubernetes_namespace.ollama \
-  -target=module.platform.module.sre_kernel.helm_release.chaos_mesh \
-  -target=module.platform.module.sre_kernel.helm_release.kyverno \
-  -target=module.platform.module.sre_kernel.helm_release.argo_rollouts \
-  -target=module.platform.module.sre_kernel.helm_release.argocd \
-  -target=module.platform.module.sre_kernel.helm_release.kube_prometheus_stack \
-  -target=module.platform.module.sre_kernel.helm_release.linkerd_crds \
-  -target=module.platform.module.sre_kernel.helm_release.vault \
-  -target=module.platform.module.sre_kernel.helm_release.trivy \
-  -target=module.platform.module.sre_kernel.helm_release.keda \
-  -target=module.platform.module.sre_kernel.kubernetes_deployment.ollama \
-  -var="enable_kubernetes_manifests=false" -auto-approve
-
-echo "------------------------------------------------"
-echo "⏳ Waiting for CRDs to register in the Kubernetes API..."
-sleep 20
-
-echo "Applying full Infrastructure..."
-terraform apply -auto-approve
+# 5. Terraform Apply Logic
+if [[ "$*" == *"--stage-1"* ]]; then
+    echo "Applying Base Helm Charts (CRDs & Controllers)..."
+    terraform apply \
+      -target=module.platform.module.sre_kernel.kubernetes_namespace.argocd \
+      -target=module.platform.module.sre_kernel.kubernetes_namespace.observability \
+      -target=module.platform.module.sre_kernel.kubernetes_namespace.keda \
+      -target=module.platform.module.sre_kernel.kubernetes_namespace.trivy \
+      -target=module.platform.module.sre_kernel.kubernetes_namespace.kyverno \
+      -target=module.platform.module.sre_kernel.kubernetes_namespace.linkerd \
+      -target=module.platform.module.sre_kernel.kubernetes_namespace.vault \
+      -target=module.platform.module.sre_kernel.kubernetes_namespace.minio \
+      -target=module.platform.module.sre_kernel.kubernetes_namespace.ollama \
+      -target=module.platform.module.sre_kernel.helm_release.chaos_mesh \
+      -target=module.platform.module.sre_kernel.helm_release.kyverno \
+      -target=module.platform.module.sre_kernel.helm_release.argo_rollouts \
+      -target=module.platform.module.sre_kernel.helm_release.argocd \
+      -target=module.platform.module.sre_kernel.helm_release.kube_prometheus_stack \
+      -target=module.platform.module.sre_kernel.helm_release.linkerd_crds \
+      -target=module.platform.module.sre_kernel.helm_release.vault \
+      -target=module.platform.module.sre_kernel.helm_release.trivy \
+      -target=module.platform.module.sre_kernel.helm_release.keda \
+      -target=module.platform.module.sre_kernel.kubernetes_deployment.ollama \
+      -auto-approve
+    exit 0
+elif [[ "$*" == *"--stage-2"* ]]; then
+    echo "Applying full Infrastructure..."
+    terraform apply -auto-approve
+    exit 0
+else
+    # Default behavior: Run both stages
+    $0 --stage-1
+    echo "------------------------------------------------"
+    echo "⏳ Waiting for CRDs to register in the Kubernetes API..."
+    sleep 20
+    $0 --stage-2
+fi
 
 echo "------------------------------------------------"
 echo "⏳ Waiting for core dashboard endpoints and GitOps sync..."

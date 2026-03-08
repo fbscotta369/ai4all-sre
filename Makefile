@@ -6,8 +6,18 @@
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-setup: ## Initialize the hardware and cluster plane
-	@./scripts/setup.sh
+setup: ## Industrial 10/10 Setup (Layered Infrastructure + Platform)
+	@echo "🚀 Starting Layered Setup..."
+	@$(MAKE) setup-infra
+	@$(MAKE) setup-platform
+
+setup-infra: ## Stage 1: Provision Core Infrastructure (Namespaces & CRDs)
+	@echo "🏗️  Stage 1: Provisioning Core Infrastructure..."
+	@./scripts/setup.sh --stage-1
+
+setup-platform: ## Stage 2: Provision Platform Services (ArgoCD, Linkerd, AI)
+	@echo "🧠 Stage 2: Provisioning Platform Services..."
+	@./scripts/setup.sh --stage-2
 
 cleanup: ## Clean up temporary files and logs
 	@./scripts/cleanup.sh

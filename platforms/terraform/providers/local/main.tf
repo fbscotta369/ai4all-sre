@@ -3,18 +3,11 @@
 # The Local provider assumes a K8s context already exists (e.g., Kind)
 # It doesn't provision the cluster itself, but attaches the Kernel.
 
-variable "enable_kubernetes_manifests" {
-  type    = bool
-  default = true
-}
-
 module "sre_kernel" {
   source = "../../modules/sre-kernel"
 
   cluster_name = "ai4all-sre-local"
   environment  = "development"
-
-  enable_kubernetes_manifests = var.enable_kubernetes_manifests
 
   # Namespaces from module defaults or configured here
   argocd_namespace          = "argocd"
