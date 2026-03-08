@@ -59,7 +59,11 @@ echo ""
 echo "✅ Namespaces and Cluster resources cleaned up."
 
 # Clear Terraform state
-echo "Clearing Terraform state..."
+echo "Clearing local Terraform state caches..."
+if [ -f "backend.tf" ]; then
+    echo "⚠️  Remote backend detected. Local caches will be purged, but remote state remains in S3."
+    echo "   To fully reset the remote state, run: ./destroy.sh -y"
+fi
 rm -rf .terraform .terraform.lock.hcl terraform.tfstate terraform.tfstate.backup || true
 
 set -e
@@ -89,7 +93,7 @@ echo -e "${YELLOW}[PHASE 2] Provisioning full laboratory infrastructure from zer
 
 # Hybrid Step: Provision mission-critical secrets and namespaces directly
 # This avoids Terraform "already exists" conflicts for bootstrap resources.
-./provision_agent.sh
+./scripts/provision_agent.sh
 
 # Hybrid state bridge: Import pre-provisioned or persistent resources into Terraform
 echo "Bridging hybrid components into Terraform state..."
@@ -99,8 +103,9 @@ terraform import module.platform.module.sre_kernel.kubernetes_deployment.redis o
 terraform import module.platform.module.sre_kernel.kubernetes_service.redis observability/redis || true
 terraform import module.platform.module.sre_kernel.kubernetes_role_binding.keda_auth_reader_binding kube-system/keda-metrics-auth-reader || true
 
-# Redirect input from /dev/null to ensure non-interactive execution
-./setup.sh < /dev/null
+# Fortune 500 Automation: Enable AUTO_BOOTSTRAP for non-interactive remote state setup
+export AUTO_BOOTSTRAP=true
+./scripts/setup.sh
 echo -e "${GREEN}✅ Phase 2 (Provisioning) Complete.${NC}"
 echo ""
 

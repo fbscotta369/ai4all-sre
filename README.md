@@ -100,18 +100,31 @@ Our documentation hub is designed for professional engineering onboarding.
 
 ---
 
-## ⚡ Quickstart: The Golden Path
+## ⚡ Quickstart: Choose Your Mode
 
+AI4ALL-SRE is an adaptive platform designed for both frictionless local research and high-end enterprise simulation.
+
+### 🛡️ Mode 1: Local Lab (Recruiter / Researcher)
+*Zero configuration, zero cloud dependencies. Works out-of-the-box on any Linux/Mac. Uses local Terraform state.*
 ```bash
-# 1. Initialize the Hardware & Cluster Plane
+# 1. Start the one-click local setup
 make setup
 
-# 2. Deploy the AI SRE Agent
-npx -y pm2 start ai_agent.py --interpreter python3
-
-# 3. Trigger a Chaos Experiment
-kubectl apply -f chaos/network-delay.yaml
+# 2. Verify the autonomous loop
+./scripts/e2e_test.sh
 ```
+
+### 🚀 Mode 2: Enterprise Portfolio (10/10 Standards)
+*Demonstrates professional readiness: Remote State (S3), Atomic Locking (DynamoDB), and Immutable Module Versioning.*
+```bash
+# 1. Enable 10/10 Enterprise Mode
+make enterprise-on
+
+# 2. Run setup (Will prompt to bootstrap cloud assets)
+make setup
+```
+> [!TIP]
+> Use **Enterprise Mode** to see how I manage complex infrastructure lifecycles in global organizations. Use **Local Lab** for a fast, hassle-free demonstration of the AI SRE logic.
 
 ---
 

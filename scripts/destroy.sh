@@ -138,9 +138,12 @@ echo -e "${GREEN}✅ CRDs removed.${NC}"
 
 # ── Step 5: Clean Terraform state lock ──────────────────────
 echo ""
-echo -e "${BLUE}[5/5] Cleaning local Terraform state...${NC}"
+echo -e "${BLUE}[5/5] Cleaning local Terraform state caches...${NC}"
+if [ -f "backend.tf" ]; then
+    echo -e "  ${YELLOW}Note: Remote backend detected. Local caches will be purged, but remote state history remains in S3.${NC}"
+fi
 rm -rf .terraform .terraform.lock.hcl terraform.tfstate terraform.tfstate.backup .terraform.lock.hcl.bak 2>/dev/null || true
-echo -e "${GREEN}✅ State cleaned.${NC}"
+echo -e "${GREEN}✅ State caches cleaned.${NC}"
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"

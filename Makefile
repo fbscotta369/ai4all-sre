@@ -19,6 +19,15 @@ setup-platform: ## Stage 2: Provision Platform Services (ArgoCD, Linkerd, AI)
 	@echo "🧠 Stage 2: Provisioning Platform Services..."
 	@./scripts/setup.sh --stage-2
 
+# 🎓 Enterprise Portfolio Controls
+enterprise-on: ## Enable 10/10 Enterprise Mode (Remote State/S3/DynamoDB)
+	@mv .backend.tf.enterprise backend.tf 2>/dev/null || echo "Enterprise mode already active."
+	@echo "🚀 10/10 Enterprise Mode: ENABLED. Run 'make setup' to bootstrap."
+
+enterprise-off: ## Revert to Local Lab Mode (Frictionless Execution)
+	@mv backend.tf .backend.tf.enterprise 2>/dev/null || echo "Local mode already active."
+	@echo "🛡️  Local Lab Mode: ENABLED. Run 'make setup' for zero-config startup."
+
 cleanup: ## Clean up temporary files and logs
 	@./scripts/cleanup.sh
 

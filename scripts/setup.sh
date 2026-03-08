@@ -232,17 +232,27 @@ else
     echo "✅ Linkerd certificates found in .certs/."
 fi
 
-# 3.9 Backend Bootstrap (Fortune 500 Standard)
+# 3.9 Backend Detection & Adaptive Mode (DX-First)
 if [ -f "backend.tf" ]; then
     echo "------------------------------------------------"
-    echo "🔍 Remote Backend Detected (S3/DynamoDB)..."
-    if [ -t 0 ]; then
+    echo "🚀 Enterprise Mode Active (Remote Backend Enabled)"
+    
+    SHOULD_BOOTSTRAP=false
+    if [ "$AUTO_BOOTSTRAP" = "true" ]; then
+        SHOULD_BOOTSTRAP=true
+    elif [ -t 0 ]; then
         read -p "Would you like me to bootstrap the remote state assets (S3/DynamoDB)? (y/N) " -n 1 -r
         echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            ./scripts/bootstrap-backend.sh
-        fi
+        [[ $REPLY =~ ^[Yy]$ ]] && SHOULD_BOOTSTRAP=true
     fi
+
+    if [ "$SHOULD_BOOTSTRAP" = "true" ]; then
+        ./scripts/bootstrap-backend.sh
+    fi
+elif [ -f ".backend.tf.enterprise" ]; then
+    echo "------------------------------------------------"
+    echo "🛡️  Local Lab Mode Active (Zero-Config Execution)"
+    echo "💡 Note: To see the '10/10 Enterprise Backend' in action, run 'make enterprise-on'."
 fi
 
 # 4. Terraform Initialization
