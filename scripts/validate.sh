@@ -16,15 +16,16 @@ terraform validate
 
 # 2. Python Validation (AIOps Agent)
 echo "[*] checking Python syntax (ai_agent.py)..."
-python3 -m py_compile ai_agent.py
+python3 -m py_compile components/ai-agent/ai_agent.py
 
 if command -v pylint &> /dev/null; then
     echo "[*] Running pylint on ai_agent.py..."
-    pylint ai_agent.py --disable=C0114,C0116,C0115 || true
+    pylint components/ai-agent/ai_agent.py --disable=C0114,C0116,C0115 || true
 fi
 
 # 2.5 Unit Tests
 echo "[*] Running Python unit tests..."
+export PYTHONPATH=$PYTHONPATH:$(pwd)/components/ai-agent:$(pwd)/components/loadgen:$(pwd)/scripts/internal
 if command -v conda &> /dev/null && conda info --envs | grep -q "sre-ai-lab"; then
     conda run -n sre-ai-lab python3 -m unittest discover tests/
 else
