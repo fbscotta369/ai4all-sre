@@ -102,6 +102,7 @@ terraform import module.platform.module.sre_kernel.kubernetes_namespace.observab
 terraform import module.platform.module.sre_kernel.kubernetes_deployment.redis observability/redis || true
 terraform import module.platform.module.sre_kernel.kubernetes_service.redis observability/redis || true
 terraform import module.platform.module.sre_kernel.kubernetes_role_binding.keda_auth_reader_binding kube-system/keda-metrics-auth-reader || true
+terraform import module.platform.module.sre_kernel.kubernetes_secret.ai_agent_credentials observability/ai-agent-credentials || true
 
 # Fortune 500 Automation: Enable AUTO_BOOTSTRAP for non-interactive remote state setup
 export AUTO_BOOTSTRAP=true
