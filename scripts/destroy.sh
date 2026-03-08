@@ -99,6 +99,10 @@ NAMESPACES=(
     kyverno
     trivy-system
     vault
+    minio
+    ollama
+    keda
+    ai-lab
 )
 for NS in "${NAMESPACES[@]}"; do
     if kubectl get namespace "$NS" &>/dev/null; then
