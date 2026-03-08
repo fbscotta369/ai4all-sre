@@ -99,7 +99,7 @@ resource "kubernetes_manifest" "argocd_app_boutique" {
       project = "default"
       source = {
         repoURL        = "https://github.com/fbscotta369/ai4all-sre.git"
-        path           = "apps/online-boutique"
+        path           = "gitops/argo-apps/online-boutique"
         targetRevision = "HEAD"
       }
       destination = {

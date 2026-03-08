@@ -148,7 +148,7 @@ else
     # test_curl_pod "Chaos Mesh UI" "http://chaos-dashboard.chaos-testing.svc.cluster.local:2333" "200" "Chaos Mesh dashboard not responding."
     test_curl_pod "Vault Health" "http://vault.vault.svc.cluster.local:8200/v1/sys/health" "200" "Vault not initialized/ready."
     test_curl_pod "Ollama API" "http://ollama.ollama.svc.cluster.local:11434/api/version" "200" "Ollama not responding."
-    test_curl_pod "AI Agent Health" "http://ai-agent.observability.svc.cluster.local:8000/health" "200" "AI Agent not healthy."
+    test_curl_pod "AI Agent Health" "http://ai-agent.observability.svc.cluster.local/health" "200" "AI Agent not healthy."
 fi
 
 # ===========================================================================
@@ -163,7 +163,7 @@ test_run "Vault Seal Status" \
     "Vault is sealed or exec failed."
 
 test_run "Prometheus SLO Rules Loaded" \
-    "kubectl exec -n observability -c prometheus statefulset/prometheus-kube-prometheus-prometheus -- \
+    "kubectl exec -n observability -c prometheus statefulset/prometheus-kube-prometheus-kube-prome-prometheus -- \
      promtool query series '{__name__=\"frontend_success_rate_5m\"}' --url=http://localhost:9090 2>&1 | grep -q 'frontend'" \
     "SLO recording rule 'frontend_success_rate_5m' not found in Prometheus."
 

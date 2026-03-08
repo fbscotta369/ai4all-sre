@@ -28,4 +28,19 @@ variable "loadgen_image" {
   default = "python:3.11-slim"
 }
 
+variable "vault_namespace" {
+  type    = string
+  default = "vault"
+}
+
+variable "ollama_namespace" {
+  type    = string
+  default = "ollama"
+}
+
+variable "alerting_namespace" {
+  type    = string
+  default = "incident-management"
+}
+
 # Removed enable_kubernetes_manifests for 10/10 dependency optimization.

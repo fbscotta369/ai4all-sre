@@ -123,7 +123,7 @@ resource "kubernetes_job" "vault_bootstrap" {
         container {
           name    = "vault-seeder"
           image   = "hashicorp/vault:1.15"
-          command = ["/bin/sh", "-c", "chmod +x /scripts/seed_vault_secrets.sh && /scripts/seed_vault_secrets.sh"]
+          command = ["/bin/sh", "-x", "/scripts/seed_vault_secrets.sh"]
           env {
             name  = "VAULT_ADDR"
             value = "http://vault.${var.vault_namespace}.svc.cluster.local:8200"
@@ -191,15 +191,3 @@ resource "kubernetes_secret" "grafana_admin" {
   depends_on = [kubernetes_job.vault_bootstrap]
 }
 
-resource "kubernetes_secret" "ai_agent_credentials" {
-  metadata {
-    name      = "ai-agent-credentials"
-    namespace = var.observability_namespace
-  }
-  data = {
-    redis_url        = "redis://redis.observability.svc.cluster.local:6379/0"
-    minio_access_key = "admin"
-    minio_secret_key = "password123!"
-  }
-  depends_on = [kubernetes_job.vault_bootstrap]
-}

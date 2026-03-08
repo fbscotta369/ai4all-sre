@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/fbscotta369/ai4all-sre.git'
-    path: apps/online-boutique
+    path: gitops/argo-apps/online-boutique
     targetRevision: HEAD
   destination:
     server: 'https://kubernetes.default.svc'
