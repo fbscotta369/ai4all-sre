@@ -234,12 +234,22 @@ def parse_logs(input_text):
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     clean_text = ansi_escape.sub('', input_text)
     
-    # Pattern to match: "  Testing Name... [ PASS ]" or "  Endpoint: Name... [ FAIL ]"
-    matches = re.finditer(r'(Testing|Endpoint:)\s+(.*?)\.\.\.\s+\[\s*(PASS|FAIL)\s*\]', clean_text)
+    # Pattern to match various log formats: 
+    # [PASS] Name
+    # Testing Name... [ PASS ]
+    # Endpoint: Name... [ FAIL ]
+    matches = re.finditer(r'(?:\[(PASS|FAIL)\]\s+(.*?)$|(?:Testing|Endpoint:)\s+(.*?)\.\.\.\s+\[\s*(PASS|FAIL)\s*\])', clean_text, re.MULTILINE)
     for match in matches:
+        if match.group(1): # [PASS] Name format
+            status = match.group(1)
+            name = match.group(2).strip()
+        else: # Testing Name... [ PASS ] format
+            status = match.group(4)
+            name = match.group(3).strip()
+        
         tests.append({
-            "status": match.group(3),
-            "name": match.group(2).strip()
+            "status": status,
+            "name": name
         })
     return tests
 
@@ -279,7 +289,7 @@ def generate_report(tests):
         warning=COLORS["warning"],
         text=COLORS["text"],
         text_muted=COLORS["text_muted"],
-        run_id=str(os.popen("uuidgen").read().strip())[:8],
+        run_id=os.popen("uuidgen").read().strip()[:8],
         timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         total=total,
         passed=passed,

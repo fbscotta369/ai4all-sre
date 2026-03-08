@@ -44,8 +44,9 @@ python3 -m unittest discover tests/
 Validates that our **Infrastructure-as-Code (IaC)** correctly models the desired state.
 
 - **Terraform Linting**: Checks `*.tf` files for syntax and best practices.
-- **ArgoCD Health**: Ensures that the "GitOps Loop" is closed and all applications are `Synced`.
-- **Kyverno Policy Check**: Validates that admission controllers are actively blocking non-compliant pods.
+- **Zero-to-Hero Lifecycle**: `lifecycle_test.sh` proves that the entire infrastructure and data mesh can be fully destroyed and rebuilt from scratch.
+- **Cinematic A-Z Validation**: `cinematic_test.sh` provides a visual showcase of the full platform lifecycle, including real-time dashboards and chaos remediation.
+- **Specialized AI Tests**: Validates MAS Consensus, Safety Guardrails, and Remediation Edge Cases.
 
 **Validation Tool:**
 ```bash

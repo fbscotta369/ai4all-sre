@@ -153,6 +153,9 @@ The platform maintains a high standard of reliability through an extensive unit 
 # Provide a 100% reproducible zero-to-hero lifecycle (Destroy -> Setup -> Verify)
 make test-lifecycle
 
+# Run the Cinematic A-Z Visual Test Suite (The "Showcase" Mode)
+./scripts/cinematic_test.sh
+
 # Run the comprehensive A-to-Z End-to-End Test Suite against live endpoints
 make test-e2e
 
@@ -197,52 +200,44 @@ The AI4ALL-SRE platform is built on the shoulders of giants. Below is a detailed
 The AI4ALL-SRE platform is built on the shoulders of giants. Below is a detailed map of the core technologies, methodologies, and best practices that power this Autonomous Engineering Laboratory.
 
 ### 🏗️ Infrastructure & Orchestration
-- **[K8s (Kubernetes)](https://kubernetes.io/)**: Orchestration for automated deployment, scaling, and management of containerized applications.
-- **[IaC (Infrastructure as Code) - Terraform](https://www.terraform.io/)**: Tool for building, changing, and versioning infrastructure safely.
-- **[GitOps (Git Operations)](https://www.gitops.tech/)**: Operational framework for managing infrastructure and applications via Git.
-- **[IDP (Internal Developer Platform)](https://internaldeveloperplatform.org/)**: Self-service layer for developers to manage their applications.
-- **[ArgoCD (Argo Continuous Delivery)](https://argoproj.github.io/cd/)**: Declarative, GitOps continuous delivery for Kubernetes.
-- **[Karpenter](https://karpenter.sh/)**: Just-in-time node provisioning for Kubernetes clusters.
-- **[Helm (Kubernetes Package Manager)](https://helm.sh/)**: Standard for defining and installing K8s applications.
-- **[KinD (Kubernetes in Docker)](https://kind.sigs.k8s.io/)**: Tool for running local Kubernetes clusters.
-- **[Adaptive Infrastructure](https://www.hashicorp.com/solutions/infrastructure-automation)**: Strategy for providing seamless transitions between Local and Enterprise (Remote) state environments.
+- **K8s ([Kubernetes](https://kubernetes.io/))**: The industry-standard orchestration for automated deployment, scaling, and management of containerized applications.
+- **IaC ([Infrastructure as Code](https://www.terraform.io/) - Terraform)**: Declarative tool for building, changing, and versioning infrastructure safely.
+- **GitOps ([Git Operations](https://www.gitops.tech/))**: An operational framework that takes DevOps best practices used for application development and applies them to infrastructure automation.
+- **IDP ([Internal Developer Platform](https://internaldeveloperplatform.org/))**: A self-service layer that allows developers to manage their applications without needing to be infrastructure experts.
+- **ArgoCD ([Argo Continuous Delivery](https://argoproj.github.io/cd/))**: A declarative, GitOps-based continuous delivery tool for Kubernetes.
+- **Karpenter ([Just-in-time Node Provisioning](https://karpenter.sh/))**: An open-source, flexible, high-performance Kubernetes cluster autoscaler.
+- **Helm ([Kubernetes Package Manager](https://helm.sh/))**: The standard way to define, install, and upgrade even the most complex Kubernetes applications.
+- **KinD ([Kubernetes in Docker](https://kind.sigs.k8s.io/))**: A tool for running local Kubernetes clusters using Docker container "nodes".
 
 ### 🛡️ Security & Compliance (DevSecOps)
-- **[VDP (Vulnerability Disclosure Program)](https://www.cisa.gov/vulnerability-disclosure-policy-vdp)**: Structured way to receive security vulnerabilities from the public.
-- **[SLSA (Supply-chain Levels for Software Artifacts)](https://slsa.dev/)**: Security framework to improve supply chain integrity (Providence and Attestation).
-- **[ZTA (Zero-Trust Architecture)](https://www.nist.gov/publications/zero-trust-architecture)**: Security model requiring continuous validation of every user and device.
-- **[mTLS (Mutual Transport Layer Security)](https://www.cloudflare.com/learning/access-management/what-is-mutual-tls/)**: Mutual verification of certificates between client and server via service mesh.
-- **[PaC (Policy as Code / Kyverno)](https://kyverno.io/)**: Native Kubernetes policy engine for admission control and security guardrails.
-- **[Cosign (Sigstore)](https://github.com/sigstore/cosign)**: Standard for signing and verifying OCI container images.
-- **[SAST (Static Application Security Testing) - CodeQL](https://codeql.github.com/)**: Semantic code analysis engine for vulnerability discovery in autonomous logic.
-- **[Trivy](https://trivy.dev/)**: Comprehensive scanner for vulnerabilities, misconfigurations, secrets, and IaC compliance.
-- **[Gitleaks](https://github.com/gitleaks/gitleaks)**: Tool for detecting and preventing hardcoded secrets in the automation suite.
-- **[Vault (HashiCorp Vault)](https://www.vaultproject.io/)**: Secure secrets management, dynamic credentials, and data encryption.
-- **[Linkerd (Service Mesh)](https://linkerd.io/)**: Ultra-light, security-first service mesh for Kubernetes.
+- **VDP ([Vulnerability Disclosure Program](https://www.cisa.gov/vulnerability-disclosure-policy-vdp))**: A structured way to receive and handle security vulnerabilities discovered by the research community.
+- **SLSA ([Supply-chain Levels for Software Artifacts](https://slsa.dev/))**: A security framework—a check-list of standards and controls to prevent tampering and improve integrity.
+- **ZTA ([Zero-Trust Architecture](https://www.nist.gov/publications/zero-trust-architecture))**: A security model that requires all users to be authenticated, authorized, and continuously validated before being granted access.
+- **mTLS ([Mutual Transport Layer Security](https://www.cloudflare.com/learning/access-management/what-is-mutual-tls/))**: A process where both the client and server verify each other's certificates via a service mesh.
+- **PaC ([Policy as Code](https://kyverno.io/) - Kyverno)**: Using high-level language to manage and automate policies within a Kubernetes cluster.
+- **SAST ([Static Application Security Testing](https://codeql.github.com/) - CodeQL)**: Analyzing source code to find security vulnerabilities without executing the program.
+- **Trivy ([Security Scanner](https://trivy.dev/))**: A comprehensive and easy-to-use vulnerability scanner for containers and other artifacts.
 
 ### 🧠 AI / ML / LLM Engineering (AIOps)
-- **[Ollama](https://ollama.com/)**: Local LLM execution engine for data sovereignty and high-performance inference.
-- **[LLM (Large Language Model) - Llama 3](https://llama.meta.com/)**: Foundation model used for reasoning within the "SRE-Kernel".
-- **[HNSW (Hierarchical Navigable Small Worlds)](https://arxiv.org/abs/1603.09320)**: Algorithm for efficient Approximate Nearest Neighbor (ANN) vector search.
-- **[MAS (Multi-Agent System)](https://en.wikipedia.org/wiki/Multi-agent_system)**: Intentional interaction of specialized agents for collaborative incident resolution.
-- **[RAG (Retrieval-Augmented Generation)](https://aws.amazon.com/what-is/retrieval-augmented-generation/)**: Technique to ground LLM responses in real-time observability context.
-- **[MLOps (Machine Learning Operations)](https://en.wikipedia.org/wiki/MLOps)**: Lifecycle management for deploying and monitoring autonomous models.
+- **Ollama ([Local LLM Runtime](https://ollama.com/))**: A powerful engine for running large language models locally with high performance.
+- **LLM ([Large Language Model](https://llama.meta.com/) - Llama 3)**: Advanced neural networks trained on vast amounts of data to provide human-like reasoning.
+- **HNSW ([Hierarchical Navigable Small Worlds](https://arxiv.org/abs/1603.09320))**: A state-of-the-art algorithm for fast and accurate similarity search in vector databases.
+- **MAS ([Multi-Agent System](https://en.wikipedia.org/wiki/Multi-agent_system))**: A computerized system composed of multiple interacting intelligent agents.
+- **RAG ([Retrieval-Augmented Generation](https://aws.amazon.com/what-is/retrieval-augmented-generation/))**: A technique for improving LLM accuracy by fetching relevant data from external sources.
+- **MLOps ([Machine Learning Operations](https://en.wikipedia.org/wiki/MLOps))**: Practices that aim to deploy and maintain machine learning models in production reliably and efficiently.
 
 ### 📊 Observability & SRE (Site Reliability Engineering)
-- **[SRE (Site Reliability Engineering)](https://sre.google/)**: Discipline combining software and systems engineering to build ultra-reliable services.
-- **[OTel (OpenTelemetry)](https://opentelemetry.io/)**: Unified framework for collecting metrics, logs, and distributed traces.
-- **[eBPF (Extended Berkeley Packet Filter)](https://ebpf.io/)**: High-performance kernel-level technology for deep networking and security observability.
-- **[SLO/SLI/SLA (Service Level Objectives/Indicators/Agreements)](https://sre.google/sre-book/service-level-objectives/)**: Frameworks for defining and measuring service-level performance.
-- **[Chaos Engineering (Chaos Mesh)](https://chaos-mesh.org/)**: Disciplined fault injection to verify system resilience.
-- **[Prometheus (Monitoring/Alerting)](https://prometheus.io/)**: Time-series database for multi-dimensional monitoring.
-- **[RCA (Root Cause Analysis)](https://en.wikipedia.org/wiki/Root_cause_analysis)**: Systematic methodology for identifying the underlying cause of failures.
+- **SRE ([Site Reliability Engineering](https://sre.google/))**: A discipline that incorporates aspects of software engineering and applies them to infrastructure and operations problems.
+- **OTel ([OpenTelemetry](https://opentelemetry.io/))**: A collection of tools, APIs, and SDKs used to instrument, generate, collect, and export telemetry data.
+- **eBPF ([Extended Berkeley Packet Filter](https://ebpf.io/))**: A revolutionary technology that can run sandboxed programs in the operating system kernel.
+- **SLO/SLI/SLA ([Service Level Objectives/Indicators/Agreements](https://sre.google/sre-book/service-level-objectives/))**: The framework used to measure and promise service performance.
+- **RCA ([Root Cause Analysis](https://en.wikipedia.org/wiki/Root_cause_analysis))**: A systematic process for identifying the "root" cause of problems or events.
 
 ### ⚙️ CI/CD & Documentation
-- **[CI/CD (Continuous Integration / Continuous Delivery)](https://en.wikipedia.org/wiki/CI/CD)**: Pipeline automation for shipping reliable updates.
-- **[GA (GitHub Actions)](https://github.com/features/actions)**: Automated CI/CD workflows integrated directly into the repository.
-- **[Pre-commit](https://pre-commit.com/)**: Framework for managing and maintaining multi-language pre-commit hooks.
-- **[Vale](https://vale.sh/)**: Syntax-aware linter for technical documentation and style guides.
-- **[Diátaxis](https://diataxis.fr/)**: Systematic framework for building user-centric documentation hubs.
+- **CI/CD ([Continuous Integration / Continuous Delivery](https://en.wikipedia.org/wiki/CI/CD))**: Automating the building, testing, and deployment of software changes.
+- **GA ([GitHub Actions](https://github.com/features/actions))**: Automate, customize, and execute your software development workflows right in your repository.
+- **Vale ([Documentation Linter](https://vale.sh/))**: An open-source, syntax-aware linter for technical documentation.
+- **Diátaxis ([Documentation Framework](https://diataxis.fr/))**: A systematic approach to technical documentation that focuses on user needs.
 
 ---
 
