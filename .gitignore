@@ -29,9 +29,9 @@ build/
 
 # ──────────────────── AI / ML Artifacts ────────────────────
 ai-lab/fine-tuning/sre-kernel-adapter/
-sre-kernel-q4_k_m/
-unsloth_compiled_cache/
-ollama/
+models/sre-kernel-q4_k_m/
+models/unsloth_compiled_cache/
+models/ollama/
 outputs/
 post-mortems/
 runbooks/

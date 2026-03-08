@@ -58,7 +58,7 @@ jobs:
       - name: ShellCheck
         run: |
           sudo apt-get install -y shellcheck
-          shellcheck scripts/*.sh *.sh ai-lab/*.sh
+          shellcheck scripts/*.sh ai-lab/*.sh
 
       - name: Yamllint
         run: |
