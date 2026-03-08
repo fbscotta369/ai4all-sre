@@ -1,42 +1,25 @@
-## Code Owners — AI4ALL-SRE Platform
-# Fix 11: CODEOWNERS ensures every change to critical files
-# requires approval from the designated team before merge.
-#
-# Global ownership — SRE Platform Team reviews everything
-* @ai4all-sre/platform-team
+# Global Code Ownership for AI4ALL-SRE
+# Tier-1 SRE/SecOps Oversight
 
-# Infrastructure as Code — requires Senior SRE review
-*.tf @ai4all-sre/platform-team @ai4all-sre/senior-sre
-*.tfvars @ai4all-sre/platform-team @ai4all-sre/senior-sre
-backend.tf @ai4all-sre/platform-team
+# Infrastructure & Platforms
+/platforms/      @platform-leads
+/terraform/      @platform-leads
+*.tf              @platform-leads
 
-# AI Agent — requires ML Ops review
-ai_agent.py @ai4all-sre/mlops-team @ai4all-sre/senior-sre
-requirements.txt @ai4all-sre/mlops-team
+# GitOps & Manifests
+/gitops/         @gitops-leads
+/argo-apps/      @gitops-leads
 
-# Security & Governance — requires Security team review
-governance.tf @ai4all-sre/security-team @ai4all-sre/senior-sre
-governance_pki.tf @ai4all-sre/security-team
-network_policies.tf @ai4all-sre/security-team
-cluster-issuer.yaml @ai4all-sre/security-team
-linkerd-certs.yaml @ai4all-sre/security-team
+# Security & Policies
+/policy/         @secops-leads
+/security/       @secops-leads
 
-# CI/CD & Lifecycle Scripts — requires DevOps review
-setup.sh @ai4all-sre/platform-team
-destroy.sh @ai4all-sre/platform-team
-lifecycle_test.sh @ai4all-sre/platform-team
-e2e_test.sh @ai4all-sre/platform-team
-.github/ @ai4all-sre/platform-team
-
-# DevSecOps & Security Gate — requires Security team review
-.github/workflows/security-gate.yml @ai4all-sre/security-team @ai4all-sre/platform-team
-policy/ @ai4all-sre/security-team @ai4all-sre/senior-sre
-tests/kyverno/ @ai4all-sre/security-team
-.pre-commit-config.yaml @ai4all-sre/security-team @ai4all-sre/platform-team
-.dockerignore @ai4all-sre/platform-team
-scripts/security-scan.sh @ai4all-sre/security-team @ai4all-sre/platform-team
+# Automation & Core Logic
+/scripts/        @sre-leads
+/ai-lab/          @ai-leads
+ai_agent.py      @ai-leads
 
 # Documentation
-docs/ @ai4all-sre/platform-team
-README.md @ai4all-sre/platform-team
-SECURITY.md @ai4all-sre/security-team
+/docs/           @docs-leads
+README.md        @docs-leads
+adr/             @docs-leads

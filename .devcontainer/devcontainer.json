@@ -1,0 +1,23 @@
+{
+	"name": "AI4ALL-SRE Platform Laboratory",
+	"image": "mcr.microsoft.com/devcontainers/python:3.11",
+	"features": {
+		"ghcr.io/devcontainers/features/terraform:1": {},
+		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"hashicorp.terraform",
+				"ms-kubernetes-tools.vscode-kubernetes-tools",
+				"golang.go",
+				"ms-python.python",
+				"mhutchie.git-graph",
+				"errata-ai.vale-vscode"
+			]
+		}
+	},
+	"postCreateCommand": "pip3 install -r requirements.txt || true && npx -y playwright install --with-deps",
+	"remoteUser": "vscode"
+}
