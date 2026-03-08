@@ -84,7 +84,7 @@ TEARDOWN_AT_END=${1:-false}
 
 # --- 1. Teardown Phase ---
 echo -e "${YELLOW}[PHASE 1] Destroying any existing laboratory infrastructure...${NC}"
-./destroy.sh -y
+./scripts/destroy.sh -y
 echo -e "${GREEN}✅ Phase 1 (Teardown) Complete.${NC}"
 echo ""
 
@@ -111,7 +111,7 @@ echo ""
 
 # --- 3. Validation Phase ---
 echo -e "${YELLOW}[PHASE 3] Executing A-to-Z End-to-End Test Suite...${NC}"
-if ./e2e_test.sh; then
+if ./scripts/e2e_test.sh; then
     echo -e "${GREEN}✅ Phase 3 (Validation) Complete - All tests passed!${NC}"
 else
     echo -e "${RED}❌ Phase 3 (Validation) Failed - Some tests did not pass.${NC}"
@@ -123,7 +123,7 @@ echo ""
 # --- 4. Final Teardown Phase ---
 if [ "$TEARDOWN_AT_END" = "true" ] || [ "$TEARDOWN_AT_END" = "--teardown" ]; then
     echo -e "${YELLOW}[PHASE 4] Executing final teardown to leave a blank slate...${NC}"
-    ./destroy.sh -y
+    ./scripts/destroy.sh -y
     echo -e "${GREEN}✅ Phase 4 (Final Teardown) Complete.${NC}"
 else
     echo -e "${BLUE}Skipping Phase 4 (Final Teardown). The validated lab is ready for use.${NC}"
