@@ -1,7 +1,7 @@
 resource "kubernetes_config_map" "behavioral_loadgen_script" {
   metadata {
     name      = "behavioral-loadgen-script"
-    namespace = var.online_boutique_namespace
+    namespace = kubernetes_namespace.online_boutique.metadata[0].name
   }
 
   data = {
@@ -12,7 +12,7 @@ resource "kubernetes_config_map" "behavioral_loadgen_script" {
 resource "kubernetes_deployment" "behavioral_loadgen" {
   metadata {
     name      = "behavioral-loadgen"
-    namespace = var.online_boutique_namespace
+    namespace = kubernetes_namespace.online_boutique.metadata[0].name
     labels = {
       app = "behavioral-loadgen"
     }

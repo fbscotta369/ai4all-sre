@@ -23,7 +23,7 @@ class TestGenerateCerts(unittest.TestCase):
     @patch('generate_certs.os.path.exists')
     def test_verify_certs_missing_file(self, mock_exists):
         """Test verify_certs when a file is missing."""
-        mock_exists.side_effect = lambda x: x != "issuer.crt"
+        mock_exists.side_effect = lambda x: x != ".certs/issuer.crt"
         self.assertFalse(generate_certs.verify_certs())
 
     @patch('generate_certs.verify_certs')

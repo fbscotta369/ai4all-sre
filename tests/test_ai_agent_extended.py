@@ -6,7 +6,10 @@ import re
 
 # Add parent directory to path to import ai_agent
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../components/ai-agent')))
 import ai_agent
+from ai_agent import RemediationAction
+from pydantic import ValidationError
 
 class TestAiAgentExtended(unittest.TestCase):
 
@@ -14,75 +17,109 @@ class TestAiAgentExtended(unittest.TestCase):
         self.approved_namespaces = ["online-boutique", "observability", "incident-management"]
 
     def test_remediation_parsing_extended(self):
-        """Test parsing of various remediation strings."""
-        # Test RESTART
-        text = "Action: RESTART DEPLOYMENT 'frontend' IN 'online-boutique'"
-        restart_match = re.search(ai_agent.RESTART_PATTERN, text, re.IGNORECASE)
-        self.assertIsNotNone(restart_match)
-        self.assertEqual(restart_match.group(1), "frontend")
-        self.assertEqual(restart_match.group(2), "online-boutique")
+        # This test is now replaced by TestAgentParsing for Pydantic validation
+        # The original regex parsing tests are no longer relevant for the new RemediationAction model
+        pass
 
-        # Test SCALE
-        text = "SCALE DEPLOYMENT `adservice` IN online-boutique TO 5"
-        scale_match = re.search(ai_agent.SCALE_PATTERN, text, re.IGNORECASE)
-        self.assertIsNotNone(scale_match)
-        self.assertEqual(scale_match.group(1), "adservice")
-        self.assertEqual(scale_match.group(2), "online-boutique")
-        self.assertEqual(scale_match.group(3), "5")
+class TestAgentParsing(unittest.TestCase):
+    def test_remediation_action_validation(self):
+        # Valid Restart
+        action = RemediationAction(
+            rca="Restarting due to error",
+            action="RESTART",
+            deployment="frontend",
+            namespace="online-boutique"
+        )
+        self.assertEqual(action.action, "RESTART")
+        
+        # Valid Scale
+        action = RemediationAction(
+            rca="Slowing down",
+            action="SCALE",
+            deployment="frontend",
+            namespace="online-boutique",
+            replicas=3
+        )
+        self.assertEqual(action.replicas, 3)
 
-        # Test ROLLBACK
-        text = "I recommend ROLLBACK DEPLOYMENT \"shippingservice\" IN \"online-boutique\""
-        rollback_match = re.search(ai_agent.ROLLBACK_PATTERN, text, re.IGNORECASE)
-        self.assertIsNotNone(rollback_match)
-        self.assertEqual(rollback_match.group(1), "shippingservice")
-        self.assertEqual(rollback_match.group(2), "online-boutique")
+    def test_remediation_action_invalid(self):
+        # Invalid Action type
+        with self.assertRaises(ValidationError):
+            RemediationAction(
+                rca="Bad action",
+                action="EXPLODE",
+                deployment="frontend",
+                namespace="online-boutique"
+            )
+
+class TestAiAgentSafetyAndExecution(unittest.TestCase):
+    def setUp(self):
+        self.approved_namespaces = ["online-boutique", "observability", "incident-management"]
 
     def test_is_action_safe_edge_cases(self):
         """Test is_action_safe with various inputs."""
-        # Namespace in string but not as part of the action
-        self.assertFalse(ai_agent.is_action_safe("RESTART DEPLOYMENT frontend IN default # mention online-boutique"))
+        # Forbidden namespace
+        action = RemediationAction(
+            rca="RCA", action="RESTART", deployment="pod", namespace="kube-system"
+        )
+        self.assertFalse(ai_agent.is_action_safe(action))
         
-        # Valid namespace
-        self.assertTrue(ai_agent.is_action_safe("RESTART DEPLOYMENT frontend IN online-boutique"))
+        # Scale range
+        action_bad_scale = RemediationAction(
+            rca="RCA", action="SCALE", deployment="frontend", namespace="online-boutique", replicas=50
+        )
+        self.assertFalse(ai_agent.is_action_safe(action_bad_scale))
         
-        # SQL injection style (if it were relevant)
-        self.assertFalse(ai_agent.is_action_safe("RESTART DEPLOYMENT pods; DELETE NAMESPACE online-boutique; IN online-boutique"))
+        # Safe scale
+        action_good_scale = RemediationAction(
+            rca="RCA", action="SCALE", deployment="frontend", namespace="online-boutique", replicas=2
+        )
+        self.assertTrue(ai_agent.is_action_safe(action_good_scale))
+        
+        # SQL injection style (if it were relevant) - this test is now outdated as is_action_safe expects RemediationAction
+        # self.assertFalse(ai_agent.is_action_safe("RESTART DEPLOYMENT pods; DELETE NAMESPACE online-boutique; IN online-boutique"))
 
-    @patch('ai_agent.get_target_type')
-    def test_verify_health_success(self, mock_get_type):
+    @patch('ai_agent.k8s_apps_v1.read_namespaced_deployment')
+    def test_verify_health_success(self, mock_read_deployment):
         """Test verify_health returns True on healthy deployment."""
         mock_obj = MagicMock()
         mock_obj.status.ready_replicas = 3
         mock_obj.spec.replicas = 3
-        mock_get_type.return_value = ('deployment', mock_obj)
+        mock_read_deployment.return_value = mock_obj
         
         self.assertTrue(ai_agent.verify_health("frontend", "online-boutique"))
 
-    @patch('ai_agent.get_target_type')
-    def test_verify_health_failure(self, mock_get_type):
+    @patch('ai_agent.k8s_apps_v1.read_namespaced_deployment')
+    def test_verify_health_failure(self, mock_read_deployment):
         """Test verify_health returns False on unhealthy deployment."""
         mock_obj = MagicMock()
         mock_obj.status.ready_replicas = 1
         mock_obj.spec.replicas = 3
-        mock_get_type.return_value = ('deployment', mock_obj)
+        mock_read_deployment.return_value = mock_obj
         
         self.assertFalse(ai_agent.verify_health("frontend", "online-boutique"))
 
     @patch('ai_agent.k8s_apps_v1.patch_namespaced_deployment')
-    @patch('ai_agent.get_target_type')
-    @patch('ai_agent.verify_health')
-    def test_execute_remediation_rollback(self, mock_health, mock_get_type, mock_patch):
+    @patch('ai_agent.k8s_apps_v1.read_namespaced_deployment') # Used by verify_health
+    @patch('ai_agent.gitops_remediate')
+    def test_execute_remediation_rollback(self, mock_gitops, mock_read_deployment, mock_patch):
         """Test ROLLBACK execution."""
-        mock_get_type.return_value = ('deployment', MagicMock())
-        mock_health.return_value = True
+        mock_gitops.return_value = False
         
-        action = "ROLLBACK DEPLOYMENT frontend IN online-boutique"
+        # Mock for verify_health
+        mock_obj = MagicMock()
+        mock_obj.status.ready_replicas = 3
+        mock_obj.spec.replicas = 3
+        mock_read_deployment.return_value = mock_obj
+
+        action = RemediationAction(
+            rca="RCA", action="ROLLBACK", deployment="shippingservice", namespace="online-boutique"
+        )
         result = ai_agent.execute_remediation(action)
+        self.assertIn("applied to shippingservice", result)
         
-        self.assertIn("Successfully rolled back", result)
-        
-        # Verify rollback verify_health call
-        mock_health.assert_called_with("frontend", "online-boutique")
+        # Verify verify_health was called for the correct deployment/namespace
+        mock_read_deployment.assert_called_with(name="shippingservice", namespace="online-boutique")
 
     def test_get_target_type_logic(self):
         """Test target type identification logic."""

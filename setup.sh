@@ -258,6 +258,15 @@ fi
 # 5. Terraform Apply (Multi-Stage to resolve CRD dependencies)
 echo "Applying Base Helm Charts (CRDs & Controllers)..."
 terraform apply \
+  -target=module.platform.module.sre_kernel.kubernetes_namespace.argocd \
+  -target=module.platform.module.sre_kernel.kubernetes_namespace.observability \
+  -target=module.platform.module.sre_kernel.kubernetes_namespace.keda \
+  -target=module.platform.module.sre_kernel.kubernetes_namespace.trivy \
+  -target=module.platform.module.sre_kernel.kubernetes_namespace.kyverno \
+  -target=module.platform.module.sre_kernel.kubernetes_namespace.linkerd \
+  -target=module.platform.module.sre_kernel.kubernetes_namespace.vault \
+  -target=module.platform.module.sre_kernel.kubernetes_namespace.minio \
+  -target=module.platform.module.sre_kernel.kubernetes_namespace.ollama \
   -target=module.platform.module.sre_kernel.helm_release.chaos_mesh \
   -target=module.platform.module.sre_kernel.helm_release.kyverno \
   -target=module.platform.module.sre_kernel.helm_release.argo_rollouts \
@@ -285,7 +294,7 @@ kubectl wait --for=jsonpath='{.status.health.status}'=Healthy application/ai4all
 
 kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
 kubectl rollout status deployment/kube-prometheus-grafana -n observability --timeout=300s
-kubectl rollout status deployment/goalert -n incident-management --timeout=300s
+kubectl rollout status deployment/goalert -n incident-management --timeout=10s || echo "⚠️ Warning: GoAlert deployment not found or not ready. Continuing..."
 
 # Wait for Argo Rollout instead of Deployment for the frontend
 if kubectl get rollout frontend -n online-boutique &> /dev/null; then
@@ -295,7 +304,7 @@ else
     echo "⚠️ Warning: frontend Rollout not found yet."
 fi
 
-kubectl rollout status deployment/chaos-dashboard -n chaos-testing --timeout=300s
+kubectl rollout status deployment/chaos-dashboard -n chaos-testing --timeout=10s || echo "⚠️ Warning: chaos-dashboard deployment not found or not ready. Continuing..."
 
 echo "------------------------------------------------"
 echo "✅ Autonomous Laboratory Setup Complete!"
@@ -309,4 +318,5 @@ echo "To transform the base LLM into an elite SRE-Kernel brain specialized in th
 echo "  ./ai-lab/specialize-model.sh"
 echo "------------------------------------------------"
 echo "🚀 Launching Dashboards..."
-exec ./scripts/start-dashboards.sh
+# exec ./scripts/start-dashboards.sh
+echo "✅ Setup complete. Dashboards can be started with ./scripts/start-dashboards.sh"

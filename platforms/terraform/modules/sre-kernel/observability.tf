@@ -6,7 +6,7 @@ variable "slack_api_url" {
 
 resource "helm_release" "kube_prometheus_stack" {
   name       = "kube-prometheus"
-  namespace  = var.observability_namespace
+  namespace  = kubernetes_namespace.observability.metadata[0].name
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "kube-prometheus-stack"
   version    = "69.6.0"
@@ -26,8 +26,12 @@ resource "helm_release" "kube_prometheus_stack" {
     value = "grafana-admin"
   }
   set {
+    name  = "grafana.admin.userKey"
+    value = "admin-user"
+  }
+  set {
     name  = "grafana.admin.passwordKey"
-    value = "password"
+    value = "admin-password"
   }
   set {
     name  = "grafana.sidecar.datasources.enabled"
@@ -129,7 +133,7 @@ resource "helm_release" "kube_prometheus_stack" {
 
 resource "helm_release" "opentelemetry_collector" {
   name       = "otel-collector"
-  namespace  = var.observability_namespace
+  namespace  = kubernetes_namespace.observability.metadata[0].name
   repository = "https://open-telemetry.github.io/opentelemetry-helm-charts"
   chart      = "opentelemetry-collector"
   version    = "0.146.0"
@@ -220,7 +224,7 @@ resource "helm_release" "loki" {
   name       = "loki"
   repository = "https://grafana.github.io/helm-charts"
   chart      = "loki-stack"
-  namespace  = var.observability_namespace
+  namespace  = kubernetes_namespace.observability.metadata[0].name
   version    = "2.10.2"
 
   set {
@@ -253,11 +257,12 @@ resource "helm_release" "loki" {
   ]
 }
 
+
 resource "helm_release" "tempo" {
   name       = "tempo"
   repository = "https://grafana.github.io/helm-charts"
   chart      = "tempo"
-  namespace  = var.observability_namespace
+  namespace  = kubernetes_namespace.observability.metadata[0].name
   version    = "1.10.3"
 
   set {
@@ -273,7 +278,7 @@ resource "helm_release" "tempo" {
 resource "kubernetes_service_account" "ai_agent" {
   metadata {
     name      = "ai-agent"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
   }
 }
 
@@ -305,14 +310,14 @@ resource "kubernetes_cluster_role_binding" "ai_agent_healing_binding" {
   subject {
     kind      = "ServiceAccount"
     name      = kubernetes_service_account.ai_agent.metadata[0].name
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
   }
 }
 
 resource "kubernetes_config_map" "ai_agent_script" {
   metadata {
     name      = "ai-agent-script"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
   }
   data = {
     "ai_agent.py" = file("${path.root}/components/ai-agent/ai_agent.py")
@@ -322,7 +327,7 @@ resource "kubernetes_config_map" "ai_agent_script" {
 resource "kubernetes_deployment" "ai_agent" {
   metadata {
     name      = "ai-agent"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
     labels = {
       app = "ai-agent"
     }
@@ -424,7 +429,7 @@ resource "kubernetes_deployment" "ai_agent" {
 resource "kubernetes_service" "ai_agent" {
   metadata {
     name      = "ai-agent"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
   }
   spec {
     selector = {
@@ -445,7 +450,7 @@ resource "kubernetes_manifest" "slo_rules" {
     kind       = "PrometheusRule"
     metadata = {
       name      = "slo-rules"
-      namespace = var.observability_namespace
+      namespace = kubernetes_namespace.observability.metadata[0].name
       labels = {
         release = "kube-prometheus"
       }
@@ -544,7 +549,7 @@ resource "kubernetes_manifest" "slo_rules" {
 resource "kubernetes_config_map" "loki_datasource" {
   metadata {
     name      = "loki-datasource"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
     labels    = { grafana_datasource = "1" }
   }
   data = {
@@ -582,7 +587,7 @@ resource "kubernetes_config_map" "loki_datasource" {
 resource "kubernetes_config_map" "tempo_datasource" {
   metadata {
     name      = "tempo-datasource"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
     labels    = { grafana_datasource = "1" }
   }
   data = {
@@ -604,7 +609,7 @@ resource "kubernetes_config_map" "tempo_datasource" {
 resource "kubernetes_config_map" "loki_dashboard" {
   metadata {
     name      = "loki-log-dashboard"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
     labels    = { grafana_dashboard = "1" }
   }
   data = {
@@ -625,7 +630,7 @@ resource "kubernetes_config_map" "loki_dashboard" {
 resource "kubernetes_config_map" "slo_dashboard" {
   metadata {
     name      = "slo-dashboard"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
     labels    = { grafana_dashboard = "1" }
   }
   data = {
@@ -654,7 +659,7 @@ resource "kubernetes_config_map" "slo_dashboard" {
 resource "kubernetes_config_map" "tempo_dashboard" {
   metadata {
     name      = "tempo-tracing-dashboard"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
     labels    = { grafana_dashboard = "1" }
   }
   data = {
@@ -676,7 +681,7 @@ resource "kubernetes_config_map" "tempo_dashboard" {
 resource "kubernetes_config_map" "e2e_dashboard" {
   metadata {
     name      = "e2e-dashboard"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
     labels    = { grafana_dashboard = "1" }
   }
   data = {
@@ -713,7 +718,7 @@ resource "kubernetes_config_map" "e2e_dashboard" {
 resource "kubernetes_config_map" "error_budget_dashboard" {
   metadata {
     name      = "error-budget-dashboard"
-    namespace = var.observability_namespace
+    namespace = kubernetes_namespace.observability.metadata[0].name
     labels    = { grafana_dashboard = "1" }
   }
   data = {

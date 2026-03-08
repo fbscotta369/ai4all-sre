@@ -1,7 +1,7 @@
 resource "kubernetes_horizontal_pod_autoscaler_v2" "paymentservice_hpa" {
   metadata {
     name      = "paymentservice-hpa"
-    namespace = "online-boutique"
+    namespace = kubernetes_namespace.online_boutique.metadata[0].name
   }
 
   spec {

@@ -2,8 +2,7 @@ resource "helm_release" "kyverno" {
   name             = "kyverno"
   repository       = "https://kyverno.github.io/kyverno"
   chart            = "kyverno"
-  namespace        = "kyverno"
-  create_namespace = true
+  namespace        = kubernetes_namespace.kyverno.metadata[0].name
   version          = "3.1.4"
 
   # bitnami/kubectl:1.28.5 was removed from Docker Hub; use alpine/k8s instead.

@@ -1,7 +1,7 @@
 
 resource "helm_release" "argocd" {
   name       = "argocd"
-  namespace  = var.argocd_namespace
+  namespace  = kubernetes_namespace.argocd.metadata[0].name
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
   version    = "6.7.1" # Stable current version
@@ -27,7 +27,7 @@ resource "helm_release" "argocd" {
 
 resource "helm_release" "trivy" {
   name       = "trivy-operator"
-  namespace  = var.trivy_namespace
+  namespace  = kubernetes_namespace.trivy.metadata[0].name
   repository = "https://aquasecurity.github.io/helm-charts/"
   chart      = "trivy-operator"
   version    = "0.24.1" # Reverted to stable; 0.32.0 had CRD mismatches
@@ -56,7 +56,7 @@ resource "helm_release" "trivy" {
 
 resource "helm_release" "keda" {
   name       = "keda"
-  namespace  = var.keda_namespace
+  namespace  = kubernetes_namespace.keda.metadata[0].name
   repository = "https://kedacore.github.io/charts"
   chart      = "keda"
   version    = "2.14.0"
@@ -83,7 +83,7 @@ resource "kubernetes_role_binding" "keda_auth_reader_binding" {
   subject {
     kind      = "ServiceAccount"
     name      = "keda-metrics-server"
-    namespace = var.keda_namespace
+    namespace = kubernetes_namespace.keda.metadata[0].name
   }
 }
 
@@ -93,7 +93,7 @@ resource "kubernetes_manifest" "argocd_app_boutique" {
     kind       = "Application"
     metadata = {
       name      = "ai4all-sre"
-      namespace = "argocd"
+      namespace = kubernetes_namespace.argocd.metadata[0].name
     }
     spec = {
       project = "default"
@@ -104,7 +104,7 @@ resource "kubernetes_manifest" "argocd_app_boutique" {
       }
       destination = {
         server    = "https://kubernetes.default.svc"
-        namespace = var.online_boutique_namespace
+        namespace = kubernetes_namespace.online_boutique.metadata[0].name
       }
       syncPolicy = {
         automated = {

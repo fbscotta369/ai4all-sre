@@ -8,6 +8,10 @@ resource "kubernetes_namespace" "linkerd" {
   }
 }
 
+resource "kubernetes_namespace" "kyverno" {
+  metadata { name = "kyverno" }
+}
+
 resource "kubernetes_namespace" "minio" {
   metadata { name = "minio" }
 }
