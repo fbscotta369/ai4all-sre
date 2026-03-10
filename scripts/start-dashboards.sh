@@ -66,14 +66,26 @@ start_port_forward "observability" "ai-agent" 8000 80 "AI Agent API"
 # 12. Loki API (Log Search)
 start_port_forward "observability" "loki" 3100 3100 "Loki API"
 
+# Function to cleanup PIDs on exit
+cleanup() {
+    echo "Stopping all port-forwards..."
+    for pid in "${PIDS[@]}"; do
+        kill "$pid" 2>/dev/null || true
+    done
+    exit 0
+}
+
+# Trap signals for clean exit
+trap cleanup SIGINT SIGTERM
+
 echo ""
 echo "✅ All dashboards and apps are now accessible!"
 echo "------------------------------------------------"
 echo "Online Boutique: http://localhost:8084"
 echo "ArgoCD:          http://localhost:8080"
 echo "Grafana:         http://localhost:8082"
-echo "GoAlert:         http://localhost:8083 (or http://goalert.local)"
-echo "Chaos Mesh:      http://localhost:2333 (Predefined 📦 Store)"
+echo "GoAlert:         http://localhost:8083"
+echo "Chaos Mesh:      http://localhost:2333"
 echo "Prometheus:      http://localhost:9090"
 echo "AlertManager:    http://localhost:9093"
 echo "Docs Portal:     http://localhost:8085"
@@ -82,7 +94,10 @@ echo "Ollama API:      http://localhost:11434"
 echo "AI Agent API:    http://localhost:8000"
 echo "Loki API:        http://localhost:3100"
 echo "------------------------------------------------"
-echo "Press Ctrl+C to stop all port-forwards."
 
-# Wait for user interrupt
+# If running in a TTY, wait for user interrupt. If not (background/service), just wait.
+if [ -t 0 ]; then
+    echo "Press Ctrl+C to stop all port-forwards."
+fi
+
 wait

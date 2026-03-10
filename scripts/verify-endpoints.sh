@@ -21,7 +21,8 @@ check_endpoint() {
     local http_status="${RED}FAIL${NC}"
 
     # 1. Process Check (kubectl port-forward)
-    if ps aux | grep "kubectl port-forward" | grep ":$port" &> /dev/null; then
+    # Match the port followed by a colon (local:remote) or space followed by port
+    if ps aux | grep "kubectl port-forward" | grep -E "[[:space:]]$port:" &> /dev/null; then
         proc_status="${GREEN}UP${NC}"
     fi
 

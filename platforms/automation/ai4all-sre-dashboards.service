@@ -1,0 +1,15 @@
+[Unit]
+Description=AI4ALL-SRE Dashboard Port-Forwarding Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/Downloads/Projects/Git/ai4all-sre/scripts/start-dashboards.sh
+Restart=always
+RestartSec=10
+WorkingDirectory=%h/Downloads/Projects/Git/ai4all-sre
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
