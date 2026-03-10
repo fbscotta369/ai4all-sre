@@ -19,6 +19,13 @@ start_port_forward() {
     local remote_port=$4
     local name=$5
 
+    # Check for existing process on this port and kill it
+    if lsof -i ":$local_port" -t &> /dev/null; then
+        echo "[*] Port $local_port is busy. Releasing..."
+        fuser -k "$local_port/tcp" &> /dev/null || true
+        sleep 1
+    fi
+
     echo "Forwarding $name to http://localhost:$local_port"
     kubectl port-forward svc/$service -n $namespace $local_port:$remote_port > /dev/null 2>&1 &
     PIDS+=($!)
@@ -78,5 +85,4 @@ echo "------------------------------------------------"
 echo "Press Ctrl+C to stop all port-forwards."
 
 # Wait for user interrupt
-trap "echo 'Stopping all port-forwards...'; kill ${PIDS[*]}; exit 0" SIGINT SIGTERM
 wait

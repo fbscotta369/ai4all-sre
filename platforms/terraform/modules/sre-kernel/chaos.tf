@@ -1,0 +1,675 @@
+
+resource "helm_release" "chaos_mesh" {
+  name       = "chaos-mesh"
+  namespace  = var.chaos_namespace
+  repository = "https://charts.chaos-mesh.org"
+  chart      = "chaos-mesh"
+  version    = "2.7.0"
+
+  set {
+    name  = "dashboard.create"
+    value = "true"
+  }
+
+  set {
+    name  = "dashboard.securityMode"
+    value = "false"
+  }
+
+  set {
+    name  = "controller.podLabels.sre-privileged-access"
+    value = "true"
+  }
+
+  set {
+    name  = "chaosDaemon.podLabels.sre-privileged-access"
+    value = "true"
+  }
+
+  set {
+    name  = "chaosDaemon.runtime"
+    value = "containerd"
+  }
+
+  set {
+    name  = "chaosDaemon.socketPath"
+    value = "/run/k3s/containerd/containerd.sock"
+  }
+}
+
+# 1. Randomly kill 1 frontend pod every 2 minutes for 1 minute
+resource "kubernetes_manifest" "frontend_podkill" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "kill-frontend"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      schedule = "@every 2m"
+      type     = "PodChaos"
+      podChaos = {
+        action = "pod-kill"
+        mode   = "one"
+        selector = {
+          namespaces = [var.online_boutique_namespace]
+          labelSelectors = {
+            "app" = "frontend"
+          }
+        }
+      }
+    }
+  }
+}
+
+# 2. Inject 500ms network latency into frontend outbound calls to recommendation service
+resource "kubernetes_manifest" "frontend_latency" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "frontend-latency"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      schedule = "@every 5m"
+      type     = "NetworkChaos"
+      networkChaos = {
+        action = "delay"
+        mode   = "all"
+        selector = {
+          namespaces = [var.online_boutique_namespace]
+          labelSelectors = {
+            "app" = "frontend"
+          }
+        }
+        delay = {
+          latency = "500ms"
+        }
+      }
+    }
+  }
+}
+
+# 3. Simulate high CPU on the frontend to trigger the OneUptime Alert!
+resource "kubernetes_manifest" "frontend_cpu_spike" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "frontend-cpu-spike"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      schedule = "@every 10m"
+      type     = "StressChaos"
+      stressChaos = {
+        mode = "all"
+        selector = {
+          namespaces = [var.online_boutique_namespace]
+          labelSelectors = {
+            "app" = "frontend"
+          }
+        }
+        stressors = {
+          cpu = {
+            workers = 2
+            load    = 100
+          }
+        }
+      }
+    }
+  }
+}
+
+# 4. DNS Chaos: Intermittent DNS failures for all microservices
+resource "kubernetes_manifest" "dns_chaos" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "dns-failure-schedule"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      schedule = "@every 15m"
+      type     = "DNSChaos"
+      dnsChaos = {
+        action = "error"
+        mode   = "all"
+        selector = {
+          namespaces = [var.online_boutique_namespace]
+        }
+      }
+    }
+  }
+}
+
+# 5. HTTP Chaos - Simulate 500 errors on frontend cart interactions
+resource "kubernetes_manifest" "frontend_http_chaos" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "HTTPChaos"
+    metadata = {
+      name      = "frontend-http-errors"
+      namespace = var.chaos_namespace
+      labels    = { "tier" = "1", "app" = "frontend" }
+    }
+    spec = {
+      mode = "all"
+      selector = {
+        namespaces     = [var.online_boutique_namespace]
+        labelSelectors = { "app" = "frontend" }
+      }
+      target = "Request"
+      port   = 8080
+      path   = "/cart"
+      abort  = true
+    }
+  }
+}
+
+# 13. Currency Service - Failed Exchange Rates (HTTP Chaos)
+resource "kubernetes_manifest" "currency_failure" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "HTTPChaos"
+    metadata = {
+      name      = "currency-service-fail"
+      namespace = var.chaos_namespace
+      labels    = { "tier" = "1", "app" = "currencyservice" }
+    }
+    spec = {
+      mode = "all"
+      selector = {
+        namespaces     = [var.online_boutique_namespace]
+        labelSelectors = { "app" = "currencyservice" }
+      }
+      target = "Response"
+      port   = 7000
+      replace = {
+        code = 503
+      }
+    }
+  }
+}
+
+# 14. Recommendation Service - Silent Failure (Pod Kill)
+resource "kubernetes_manifest" "recommendation_outage" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "recommendation-outage-schedule"
+      namespace = var.chaos_namespace
+      labels    = { "tier" = "1", "app" = "recommendationservice" }
+    }
+    spec = {
+      schedule = "@every 15m"
+      type     = "PodChaos"
+      podChaos = {
+        action = "pod-kill"
+        mode   = "one"
+        selector = {
+          namespaces     = [var.online_boutique_namespace]
+          labelSelectors = { "app" = "recommendationservice" }
+        }
+      }
+    }
+  }
+}
+
+# 6. HTTP Chaos - Abort Payment Service
+resource "kubernetes_manifest" "payment_abort" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "HTTPChaos"
+    metadata = {
+      name      = "payment-abort"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      mode = "all"
+      selector = {
+        namespaces     = [var.online_boutique_namespace]
+        labelSelectors = { "app" = "paymentservice" }
+      }
+      target = "Request"
+      port   = 50051
+      abort  = true
+    }
+  }
+}
+# 6. Disaster Workflow: Sequential Pod Kill then Network Latency
+resource "kubernetes_manifest" "disaster_workflow" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Workflow"
+    metadata = {
+      name      = "cascading-failure-workflow"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      entry = "the-sequence"
+      templates = [
+        {
+          name         = "the-sequence"
+          templateType = "Serial"
+          children     = ["kill-cart", "wait-60s", "latency-all"]
+        },
+        {
+          name         = "kill-cart"
+          templateType = "PodChaos"
+          podChaos = {
+            action = "pod-kill"
+            mode   = "one"
+            selector = {
+              namespaces     = [var.online_boutique_namespace]
+              labelSelectors = { "app" = "cartservice" }
+            }
+          }
+        },
+        {
+          name         = "wait-60s"
+          templateType = "Suspend"
+          deadline     = "2m"
+          suspend = {
+            duration = "1m"
+          }
+        },
+        {
+          name         = "latency-all"
+          templateType = "NetworkChaos"
+          networkChaos = {
+            action = "delay"
+            mode   = "all"
+            selector = {
+              namespaces = [var.online_boutique_namespace]
+            }
+            delay = {
+              latency = "200ms"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+# 7. THE DEATH SPIRAL: Advanced Cascading Failure (Network -> CPU -> Pod Kill)
+resource "kubernetes_manifest" "death_spiral_workflow" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Workflow"
+    metadata = {
+      name      = "the-death-spiral"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      entry = "spiral-entry"
+      templates = [
+        {
+          name         = "spiral-entry"
+          templateType = "Serial"
+          children     = ["phase-1-network", "wait-30s", "phase-2-cpu", "wait-30s", "phase-3-disaster"]
+        },
+        {
+          name         = "phase-1-network"
+          templateType = "NetworkChaos"
+          networkChaos = {
+            action = "delay"
+            mode   = "all"
+            selector = {
+              namespaces     = [var.online_boutique_namespace]
+              labelSelectors = { "app" = "adservice" }
+            }
+            delay = {
+              latency = "2000ms"
+            }
+          }
+        },
+        {
+          name         = "phase-2-cpu"
+          templateType = "StressChaos"
+          stressChaos = {
+            mode = "all"
+            selector = {
+              namespaces     = [var.online_boutique_namespace]
+              labelSelectors = { "app" = "paymentservice" }
+            }
+            stressors = {
+              cpu = { workers = 4, load = 100 }
+            }
+          }
+        },
+        {
+          name         = "phase-3-disaster"
+          templateType = "PodChaos"
+          podChaos = {
+            action = "pod-kill"
+            mode   = "all"
+            selector = {
+              namespaces     = [var.online_boutique_namespace]
+              labelSelectors = { "app" = "frontend" }
+            }
+          }
+        },
+        {
+          name         = "wait-30s"
+          templateType = "Suspend"
+          deadline     = "1m"
+          suspend      = { duration = "30s" }
+        }
+      ]
+    }
+  }
+}
+
+# 8. Network Partition (Split-Brain) - Sever cartservice from redis-cart
+resource "kubernetes_manifest" "cart_split_brain" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "split-brain-cart"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      schedule = "@every 30m"
+      type     = "NetworkChaos"
+      networkChaos = {
+        action    = "partition"
+        mode      = "all"
+        direction = "both"
+        selector = {
+          namespaces = [var.online_boutique_namespace]
+          labelSelectors = {
+            "app" = "cartservice"
+          }
+        }
+        target = {
+          mode = "all"
+          selector = {
+            namespaces = [var.online_boutique_namespace]
+            labelSelectors = {
+              "app" = "redis-cart"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# 9. I/O Latency (Storage Degradation) - Simulate degraded disk on redis
+resource "kubernetes_manifest" "redis_io_latency" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "redis-io-latency"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      schedule = "@every 25m"
+      type     = "IOChaos"
+      ioChaos = {
+        action = "latency"
+        mode   = "all"
+        selector = {
+          namespaces = [var.online_boutique_namespace]
+          labelSelectors = {
+            "app" = "redis-cart"
+          }
+        }
+        volumePath = "/data"
+        delay      = "100ms"
+      }
+    }
+  }
+}
+
+# 10. Time Skew - Fast-forward clock on paymentservice by 10m
+resource "kubernetes_manifest" "payment_time_skew" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Schedule"
+    metadata = {
+      name      = "payment-time-skew"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      schedule = "@every 40m"
+      type     = "TimeChaos"
+      timeChaos = {
+        mode = "all"
+        selector = {
+          namespaces = [var.online_boutique_namespace]
+          labelSelectors = {
+            "app" = "paymentservice"
+          }
+        }
+        timeOffset = "10m"
+      }
+    }
+  }
+}
+
+# 11. BGP Route Flapping Workflow (Availability Zone Outage)
+resource "kubernetes_manifest" "az_outage_workflow" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Workflow"
+    metadata = {
+      name      = "az-route-flapping"
+      namespace = var.chaos_namespace
+    }
+    spec = {
+      entry = "flapping-sequence"
+      templates = [
+        {
+          name         = "flapping-sequence"
+          templateType = "Serial"
+          children     = ["drop-frontend", "wait-2m", "drop-backend"]
+        },
+        {
+          name         = "drop-frontend"
+          templateType = "NetworkChaos"
+          networkChaos = {
+            action = "loss"
+            mode   = "all"
+            selector = {
+              namespaces     = [var.online_boutique_namespace]
+              labelSelectors = { "app" = "frontend" }
+            }
+            loss = { loss = "100" }
+          }
+        },
+        {
+          name         = "wait-2m"
+          templateType = "Suspend"
+          deadline     = "3m"
+          suspend      = { duration = "2m" }
+        },
+        {
+          name         = "drop-backend"
+          templateType = "NetworkChaos"
+          networkChaos = {
+            action = "loss"
+            mode   = "all"
+            selector = {
+              namespaces     = [var.online_boutique_namespace]
+              labelSelectors = { "app" = "productcatalogservice" }
+            }
+            loss = { loss = "100" }
+          }
+        }
+      ]
+    }
+  }
+}
+
+# 12. PREDEFINED 📦 STORE: Recruiter's First Disaster (Safe & Visual)
+resource "kubernetes_manifest" "recruiter_first_disaster" {
+  depends_on = [helm_release.chaos_mesh]
+  manifest = {
+    apiVersion = "chaos-mesh.org/v1alpha1"
+    kind       = "Workflow"
+    metadata = {
+      name      = "recruiter-first-disaster"
+      namespace = var.chaos_namespace
+      labels = {
+        "sre-library" = "true"
+        "store-item"  = "true"
+      }
+    }
+    spec = {
+      entry = "the-showcase"
+      templates = [
+        {
+          name         = "the-showcase"
+          templateType = "Serial"
+          children     = ["intro-delay", "visual-cpu-spike", "wait-healing"]
+        },
+        {
+          name         = "intro-delay"
+          templateType = "NetworkChaos"
+          networkChaos = {
+            action = "delay"
+            mode   = "all"
+            selector = {
+              namespaces     = [var.online_boutique_namespace]
+              labelSelectors = { "app" = "productcatalogservice" }
+            }
+            delay = { latency = "1000ms" }
+          }
+        },
+        {
+          name         = "visual-cpu-spike"
+          templateType = "StressChaos"
+          stressChaos = {
+            mode = "all"
+            selector = {
+              namespaces     = [var.online_boutique_namespace]
+              labelSelectors = { "app" = "frontend" }
+            }
+            stressors = { cpu = { workers = 2, load = 80 } }
+          }
+        },
+        {
+          name         = "wait-healing"
+          templateType = "Suspend"
+          deadline     = "2m"
+          suspend      = { duration = "1m" }
+        }
+      ]
+    }
+  }
+}
+
+resource "kubernetes_service_account" "chaos_admin" {
+  metadata {
+    name      = "chaos-admin-sre"
+    namespace = "default"
+  }
+}
+
+resource "kubernetes_role" "chaos_admin_role" {
+  metadata {
+    name      = "chaos-admin-role-sre"
+    namespace = "default"
+  }
+
+  rule {
+    api_groups = [""]
+    resources  = ["pods", "namespaces"]
+    verbs      = ["get", "watch", "list"]
+  }
+
+  rule {
+    api_groups = ["chaos-mesh.org"]
+    resources  = ["*"]
+    verbs      = ["get", "list", "watch", "create", "delete", "patch", "update"]
+  }
+}
+
+resource "kubernetes_role_binding" "chaos_admin_binding" {
+  metadata {
+    name      = "chaos-admin-binding-sre"
+    namespace = "default"
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.chaos_admin.metadata[0].name
+    namespace = "default"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role.chaos_admin_role.metadata[0].name
+  }
+}
+
+# Automated Secret for long-lived ServiceAccount Token (Chaos Dashboard Login)
+resource "kubernetes_secret" "chaos_admin_token" {
+  metadata {
+    name      = "chaos-mesh-token"
+    namespace = "default"
+    annotations = {
+      "kubernetes.io/service-account.name" = kubernetes_service_account.chaos_admin.metadata[0].name
+    }
+  }
+  type = "kubernetes.io/service-account-token"
+}
+
+# Dashboard Ingress
+resource "kubernetes_ingress_v1" "chaos_dashboard" {
+  metadata {
+    name      = "chaos-dashboard"
+    namespace = var.chaos_namespace
+    annotations = {
+      "kubernetes.io/ingress.class" = "traefik"
+    }
+  }
+
+  spec {
+    rule {
+      host = "chaos.local"
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "chaos-dashboard"
+              port {
+                number = 2333
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+output "chaos_mesh_token_command" {
+  value       = "kubectl get secret chaos-mesh-token -n default -o jsonpath='{.data.token}' | base64 --decode"
+  description = "Command to retrieve the long-lived Chaos Mesh login token"
+}

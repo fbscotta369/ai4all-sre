@@ -1,0 +1,273 @@
+
+
+resource "helm_release" "postgresql" {
+  name       = "goalert-db"
+  namespace  = var.alerting_namespace
+  repository = "oci://registry-1.docker.io/bitnamicharts"
+  chart      = "postgresql"
+  version    = "18.4.1"
+
+  set {
+    name  = "auth.existingSecret"
+    value = "goalert-db-credentials"
+  }
+  set {
+    name  = "auth.secretKeys.adminPasswordKey"
+    value = "postgres_password"
+  }
+  set {
+    name  = "auth.database"
+    value = "goalert"
+  }
+}
+
+resource "kubernetes_deployment" "goalert" {
+  metadata {
+    name      = "goalert"
+    namespace = var.alerting_namespace
+    labels = {
+      app = "goalert"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "goalert"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "goalert"
+        }
+      }
+
+      spec {
+        container {
+          name  = "goalert"
+          image = "goalert/goalert:latest"
+
+          port {
+            container_port = 8081
+          }
+
+          env {
+            name  = "GOALERT_PUBLIC_URL"
+            value = "http://localhost:8083"
+          }
+
+          env {
+            name = "GOALERT_DB_URL"
+            value_from {
+              secret_key_ref {
+                name = "goalert-db-credentials"
+                key  = "connection_url"
+              }
+            }
+          }
+
+          env {
+            name  = "GOALERT_SLACK_CLIENT_ID"
+            value = var.slack_client_id
+          }
+
+          env {
+            name  = "GOALERT_SLACK_CLIENT_SECRET"
+            value = var.slack_client_secret
+          }
+
+          env {
+            name  = "GOALERT_SLACK_SIGNING_SECRET"
+            value = var.slack_signing_secret
+          }
+
+          env {
+            name  = "GOALERT_SLACK_BOT_TOKEN"
+            value = var.slack_token
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.postgresql]
+}
+
+resource "kubernetes_service" "goalert" {
+  metadata {
+    name      = "goalert"
+    namespace = var.alerting_namespace
+  }
+
+  spec {
+    selector = {
+      app = "goalert"
+    }
+
+    port {
+      port        = 80
+      target_port = 8081
+    }
+
+    type = "ClusterIP"
+  }
+}
+
+resource "kubernetes_manifest" "high_cpu_alert" {
+  manifest = {
+    apiVersion = "monitoring.coreos.com/v1"
+    kind       = "PrometheusRule"
+    metadata = {
+      name      = "online-boutique-alerts"
+      namespace = var.observability_namespace
+      labels = {
+        release = "kube-prometheus"
+      }
+    }
+    spec = {
+      groups = [
+        {
+          name = "online-boutique.rules"
+          rules = [
+            {
+              alert = "FrontendHighCPUUsage"
+              expr  = "sum by (namespace) (node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{namespace=\"online-boutique\", pod=~\"frontend-.*\"}) > 0.8"
+              for   = "1m"
+              labels = {
+                severity   = "critical"
+                deployment = "frontend"
+              }
+              annotations = {
+                summary     = "Frontend is using too much CPU."
+                description = "The frontend pods have been using > 80% CPU for the last 1 minute."
+                runbook     = "https://github.com/fbscotta369/ai4all-sre/blob/main/docs/reference/incident-runbooks.md"
+                # Tier-1 Integration: Link to Tempo Traces
+                trace_link = "http://localhost:3000/explore?orgId=1&left=[\"now-1h\",\"now\",\"Tempo\",{\"query\":\"{resource.namespace=\\\"online-boutique\\\", resource.app=\\\"frontend\\\"}\"}]"
+              }
+            },
+            {
+              alert = "PredictiveFrontendHighCPU"
+              expr  = "predict_linear(sum by (namespace) (node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{namespace=\"online-boutique\", pod=~\"frontend-.*\"})[15m:1m], 3600) > 0.8"
+              for   = "5m"
+              labels = {
+                severity   = "warning"
+                deployment = "frontend"
+              }
+              annotations = {
+                summary     = "PREDICTIVE: Frontend CPU usage trending towards saturation."
+                description = "Based on the last 15 minutes, frontend CPU is predicted to exceed 80% within the next hour."
+                trace_link  = "http://localhost:3000/explore?orgId=1&left=[\"now-1h\",\"now\",\"Tempo\",{\"query\":\"{resource.namespace=\\\"online-boutique\\\", resource.app=\\\"frontend\\\"}\"}]"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+  depends_on = [helm_release.kube_prometheus_stack]
+}
+
+resource "kubernetes_config_map" "goalert_config_script" {
+  metadata {
+    name      = "goalert-config-script"
+    namespace = var.alerting_namespace
+  }
+
+  data = {
+    "seed_goalert.sql" = file("${path.root}/scripts/internal/seed_goalert.sql")
+  }
+}
+
+resource "kubernetes_job" "goalert_iac_config" {
+  metadata {
+    name      = "goalert-iac-config"
+    namespace = var.alerting_namespace
+  }
+
+  spec {
+    template {
+      metadata {}
+      spec {
+        container {
+          name    = "sql-seed"
+          image   = "postgres:15-alpine"
+          command = ["/bin/sh", "-c"]
+          args = [
+            "until pg_isready -h goalert-db-postgresql -U postgres; do echo 'Waiting for DB...'; sleep 3; done; psql -h goalert-db-postgresql -U postgres -d postgres -f /scripts/seed_goalert.sql"
+          ]
+
+          env {
+            name = "PGPASSWORD"
+            value_from {
+              secret_key_ref {
+                name = "goalert-db-credentials"
+                key  = "postgres_password"
+              }
+            }
+          }
+
+          resources {
+            limits = {
+              cpu    = "200m"
+              memory = "256Mi"
+            }
+            requests = {
+              cpu    = "10m"
+              memory = "64Mi"
+            }
+          }
+
+          volume_mount {
+            name       = "config-volume"
+            mount_path = "/scripts"
+          }
+        }
+
+        volume {
+          name = "config-volume"
+          config_map {
+            name = kubernetes_config_map.goalert_config_script.metadata[0].name
+          }
+        }
+        restart_policy = "OnFailure"
+      }
+    }
+    backoff_limit = 4
+  }
+
+  depends_on = [kubernetes_deployment.goalert]
+}
+
+resource "kubernetes_ingress_v1" "goalert" {
+  metadata {
+    name      = "goalert"
+    namespace = var.alerting_namespace
+    annotations = {
+      "kubernetes.io/ingress.class" = "traefik"
+    }
+  }
+
+  spec {
+    rule {
+      host = "goalert.local"
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = kubernetes_service.goalert.metadata[0].name
+              port {
+                number = 80
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

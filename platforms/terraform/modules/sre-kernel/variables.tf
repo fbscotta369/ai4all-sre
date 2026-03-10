@@ -43,4 +43,33 @@ variable "alerting_namespace" {
   default = "incident-management"
 }
 
+variable "chaos_namespace" {
+  type    = string
+  default = "chaos-testing"
+}
+
+variable "slack_token" {
+  type        = string
+  description = "Slack Bot User OAuth Token"
+  default     = "xoxb-mock-token-for-lab-environment"
+}
+
+variable "slack_client_id" {
+  type        = string
+  description = "Slack Client ID"
+  default     = "mock-client-id"
+}
+
+variable "slack_client_secret" {
+  type        = string
+  description = "Slack Client Secret"
+  default     = "mock-client-secret"
+}
+
+variable "slack_signing_secret" {
+  type        = string
+  description = "Slack Signing Secret"
+  default     = "mock-signing-secret"
+}
+
 # Removed enable_kubernetes_manifests for 10/10 dependency optimization.

@@ -118,5 +118,18 @@ resource "kubernetes_manifest" "argocd_app_boutique" {
       }
     }
   }
-  depends_on = [helm_release.argocd]
+  depends_on = [helm_release.argocd, helm_release.argo_rollouts]
+}
+
+resource "helm_release" "argo_rollouts" {
+  name             = "argo-rollouts"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-rollouts"
+  namespace        = "argo-rollouts"
+  create_namespace = true
+  version          = "2.35.1"
+  set {
+    name  = "controller.podLabels.sre-privileged-access"
+    value = "true"
+  }
 }
