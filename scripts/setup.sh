@@ -16,9 +16,101 @@ for arg in "$@"; do
     fi
 done
 
+# OS Detection 🕵️
+OS_TYPE="$(uname -s)"
+case "$OS_TYPE" in
+    Linux*)
+        OS=linux
+        if command -v lsb_release &> /dev/null; then
+            OS_ID=$(lsb_release -is)
+            OS_VERSION=$(lsb_release -rs)
+            OS_NAME=$(lsb_release -ds)
+        elif [ -f /etc/os-release ]; then
+            . /etc/os-release
+            OS_ID=$ID
+            OS_VERSION=$VERSION_ID
+            OS_NAME=$PRETTY_NAME
+        fi
+        ;;
+    Darwin*)
+        OS=macos
+        OS_ID="macOS"
+        OS_VERSION=$(sw_vers -productVersion)
+        OS_NAME="macOS $OS_VERSION"
+        ;;
+    *)
+        OS=unknown
+        OS_ID="Unknown"
+        OS_VERSION="Unknown"
+        OS_NAME="Unknown OS"
+        ;;
+esac
+
+echo "Detected Environment: $OS_NAME ($OS_ID $OS_VERSION)"
+echo "------------------------------------------------"
+
+# Safe Sed Helper (macOS vs Linux)
+safe_sed() {
+    if [ "$OS" = "macos" ]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+}
+
+# Package Manager Abstractor
+pkg_install() {
+    local pkgs=("$@")
+    if [ "$OS" = "linux" ]; then
+        sudo apt-get update && sudo apt-get install -y "${pkgs[@]}"
+    elif [ "$OS" = "macos" ]; then
+        if ! command -v brew &> /dev/null; then
+            echo "❌ Homebrew not found. Please install it: https://brew.sh/"
+            exit 1
+        fi
+        brew install "${pkgs[@]}"
+    else
+        echo "❌ Unsupported OS: $OS_TYPE"
+        exit 1
+    fi
+}
+
 # Ensure local bin is in PATH for webi installs (k9s, etc.)
 export PATH="$HOME/.local/bin:$PATH"
 [ -f "$HOME/.config/envman/PATH.env" ] && source "$HOME/.config/envman/PATH.env"
+
+# 0.5 Core Doctor 🏥 (Pre-flight for the installers themselves)
+core_doctor() {
+    local missing=()
+    local deps=(curl wget gpg)
+    [ "$OS" = "linux" ] && deps+=(lsb_release)
+
+    for cmd in "${deps[@]}"; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "❌ Missing core dependencies: ${missing[*]}"
+        echo "[*] Attempting to install core dependencies..."
+        if [ "$NON_INTERACTIVE" = true ]; then
+            pkg_install "${missing[@]}"
+        else
+            echo "I need to install: ${missing[*]}"
+            read -p "Proceed with installation? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                pkg_install "${missing[@]}"
+            else
+                exit 1
+            fi
+        fi
+    fi
+    echo "✅ Core dependencies verified."
+}
+
+core_doctor
 
 # 1. Prerequisites Doctor 🩺
 # This function checks for a command and provides installation help if missing.
@@ -30,11 +122,11 @@ doctor_check() {
     if ! command -v $cmd &> /dev/null; then
         echo "❌ Error: $cmd is not installed."
         echo "------------------------------------------------"
-        echo "💡 How to fix (Kubuntu/Debian/Ubuntu):"
-        if [ "$use_sudo" = true ]; then
+        echo "💡 How to fix ($OS):"
+        if [ "$OS" = "linux" ]; then
             echo "   sudo bash -c \"$install_cmd\""
-        else
-            echo "   $install_cmd"
+        elif [ "$OS" = "macos" ]; then
+            echo "   brew install $cmd"
         fi
         echo "------------------------------------------------"
         
@@ -46,18 +138,26 @@ doctor_check() {
                 # Implement up to 3 retries for transient network errors
                 for i in {1..3}; do
                     echo "[*] Attempt $i: Installing $cmd..."
-                    local run_cmd
-                    if [ "$use_sudo" = true ]; then
-                        run_cmd="sudo bash -c \"$install_cmd\""
+                    
+                    if [ "$OS" = "macos" ]; then
+                        if brew install "$cmd"; then
+                            echo "✅ $cmd installed successfully."
+                            return 0
+                        fi
                     else
-                        run_cmd="$install_cmd"
-                    fi
-
-                    if eval "$run_cmd"; then
-                        echo "✅ $cmd installed successfully."
-                        # Re-source PATH if we just installed k9s/webi tools
-                        [ -f "$HOME/.config/envman/PATH.env" ] && source "$HOME/.config/envman/PATH.env"
-                        return 0
+                        if [ "$use_sudo" = true ]; then
+                            if sudo bash -c "$install_cmd"; then
+                                echo "✅ $cmd installed successfully."
+                                # Re-source PATH
+                                [ -f "$HOME/.config/envman/PATH.env" ] && source "$HOME/.config/envman/PATH.env"
+                                return 0
+                            fi
+                        else
+                            if bash -c "$install_cmd"; then
+                                echo "✅ $cmd installed successfully."
+                                return 0
+                            fi
+                        fi
                     fi
                     echo "⚠️ Attempt $i failed. Retrying in 5 seconds..."
                     sleep 5
@@ -88,11 +188,7 @@ docker_daemon_check() {
     echo "✅ Docker daemon is running."
 }
 
-doctor_check "kubectl" "apt-get update --fix-missing && apt-get install -y apt-transport-https ca-certificates curl && mkdir -p /etc/apt/keyrings && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && apt-get update && apt-get install -y kubectl"
-doctor_check "terraform" "apt-get update --fix-missing && wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | tee /etc/apt/sources.list.d/hashicorp.list && apt-get update && apt-get install -y terraform"
-doctor_check "helm" "apt-get update --fix-missing && curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null && echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main\" | tee /etc/apt/sources.list.d/helm-stable-debian.list && apt-get update && apt-get install -y helm"
-doctor_check "docker" "apt-get update --fix-missing && apt-get install -y docker.io"
-doctor_check "k9s" "curl -sS https://webi.sh/k9s | sh" false
+# doctor_check calls moved to section 2.0 to avoid redundancy
 
 docker_daemon_check
 
@@ -110,37 +206,43 @@ cluster_doctor() {
 
     echo "❌ Error: Cannot connect to any Kubernetes cluster."
     echo "------------------------------------------------"
-    echo "💡 Local Cluster Bootstrapping (K3s):"
     
-    if [ -t 0 ]; then
-        read -p "Would you like me to install and start a local K3s cluster for you? (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "[*] Bootstrapping K3s (this may require sudo password)..."
-            curl -sfL https://get.k3s.io | sh -
-            
-            echo "[*] Configuring Kubeconfig permissions..."
-            mkdir -p ~/.kube
-            sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
-            sudo chown $USER:$USER ~/.kube/config
-            chmod 600 ~/.kube/config
-            
-            echo "[*] Waiting for K3s to initialize..."
-            sleep 10
-            
-            if kubectl cluster-info &> /dev/null; then
-                echo "✅ K3s cluster bootstrapped and reachable."
-                return 0
+    if [ "$OS" = "linux" ]; then
+        echo "💡 Local Cluster Bootstrapping (K3s):"
+        if [ -t 0 ]; then
+            read -p "Would you like me to install and start a local K3s cluster for you? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "[*] Bootstrapping K3s (this may require sudo password)..."
+                curl -sfL https://get.k3s.io | sh -
+                
+                echo "[*] Configuring Kubeconfig permissions..."
+                mkdir -p ~/.kube
+                sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+                sudo chown $USER:$USER ~/.kube/config
+                chmod 600 ~/.kube/config
+                
+                echo "[*] Waiting for K3s to initialize..."
+                sleep 10
+                
+                if kubectl cluster-info &> /dev/null; then
+                    echo "✅ K3s cluster bootstrapped and reachable."
+                    return 0
+                else
+                    echo "❌ K3s started but kubectl still cannot connect. Please check 'journalctl -u k3s'."
+                    exit 1
+                fi
             else
-                echo "❌ K3s started but kubectl still cannot connect. Please check 'journalctl -u k3s'."
+                echo "💡 Recommendation: Start minikube, kind, or k3d manually to proceed."
                 exit 1
             fi
         else
-            echo "💡 Recommendation: Start minikube, kind, or k3d manually to proceed."
+            echo "❌ Non-interactive terminal. Please start a cluster manually."
             exit 1
         fi
-    else
-        echo "❌ Non-interactive terminal. Please start a cluster manually."
+    elif [ "$OS" = "macos" ]; then
+        echo "💡 Recommendation: Please start a local cluster using 'k3d', 'minikube', or 'Docker Desktop'."
+        echo "   Example: k3d cluster create ai4all"
         exit 1
     fi
 }
@@ -170,6 +272,11 @@ adopt_gateway_crds() {
 # 1.9 Kernel Doctor (Inotify Restorer) 🧠
 # Resolves 'to create fsnotify watcher: too many open files' in high-concurrency labs.
 kernel_doctor() {
+    if [ "$OS" = "macos" ]; then
+        echo "✅ macOS detected: Skipping inotify sysctl tuning (Darwin handles this differently)."
+        return 0
+    fi
+
     echo "Checking kernel inotify limits..."
     local cur_instances=$(sysctl -n fs.inotify.max_user_instances)
     local cur_watches=$(sysctl -n fs.inotify.max_user_watches)
@@ -182,13 +289,30 @@ kernel_doctor() {
         echo "   Target:  Instances=$target_instances, Watches=$target_watches"
         echo "------------------------------------------------"
         
-        if [ -t 0 ]; then
-            read -p "Would you like me to optimize these kernel limits for you? (y/N) " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if [ -t 0 ] || [ "$NON_INTERACTIVE" = true ]; then
+            local proceed=false
+            if [ "$NON_INTERACTIVE" = true ]; then
+                proceed=true
+            else
+                read -p "Would you like me to optimize these kernel limits for you? (y/N) " -n 1 -r
+                echo
+                [[ $REPLY =~ ^[Yy]$ ]] && proceed=true
+            fi
+
+            if [ "$proceed" = true ]; then
                 echo "[*] Applying kernel optimizations..."
-                sudo bash -c "echo fs.inotify.max_user_instances=$target_instances >> /etc/sysctl.conf"
-                sudo bash -c "echo fs.inotify.max_user_watches=$target_watches >> /etc/sysctl.conf"
+                # Create safety backup
+                sudo cp /etc/sysctl.conf /etc/sysctl.conf.bak.$(date +%Y%m%d%H%M%S)
+                echo "✅ Created backup: /etc/sysctl.conf.bak.$(date +%Y%m%d%H%M%S)"
+
+                for setting in "fs.inotify.max_user_instances=$target_instances" "fs.inotify.max_user_watches=$target_watches"; do
+                    local key=$(echo "$setting" | cut -d= -f1)
+                    if grep -q "^$key" /etc/sysctl.conf; then
+                        sudo safe_sed "s|^$key=.*|$setting|" /etc/sysctl.conf
+                    else
+                        echo "$setting" | sudo tee -a /etc/sysctl.conf > /dev/null
+                    fi
+                done
                 sudo sysctl -p
                 echo "✅ Kernel limits optimized and applied."
             else
@@ -202,10 +326,11 @@ kernel_doctor() {
 
 # Run the Doctors
 echo "[*] Running System Prerequisites Doctor..."
-doctor_check "kubectl" "apt-get update --fix-missing && apt-get install -y apt-transport-https ca-certificates curl && mkdir -p /etc/apt/keyrings && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list && apt-get update && apt-get install -y kubectl"
-doctor_check "terraform" "apt-get update --fix-missing && wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor --yes -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com \$(lsb_release -cs) main\" | tee /etc/apt/sources.list.d/hashicorp.list && apt-get update && apt-get install -y terraform"
-doctor_check "helm" "apt-get update --fix-missing && curl https://baltocdn.com/helm/signing.asc | gpg --dearmor --yes | tee /usr/share/keyrings/helm.gpg > /dev/null && echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main\" | tee /etc/apt/sources.list.d/helm-stable-debian.list && apt-get update && apt-get install -y helm"
-doctor_check "docker" "apt-get update --fix-missing && apt-get install -y docker.io"
+doctor_check "kubectl" 'apt-get update --fix-missing && apt-get install -y apt-transport-https ca-certificates curl && mkdir -p /etc/apt/keyrings && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list && apt-get update && apt-get install -y kubectl'
+doctor_check "terraform" 'apt-get update --fix-missing && wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor --yes -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list && apt-get update && apt-get install -y terraform'
+doctor_check "helm" 'apt-get update --fix-missing && curl https://baltocdn.com/helm/signing.asc | gpg --dearmor --yes | tee /usr/share/keyrings/helm.gpg > /dev/null && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | tee /etc/apt/sources.list.d/helm-stable-debian.list && apt-get update && apt-get install -y helm'
+doctor_check "docker" 'apt-get update --fix-missing && apt-get install -y docker.io'
+doctor_check "k9s" "curl -sS https://webi.sh/k9s | sh" false
 
 docker_daemon_check
 cluster_doctor
@@ -252,6 +377,9 @@ if [ -f "backend.tf" ]; then
     echo "------------------------------------------------"
     echo "🚀 Enterprise Mode Active (Remote Backend Enabled)"
     
+    # Pre-flight for AWS CLI
+    doctor_check "aws" "apt-get update && apt-get install -y awscli"
+
     SHOULD_BOOTSTRAP=false
     if [ "$AUTO_BOOTSTRAP" = "true" ]; then
         SHOULD_BOOTSTRAP=true

@@ -8,13 +8,56 @@ set -e
 echo "Starting AI Laboratory Prerequisites Check..."
 echo "------------------------------------------------"
 
-# 0. Early Repository Cleanup
-# Conflicted or broken repositories cause 'apt update' to fail globally.
-# We clear our managed repositories early to ensure a fresh state.
-echo "[*] Cleaning up potential repository conflicts..."
-sudo -n rm -f /etc/apt/sources.list.d/archive_uri-https_developer_download_nvidia_com_compute_cuda_repos_ubuntu2204_x86_64_-jammy.list 2>/dev/null || true
-sudo -n rm -f /etc/apt/sources.list.d/nvidia-cuda.list 2>/dev/null || true
-sudo -n rm -f /etc/apt/sources.list.d/nvidia-container-toolkit.list 2>/dev/null || true
+# 0. Environment Bootstrap 🌐
+OS_TYPE="$(uname -s)"
+case "$OS_TYPE" in
+    Linux*)
+        OS=linux
+        if command -v lsb_release &> /dev/null; then
+            OS_ID=$(lsb_release -is)
+            OS_VERSION=$(lsb_release -rs)
+            OS_NAME=$(lsb_release -ds)
+        elif [ -f /etc/os-release ]; then
+            . /etc/os-release
+            OS_ID=$ID
+            OS_VERSION=$VERSION_ID
+            OS_NAME=$PRETTY_NAME
+        fi
+        ;;
+    Darwin*)
+        OS=macos
+        OS_ID="macOS"
+        OS_VERSION=$(sw_vers -productVersion)
+        OS_NAME="macOS $OS_VERSION"
+        ;;
+    *)
+        OS=unknown
+        OS_ID="Unknown"
+        OS_VERSION="Unknown"
+        OS_NAME="Unknown OS"
+        ;;
+esac
+
+echo "Detected Environment: $OS_NAME ($OS_ID $OS_VERSION)"
+echo "------------------------------------------------"
+
+# Function to install packages cross-platform
+pkg_install() {
+    local pkgs=("$@")
+    if [ "$OS" = "linux" ]; then
+        sudo apt-get update && sudo apt-get install -y "${pkgs[@]}"
+    elif [ "$OS" = "macos" ]; then
+        brew install "${pkgs[@]}"
+    fi
+}
+
+# 0. Early Repository Cleanup (Linux only)
+if [ "$OS" = "linux" ]; then
+    echo "[*] Cleaning up potential repository conflicts..."
+    sudo -n rm -f /etc/apt/sources.list.d/archive_uri-https_developer_download_nvidia_com_compute_cuda_repos_ubuntu2204_x86_64_-jammy.list 2>/dev/null || true
+    sudo -n rm -f /etc/apt/sources.list.d/nvidia-cuda.list 2>/dev/null || true
+    sudo -n rm -f /etc/apt/sources.list.d/nvidia-container-toolkit.list 2>/dev/null || true
+fi
 
 # Function to check for a command and optionally install it
 doctor_check() {
@@ -32,10 +75,14 @@ doctor_check() {
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 echo "[*] Installing $description..."
-                if [ "$use_sudo" = true ]; then
-                    sudo bash -c "$install_cmd"
+                if [ "$OS" = "macos" ]; then
+                    brew install "$cmd"
                 else
-                    eval "$install_cmd"
+                    if [ "$use_sudo" = true ]; then
+                        sudo bash -c "$install_cmd"
+                    else
+                        bash -c "$install_cmd"
+                    fi
                 fi
                 echo "✅ $description installed successfully."
                 return 0
@@ -45,7 +92,11 @@ doctor_check() {
             fi
         else
             echo "💡 Manual fix:"
-            echo "   $install_cmd"
+            if [ "$OS" = "macos" ]; then
+                echo "   brew install $cmd"
+            else
+                echo "   $install_cmd"
+            fi
             return 1
         fi
     fi
@@ -54,7 +105,14 @@ doctor_check() {
 
 # 1. GPU Check & Driver Installation
 echo "Checking for NVIDIA GPU Readiness..."
-if ! command -v nvidia-smi &> /dev/null; then
+if [ "$OS" = "macos" ]; then
+    echo "✅ macOS detected: Checking for Apple Silicon (Metal) readiness..."
+    if sysctl -a | grep -q "brand: Apple"; then
+        echo "✅ Apple Silicon detected. Metal performance shaders will be used."
+    else
+        echo "⚠️ Intel Mac detected. CPU-only execution will be prioritized."
+    fi
+elif ! command -v nvidia-smi &> /dev/null; then
     echo "[*] nvidia-smi not found. Checking for NVIDIA hardware..."
     if lspci | grep -i nvidia &> /dev/null; then
         echo "✅ NVIDIA Hardware detected via lspci."
@@ -95,9 +153,10 @@ else
 fi
 
 # 2. CUDA 12.1 Check & Installation
-if ! command -v nvcc &> /dev/null; then
-    echo "❌ CUDA Toolkit (nvcc) not found."
-    if [ -t 0 ]; then
+if [ "$OS" = "linux" ]; then
+    if ! command -v nvcc &> /dev/null; then
+        echo "❌ CUDA Toolkit (nvcc) not found."
+        if [ -t 0 ]; then
         read -p "Would you like me to install CUDA 12.1 Toolkit? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -120,6 +179,8 @@ if ! command -v nvcc &> /dev/null; then
                 read -p "Would you like me to add CUDA to your ~/.bashrc for persistence? (y/N) " -n 1 -r
                 echo
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    cp "$HOME/.bashrc" "$HOME/.bashrc.bak.$(date +%Y%m%d%H%M%S)"
+                    echo "✅ Created backup: ~/.bashrc.bak.$(date +%Y%m%d%H%M%S)"
                     echo 'export PATH=/usr/local/cuda-12.1/bin:$PATH' >> "$HOME/.bashrc"
                     echo "✅ Added to ~/.bashrc."
                 fi
@@ -132,34 +193,38 @@ else
         read -p "CUDA is installed but not in your ~/.bashrc. Add it now? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
+            cp "$HOME/.bashrc" "$HOME/.bashrc.bak.$(date +%Y%m%d%H%M%S)"
+            echo "✅ Created backup: ~/.bashrc.bak.$(date +%Y%m%d%H%M%S)"
             echo 'export PATH=/usr/local/cuda-12.1/bin:$PATH' >> "$HOME/.bashrc"
             echo "✅ Added to ~/.bashrc."
         fi
     fi
+    fi
 fi
 
-# 3. NVIDIA Container Toolkit Check
-if ! command -v nvidia-ctk &> /dev/null; then
-    echo "❌ NVIDIA Container Toolkit not found. This is needed for GPU support in Docker/K8s."
-    if [ -t 0 ]; then
-        read -p "Would you like me to install the NVIDIA Container Toolkit? (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "[*] Configuring NVIDIA Container Toolkit repository..."
-            curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor --yes -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-            
-            # Use the official stable URL for amd64 directly
-            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /" | \
-                sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-            
-            sudo apt-get update
-            sudo apt-get install -y nvidia-container-toolkit
-            echo "✅ NVIDIA Container Toolkit installed."
+# 3. NVIDIA Container Toolkit Check (Linux only)
+if [ "$OS" = "linux" ]; then
+    if ! command -v nvidia-ctk &> /dev/null; then
+        echo "❌ NVIDIA Container Toolkit not found. This is needed for GPU support in Docker/K8s."
+        if [ -t 0 ]; then
+            read -p "Would you like me to install the NVIDIA Container Toolkit? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "[*] Configuring NVIDIA Container Toolkit repository..."
+                curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor --yes -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+                
+                # Use the official stable URL for amd64 directly
+                echo "deb [arch=amd64 signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /" | \
+                    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+                
+                sudo apt-get update
+                sudo apt-get install -y nvidia-container-toolkit
+                echo "✅ NVIDIA Container Toolkit installed."
+            fi
         fi
+    else
+        echo "✅ NVIDIA Container Toolkit is installed."
     fi
-else
-    echo "✅ NVIDIA Container Toolkit is installed."
-fi
 
 # 4. Conda/Mamba Check
 if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
@@ -215,6 +280,8 @@ if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
                     read -p "Would you like to run 'conda init' to make this persistent? (y/N) " -n 1 -r
                     echo
                     if [[ $REPLY =~ ^[Yy]$ ]]; then
+                        cp "$HOME/.bashrc" "$HOME/.bashrc.bak.$(date +%Y%m%d%H%M%S)"
+                        echo "✅ Created backup: ~/.bashrc.bak.$(date +%Y%m%d%H%M%S)"
                         "$INSTALL_PATH/bin/conda" init bash
                     fi
                 fi
@@ -234,6 +301,8 @@ else
         read -p "Conda is installed but not initialized in your ~/.bashrc. Run 'conda init' now? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
+            cp "$HOME/.bashrc" "$HOME/.bashrc.bak.$(date +%Y%m%d%H%M%S)"
+            echo "✅ Created backup: ~/.bashrc.bak.$(date +%Y%m%d%H%M%S)"
             conda init bash
         fi
     fi
@@ -256,11 +325,16 @@ if ! command -v ollama &> /dev/null; then
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo "[*] Installing Ollama CLI..."
-            curl -fsSL https://ollama.com/install.sh | sh
+            if [ "$OS" = "macos" ]; then
+                brew install ollama
+            else
+                curl -fsSL https://ollama.com/install.sh | sh
+            fi
             echo "✅ Ollama CLI installed successfully."
         fi
     else
-        echo "💡 Manual fix: curl -fsSL https://ollama.com/install.sh | sh"
+        echo "💡 Manual fix:"
+        [ "$OS" = "macos" ] && echo "   brew install ollama" || echo "   curl -fsSL https://ollama.com/install.sh | sh"
     fi
 fi
 
