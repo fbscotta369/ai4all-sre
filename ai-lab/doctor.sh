@@ -231,6 +231,7 @@ if [ "$OS" = "linux" ]; then
     else
         echo "✅ NVIDIA Container Toolkit is installed."
     fi
+fi
 
 # 4. Conda/Mamba Check
 if ! command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
