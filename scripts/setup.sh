@@ -146,16 +146,21 @@ doctor_check() {
                         fi
                     else
                         if [ "$use_sudo" = true ]; then
-                            if sudo bash -c "$install_cmd"; then
-                                echo "✅ $cmd installed successfully."
-                                # Re-source PATH
-                                [ -f "$HOME/.config/envman/PATH.env" ] && source "$HOME/.config/envman/PATH.env"
-                                return 0
+                            # Use robust pattern to pass complex strings into shell
+                            if sudo bash -c 'eval "$1"' -- "$install_cmd"; then
+                                if command -v "$cmd" &> /dev/null; then
+                                    echo "✅ $cmd installed successfully."
+                                    # Re-source PATH
+                                    [ -f "$HOME/.config/envman/PATH.env" ] && source "$HOME/.config/envman/PATH.env"
+                                    return 0
+                                fi
                             fi
                         else
-                            if bash -c "$install_cmd"; then
-                                echo "✅ $cmd installed successfully."
-                                return 0
+                            if bash -c 'eval "$1"' -- "$install_cmd"; then
+                                if command -v "$cmd" &> /dev/null; then
+                                    echo "✅ $cmd installed successfully."
+                                    return 0
+                                fi
                             fi
                         fi
                     fi

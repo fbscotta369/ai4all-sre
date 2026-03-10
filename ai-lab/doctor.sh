@@ -79,13 +79,19 @@ doctor_check() {
                     brew install "$cmd"
                 else
                     if [ "$use_sudo" = true ]; then
-                        sudo bash -c "$install_cmd"
+                        sudo bash -c 'eval "$1"' -- "$install_cmd"
                     else
-                        bash -c "$install_cmd"
+                        bash -c 'eval "$1"' -- "$install_cmd"
                     fi
                 fi
-                echo "✅ $description installed successfully."
-                return 0
+                
+                if command -v "$cmd" &> /dev/null; then
+                    echo "✅ $description installed successfully."
+                    return 0
+                else
+                    echo "❌ Failed to install $description."
+                    return 1
+                fi
             else
                 echo "⚠️ Please install $description manually to proceed."
                 return 1
