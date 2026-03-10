@@ -186,7 +186,8 @@ resource "kubernetes_secret" "grafana_admin" {
     namespace = var.observability_namespace
   }
   data = {
-    password = "admin123"
+    "admin-user"     = "admin"
+    "admin-password" = "admin123"
   }
   depends_on = [kubernetes_job.vault_bootstrap]
 }
