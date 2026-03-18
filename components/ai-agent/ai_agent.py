@@ -23,23 +23,53 @@ from typing import Literal, Optional
 import requests
 import uvicorn
 from fastapi import FastAPI, Request, BackgroundTasks
-from kubernetes import client, config
+from kubernetes import client, config as k8s_config
 from pydantic import BaseModel, ValidationError
+from loguru import logger
+
+# Import centralized configuration
+from . import agent_config
 
 # ---------------------------------------------------------------------------
-# AI/ML Memory: HNSW Vector Store
+# AI/ML Memory: HNSW Vector Store with persistence
 # ---------------------------------------------------------------------------
 try:
     import faiss
     import numpy as np
     from sentence_transformers import SentenceTransformer
-    EMBED_MODEL = SentenceTransformer('all-MiniLM-L6-v2')
+    import os
+    import pickle
+
+    EMBED_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
     VECTOR_DIM = 384
-    _index = faiss.IndexHNSWFlat(VECTOR_DIM, 32)
+    _index = None
     _pm_metadata = []
-    print("[+] HNSW Vector Memory initialized.", flush=True)
+
+    # Define persistence directory and files
+    VECTOR_STORE_DIR = os.path.join(
+        os.path.dirname(__file__), "..", "..", "data", "vector_store"
+    )
+    INDEX_FILE = os.path.join(VECTOR_STORE_DIR, "faiss_index.bin")
+    METADATA_FILE = os.path.join(VECTOR_STORE_DIR, "metadata.pkl")
+
+    # Try to load existing index and metadata
+    if os.path.exists(INDEX_FILE) and os.path.exists(METADATA_FILE):
+        _index = faiss.read_index(INDEX_FILE)
+        with open(METADATA_FILE, "rb") as f:
+            _pm_metadata = pickle.load(f)
+        logger.info(
+            f"[+] Loaded HNSW Vector Memory from disk ({len(_pm_metadata)} entries)."
+        )
+    else:
+        # Create new index if none exists
+        _index = faiss.IndexHNSWFlat(VECTOR_DIM, 32)
+        logger.info("[+] HNSW Vector Memory initialized (new).")
+
+    # Ensure the persistence directory exists
+    os.makedirs(VECTOR_STORE_DIR, exist_ok=True)
+
 except Exception as e:
-    print(f"[!] Vector memory unavailable ({e}).", flush=True)
+    logger.error(f"[!] Vector memory unavailable ({e}).")
     _index = None
 
 # ---------------------------------------------------------------------------
@@ -47,17 +77,19 @@ except Exception as e:
 # ---------------------------------------------------------------------------
 try:
     import redis as redis_lib
-    REDIS_URL = os.getenv("REDIS_URL", "redis://redis.observability.svc.cluster.local:6379/0")
-    _redis_client = redis_lib.from_url(REDIS_URL, decode_responses=True)
+
+    _redis_client = redis_lib.from_url(
+        agent_config.config.database.redis_url, decode_responses=True
+    )
     _redis_client.ping()
     REDIS_AVAILABLE = True
-    print("[+] Redis debounce store connected.", flush=True)
+    logger.info("[+] Redis debounce store connected.")
 except Exception as e:
-    print(f"[!] Redis unavailable ({e}). Falling back to in-memory debounce.", flush=True)
+    logger.error(f"[!] Redis unavailable ({e}). Falling back to in-memory debounce.")
     REDIS_AVAILABLE = False
     _in_memory_debounce: dict = {}
 
-ALERT_DEBOUNCE_SECONDS = int(os.getenv("ALERT_DEBOUNCE_SECONDS", "120"))
+ALERT_DEBOUNCE_SECONDS = agent_config.config.database.alert_debounce_seconds
 
 
 def is_debounced(alert_key: str) -> bool:
@@ -93,32 +125,32 @@ class RemediationAction(BaseModel):
 # ---------------------------------------------------------------------------
 # App Configuration
 # ---------------------------------------------------------------------------
-app = FastAPI(title="AI4ALL-SRE Agent", version="5.0.0")
+app = FastAPI(title="AI4ALL-SRE Agent", version=agent_config.config.version)
 k8s_lock = threading.Lock()
 
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "sre-kernel")
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama.ollama.svc.cluster.local:11434/api/generate")
-OLLAMA_CHAT_URL = os.getenv("OLLAMA_CHAT_URL", "http://ollama.ollama.svc.cluster.local:11434/api/chat")
-SAFE_NAMESPACES = os.getenv("SAFE_NAMESPACES", "online-boutique").split(",")
-FORBIDDEN_NAMESPACES = {"kube-system", "kyverno", "linkerd", "vault", "cert-manager", "argocd"}
+OLLAMA_MODEL = agent_config.config.llm.model
+OLLAMA_URL = agent_config.config.llm.url
+OLLAMA_CHAT_URL = agent_config.config.llm.chat_url
+SAFE_NAMESPACES = agent_config.config.security.safe_namespaces
+FORBIDDEN_NAMESPACES = agent_config.config.security.forbidden_namespaces
 
 # FIX 2: GitOps configuration for real Git push
-GITOPS_MODE = os.getenv("GITOPS_MODE", "true").lower() == "true"
-MANIFESTS_BASE_DIR = os.getenv("MANIFESTS_BASE_DIR", "apps/online-boutique")
-MANIFEST_FILE = os.path.join(MANIFESTS_BASE_DIR, "kubernetes-manifests.yaml")
-GIT_REPO_DIR = os.getenv("GIT_REPO_DIR", "/workspace")
-GIT_REMOTE = os.getenv("GIT_REMOTE", "origin")
-GIT_BRANCH = os.getenv("GIT_BRANCH", "main")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-RUNBOOKS_DIR = os.getenv("RUNBOOKS_DIR", "runbooks")
-POST_MORTEMS_DIR = os.getenv("POST_MORTEMS_DIR", "post-mortems")
+GITOPS_MODE = agent_config.config.gitops.mode
+MANIFESTS_BASE_DIR = agent_config.config.gitops.manifests_base_dir
+MANIFEST_FILE = agent_config.config.gitops.manifest_file
+GIT_REPO_DIR = agent_config.config.gitops.git_repo_dir
+GIT_REMOTE = agent_config.config.gitops.git_remote
+GIT_BRANCH = agent_config.config.gitops.git_branch
+GITHUB_TOKEN = agent_config.config.gitops.github_token
+RUNBOOKS_DIR = agent_config.config.gitops.runbooks_dir
+POST_MORTEMS_DIR = agent_config.config.gitops.post_mortems_dir
 
 # Initialize Kubernetes client
 try:
-    config.load_incluster_config()
+    k8s_config.load_incluster_config()
 except Exception:
     try:
-        config.load_kube_config()
+        k8s_config.load_kube_config()
     except Exception:
         print("[!] Warning: Could not load Kubernetes config.", flush=True)
 
@@ -135,19 +167,27 @@ def index_post_mortems():
         return
     for f in os.listdir(pm_dir):
         if f.endswith(".md"):
-            with open(os.path.join(pm_dir, f), 'r') as file:
+            with open(os.path.join(pm_dir, f), "r") as file:
                 content = file.read()
-                embedding = EMBED_MODEL.encode([content])[0].astype('float32')
+                embedding = EMBED_MODEL.encode([content])[0].astype("float32")
                 _index.add(np.array([embedding]))
                 _pm_metadata.append(content)
     print(f"[*] Indexed {len(_pm_metadata)} post-mortems.", flush=True)
+    # Persist the index and metadata to disk
+    try:
+        faiss.write_index(_index, INDEX_FILE)
+        with open(METADATA_FILE, "wb") as f:
+            pickle.dump(_pm_metadata, f)
+        print(f"[+] Persisted HNSW Vector Memory to disk.", flush=True)
+    except Exception as e:
+        print(f"[!] Failed to persist vector memory: {e}", flush=True)
 
 
 def retrieve_context(query: str, k: int = 2) -> str:
     """Retrieve relevant post-mortems."""
     if _index is None or _index.ntotal == 0:
         return "No historical context available."
-    query_vec = EMBED_MODEL.encode([query])[0].astype('float32')
+    query_vec = EMBED_MODEL.encode([query])[0].astype("float32")
     distances, indices = _index.search(np.array([query_vec]), k)
     context = []
     for idx in indices[0]:
@@ -159,7 +199,9 @@ def retrieve_context(query: str, k: int = 2) -> str:
 # ---------------------------------------------------------------------------
 # Utility: Ollama with backoff
 # ---------------------------------------------------------------------------
-def query_ollama_with_backoff(prompt: str, max_retries: int = 3, base_wait: float = 2.0) -> str:
+def query_ollama_with_backoff(
+    prompt: str, max_retries: int = 3, base_wait: float = 2.0
+) -> str:
     """Jittered exponential backoff for Ollama inference."""
     for attempt in range(max_retries):
         try:
@@ -170,15 +212,19 @@ def query_ollama_with_backoff(prompt: str, max_retries: int = 3, base_wait: floa
             )
             if res.status_code == 200:
                 return res.json().get("response", "")
-            print(f"[!] Ollama HTTP {res.status_code}. Retrying...", flush=True)
+            logger.error(f"[!] Ollama HTTP {res.status_code}. Retrying...")
         except requests.exceptions.RequestException as e:
-            print(f"[!] Ollama error: {e}. Retrying ({attempt+1}/{max_retries})...", flush=True)
-        wait = (base_wait * (2 ** attempt)) + random.uniform(0, 1)
+            logger.error(
+                f"[!] Ollama error: {e}. Retrying ({attempt + 1}/{max_retries})..."
+            )
+        wait = (base_wait * (2**attempt)) + random.uniform(0, 1)
         time.sleep(wait)
     return "Error: Maximum retries exceeded."
 
 
-def query_ollama_structured(prompt: str, schema: dict, max_retries: int = 3) -> Optional[dict]:
+def query_ollama_structured(
+    prompt: str, schema: dict, max_retries: int = 3
+) -> Optional[dict]:
     """
     FIX 9: Query Ollama with a JSON schema constraint.
     Forces the LLM to return structured data — eliminates regex and prompt injection.
@@ -198,10 +244,15 @@ def query_ollama_structured(prompt: str, schema: dict, max_retries: int = 3) -> 
             if res.status_code == 200:
                 content = res.json().get("message", {}).get("content", "{}")
                 return json.loads(content)
-            print(f"[!] Ollama structured HTTP {res.status_code}. Retrying...", flush=True)
+            print(
+                f"[!] Ollama structured HTTP {res.status_code}. Retrying...", flush=True
+            )
         except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
-            print(f"[!] Ollama structured error: {e}. Retrying ({attempt+1}/{max_retries})...", flush=True)
-        time.sleep((2 ** attempt) + random.uniform(0, 1))
+            print(
+                f"[!] Ollama structured error: {e}. Retrying ({attempt + 1}/{max_retries})...",
+                flush=True,
+            )
+        time.sleep((2**attempt) + random.uniform(0, 1))
     return None
 
 
@@ -211,15 +262,26 @@ def query_ollama_structured(prompt: str, schema: dict, max_retries: int = 3) -> 
 def is_action_safe(action: RemediationAction) -> bool:
     """Validate a structured action against Zero-Trust safety policies."""
     if action.namespace in FORBIDDEN_NAMESPACES:
-        print(f"[!] Safety: Action targets forbidden namespace '{action.namespace}'", flush=True)
+        print(
+            f"[!] Safety: Action targets forbidden namespace '{action.namespace}'",
+            flush=True,
+        )
         return False
     if action.namespace not in SAFE_NAMESPACES:
-        print(f"[!] Safety: Namespace '{action.namespace}' not in approved list.", flush=True)
+        print(
+            f"[!] Safety: Namespace '{action.namespace}' not in approved list.",
+            flush=True,
+        )
         return False
     if action.action == "NO_ACTION":
         return True
-    if action.action == "SCALE" and (action.replicas is None or action.replicas < 0 or action.replicas > 20):
-        print(f"[!] Safety: Replica count {action.replicas} out of safe range [0-20].", flush=True)
+    if action.action == "SCALE" and (
+        action.replicas is None or action.replicas < 0 or action.replicas > 20
+    ):
+        print(
+            f"[!] Safety: Replica count {action.replicas} out of safe range [0-20].",
+            flush=True,
+        )
         return False
     return True
 
@@ -230,8 +292,11 @@ def is_action_safe(action: RemediationAction) -> bool:
 def get_target_type(name: str, namespace: str):
     try:
         ro = k8s_custom_api.get_namespaced_custom_object(
-            group="argoproj.io", version="v1alpha1",
-            namespace=namespace, plural="rollouts", name=name,
+            group="argoproj.io",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="rollouts",
+            name=name,
         )
         return "rollout", ro
     except client.ApiException as e:
@@ -259,7 +324,10 @@ def verify_health(dep_name: str, namespace: str) -> bool:
             desired = obj.spec.replicas or 0
         healthy = ready >= desired
         status = "HEALTHY" if healthy else "UNHEALTHY"
-        print(f"[{'+'if healthy else '-'}] Health: {dep_name} {status} ({ready}/{desired})", flush=True)
+        print(
+            f"[{'+' if healthy else '-'}] Health: {dep_name} {status} ({ready}/{desired})",
+            flush=True,
+        )
         return healthy
     except Exception as e:
         print(f"[!] Health check error: {e}", flush=True)
@@ -285,7 +353,11 @@ def gitops_remediate(dep_name: str, namespace: str, action: RemediationAction) -
 
         manifests = content.split("---")
         target_idx = next(
-            (i for i, m in enumerate(manifests) if f"name: {dep_name}" in m and "kind: Deployment" in m),
+            (
+                i
+                for i, m in enumerate(manifests)
+                if f"name: {dep_name}" in m and "kind: Deployment" in m
+            ),
             -1,
         )
         if target_idx == -1:
@@ -296,27 +368,43 @@ def gitops_remediate(dep_name: str, namespace: str, action: RemediationAction) -
 
         if action.action == "SCALE" and action.replicas is not None:
             if "replicas:" in target_manifest:
-                target_manifest = re.sub(r"(replicas: )\d+", rf"\g<1>{action.replicas}", target_manifest, count=1)
+                target_manifest = re.sub(
+                    r"(replicas: )\d+",
+                    rf"\g<1>{action.replicas}",
+                    target_manifest,
+                    count=1,
+                )
             else:
-                target_manifest = re.sub(r"(spec:\n)", rf"\g<1>  replicas: {action.replicas}\n", target_manifest, count=1)
+                target_manifest = re.sub(
+                    r"(spec:\n)",
+                    rf"\g<1>  replicas: {action.replicas}\n",
+                    target_manifest,
+                    count=1,
+                )
 
         elif action.action == "RESTART":
             now = datetime.datetime.utcnow().isoformat() + "Z"
             annotation = f'kubectl.kubernetes.io/restartedAt: "{now}"'
             if "kubectl.kubernetes.io/restartedAt:" in target_manifest:
                 target_manifest = re.sub(
-                    r'(kubectl\.kubernetes\.io/restartedAt: ).*',
-                    rf'\g<1>"{now}"', target_manifest, count=1,
+                    r"(kubectl\.kubernetes\.io/restartedAt: ).*",
+                    rf'\g<1>"{now}"',
+                    target_manifest,
+                    count=1,
                 )
             elif "annotations:" in target_manifest:
                 target_manifest = re.sub(
-                    r"(annotations:\n)", rf"\g<1>        {annotation}\n", target_manifest, count=1,
+                    r"(annotations:\n)",
+                    rf"\g<1>        {annotation}\n",
+                    target_manifest,
+                    count=1,
                 )
             else:
                 target_manifest = re.sub(
                     r"(template:\n\s+metadata:\n)",
                     rf"\g<1>      annotations:\n        {annotation}\n",
-                    target_manifest, count=1,
+                    target_manifest,
+                    count=1,
                 )
 
         manifests[target_idx] = target_manifest
@@ -324,7 +412,9 @@ def gitops_remediate(dep_name: str, namespace: str, action: RemediationAction) -
             f.write("---".join(manifests))
 
         # REAL Git commit + push (not a print statement)
-        commit_msg = f"ai-remediation({action.action.lower()}): {dep_name} in {namespace}"
+        commit_msg = (
+            f"ai-remediation({action.action.lower()}): {dep_name} in {namespace}"
+        )
         cmds = [
             ["git", "-C", GIT_REPO_DIR, "add", MANIFEST_FILE],
             ["git", "-C", GIT_REPO_DIR, "commit", "--allow-empty", "-m", commit_msg],
@@ -333,10 +423,15 @@ def gitops_remediate(dep_name: str, namespace: str, action: RemediationAction) -
         for cmd in cmds:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
-                print(f"[GitOps] Git command failed: {' '.join(cmd)}\n{result.stderr}", flush=True)
+                print(
+                    f"[GitOps] Git command failed: {' '.join(cmd)}\n{result.stderr}",
+                    flush=True,
+                )
                 # Attempt git reset to avoid dirty state
-                subprocess.run(["git", "-C", GIT_REPO_DIR, "reset", "HEAD~1", "--soft"],
-                               capture_output=True)
+                subprocess.run(
+                    ["git", "-C", GIT_REPO_DIR, "reset", "HEAD~1", "--soft"],
+                    capture_output=True,
+                )
                 return False
 
         print(f"[GitOps] ✅ Committed and pushed: '{commit_msg}'", flush=True)
@@ -365,7 +460,9 @@ def execute_remediation(action: RemediationAction) -> str:
 
     # Try GitOps first
     if GITOPS_MODE and gitops_remediate(dep_name, namespace, action):
-        return f"[GitOps ✅] {action.action} of {dep_name} committed → ArgoCD will sync."
+        return (
+            f"[GitOps ✅] {action.action} of {dep_name} committed → ArgoCD will sync."
+        )
 
     # Fallback: direct Kubernetes API patch
     with k8s_lock:
@@ -378,17 +475,33 @@ def execute_remediation(action: RemediationAction) -> str:
                 body = {"spec": {"replicas": action.replicas}}
             elif action.action in ("RESTART", "ROLLBACK"):
                 now = datetime.datetime.utcnow().isoformat() + "Z"
-                body = {"spec": {"template": {"metadata": {"annotations": {"kubectl.kubernetes.io/restartedAt": now}}}}}
+                body = {
+                    "spec": {
+                        "template": {
+                            "metadata": {
+                                "annotations": {
+                                    "kubectl.kubernetes.io/restartedAt": now
+                                }
+                            }
+                        }
+                    }
+                }
             else:
                 return "Unknown action type."
 
             if target_type == "rollout":
                 k8s_custom_api.patch_namespaced_custom_object(
-                    group="argoproj.io", version="v1alpha1",
-                    namespace=namespace, plural="rollouts", name=dep_name, body=body,
+                    group="argoproj.io",
+                    version="v1alpha1",
+                    namespace=namespace,
+                    plural="rollouts",
+                    name=dep_name,
+                    body=body,
                 )
             else:
-                k8s_apps_v1.patch_namespaced_deployment(name=dep_name, namespace=namespace, body=body)
+                k8s_apps_v1.patch_namespaced_deployment(
+                    name=dep_name, namespace=namespace, body=body
+                )
 
             return f"[Direct Patch ✅] {action.action} applied to {dep_name}."
         except Exception as e:
@@ -398,7 +511,13 @@ def execute_remediation(action: RemediationAction) -> str:
 # ---------------------------------------------------------------------------
 # Lifecycle management: Post-Mortems & Runbooks
 # ---------------------------------------------------------------------------
-def handle_autonomous_lifecycle(alert_name: str, labels: dict, annotations: dict, action: RemediationAction, remediation_result: str):
+def handle_autonomous_lifecycle(
+    alert_name: str,
+    labels: dict,
+    annotations: dict,
+    action: RemediationAction,
+    remediation_result: str,
+):
     """Persist post-mortem and generate/update runbook."""
     timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     pm_dir = os.path.join(GIT_REPO_DIR, POST_MORTEMS_DIR)
@@ -420,7 +539,9 @@ def handle_autonomous_lifecycle(alert_name: str, labels: dict, annotations: dict
         f.write(f"- **Deployment**: `{action.deployment}` in `{action.namespace}`\n")
         f.write(f"- **Result**: {remediation_result}\n\n")
         if action.gitops_patch_yaml:
-            f.write(f"## GitOps Declarative Patch\n```yaml\n{action.gitops_patch_yaml}\n```\n\n")
+            f.write(
+                f"## GitOps Declarative Patch\n```yaml\n{action.gitops_patch_yaml}\n```\n\n"
+            )
         if action.preventive_steps:
             f.write(f"## Preventive Steps\n{action.preventive_steps}\n")
     print(f"[*] Post-mortem: {pm_path}", flush=True)
@@ -432,7 +553,9 @@ def handle_autonomous_lifecycle(alert_name: str, labels: dict, annotations: dict
             f.write(f"# Runbook: {alert_name}\n\n")
             f.write(f"## Description\n{annotations.get('description')}\n\n")
             f.write(f"## AI-Generated Troubleshooting\n{action.rca}\n\n")
-            f.write(f"## Recommended Action\n`{action.action}` on `{action.deployment}`\n")
+            f.write(
+                f"## Recommended Action\n`{action.action}` on `{action.deployment}`\n"
+            )
         print(f"[*] Runbook created: {rb_path}", flush=True)
 
 
@@ -444,7 +567,11 @@ def process_alert_background(alert: dict):
     labels = alert.get("labels", {})
     annotations = alert.get("annotations", {})
     alert_name = labels.get("alertname", "UnknownAlert")
-    deployment_name = labels.get("deployment") or labels.get("app") or labels.get("service", "frontend")
+    deployment_name = (
+        labels.get("deployment")
+        or labels.get("app")
+        or labels.get("service", "frontend")
+    )
     namespace = labels.get("namespace", "online-boutique")
 
     # FIX 3: Redis-backed debounce (not /tmp)
@@ -487,9 +614,9 @@ Alert Context:
 {alert_context}
 
 Specialist Analyses:
-- NetworkAgent: {agent_responses.get('NetworkAgent', 'N/A')}
-- DatabaseAgent: {agent_responses.get('DatabaseAgent', 'N/A')}
-- ComputeAgent: {agent_responses.get('ComputeAgent', 'N/A')}
+- NetworkAgent: {agent_responses.get("NetworkAgent", "N/A")}
+- DatabaseAgent: {agent_responses.get("DatabaseAgent", "N/A")}
+- ComputeAgent: {agent_responses.get("ComputeAgent", "N/A")}
 
 Historical Context (Relevant Post-Mortems):
 {retrieve_context(alert_context)}
@@ -519,12 +646,17 @@ Output a JSON object with exactly these fields:
         return
 
     print(f"\n[Director] RCA: {action.rca}", flush=True)
-    print(f"[Director] Action: {action.action} → {action.deployment} in {action.namespace}", flush=True)
+    print(
+        f"[Director] Action: {action.action} → {action.deployment} in {action.namespace}",
+        flush=True,
+    )
 
     remediation_result = execute_remediation(action)
     print(f"[*] Result: {remediation_result}", flush=True)
 
-    handle_autonomous_lifecycle(alert_name, labels, annotations, action, remediation_result)
+    handle_autonomous_lifecycle(
+        alert_name, labels, annotations, action, remediation_result
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -532,7 +664,35 @@ Output a JSON object with exactly these fields:
 # ---------------------------------------------------------------------------
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "5.0.0", "redis": REDIS_AVAILABLE}
+    vector_store_status = (
+        "loaded" if _index is not None and _index.ntotal > 0 else "empty or failed"
+    )
+    # Check Ollama connectivity with a short timeout
+    ollama_status = "unknown"
+    try:
+        # Use a GET request to the Ollama version endpoint (if available) or just check if the server is up.
+        # Ollama's /api/tags endpoint returns a list of models.
+        ollama_response = requests.get(
+            f"{OLLAMA_URL.replace('/api/generate', '')}/api/tags", timeout=2
+        )
+        if ollama_response.status_code == 200:
+            ollama_status = "ok"
+        else:
+            ollama_status = f"error: {ollama_response.status_code}"
+    except Exception as e:
+        ollama_status = f"unreachable: {e}"
+
+    logger.debug(
+        f"Health check - Vector store: {vector_store_status}, Redis: {REDIS_AVAILABLE}, Ollama: {ollama_status}"
+    )
+
+    return {
+        "status": "ok",
+        "version": agent_config.config.version,
+        "redis": REDIS_AVAILABLE,
+        "vector_store": vector_store_status,
+        "ollama": ollama_status,
+    }
 
 
 @app.post("/webhook")
