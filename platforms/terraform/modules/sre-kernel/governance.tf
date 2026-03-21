@@ -1,9 +1,9 @@
 resource "helm_release" "kyverno" {
-  name             = "kyverno"
-  repository       = "https://kyverno.github.io/kyverno"
-  chart            = "kyverno"
-  namespace        = kubernetes_namespace.kyverno.metadata[0].name
-  version          = "3.1.4"
+  name       = "kyverno"
+  repository = "https://kyverno.github.io/kyverno"
+  chart      = "kyverno"
+  namespace  = kubernetes_namespace.kyverno.metadata[0].name
+  version    = "3.1.4"
 
   # bitnami/kubectl:1.28.5 was removed from Docker Hub; use alpine/k8s instead.
   # alpine/k8s runs as root, so runAsNonRoot must be disabled for both cleanup jobs.

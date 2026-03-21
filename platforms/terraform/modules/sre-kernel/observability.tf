@@ -425,8 +425,8 @@ resource "kubernetes_deployment" "ai_agent" {
         }
         # Init container to clone the repo for the agent (simulated for lab)
         init_container {
-          name  = "git-init"
-          image = "alpine/git"
+          name    = "git-init"
+          image   = "alpine/git"
           command = ["/bin/sh", "-c"]
           args    = ["git clone https://github.com/fbscotta369/ai4all-sre.git /workspace && cd /workspace && git checkout main"]
           volume_mount {

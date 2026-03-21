@@ -95,7 +95,19 @@ ALERT_DEBOUNCE_SECONDS = agent_config.config.database.alert_debounce_seconds
 def is_debounced(alert_key: str) -> bool:
     """Returns True if this alert was already processed within the debounce window."""
     if REDIS_AVAILABLE:
-        return bool(_redis_client.exists(f"debounce:{alert_key}"))
+
+        def _check_redis():
+            return bool(_redis_client.exists(f"debounce:{alert_key}"))
+
+        try:
+            return CircuitBreakers.redis.execute(_check_redis)
+        except Exception as e:
+            logger.warning(
+                f"[!] Redis circuit open or failed: {e}. Using in-memory fallback."
+            )
+            # Fallback to in-memory
+            last = _in_memory_debounce.get(alert_key, 0)
+            return (time.time() - last) < ALERT_DEBOUNCE_SECONDS
     else:
         last = _in_memory_debounce.get(alert_key, 0)
         return (time.time() - last) < ALERT_DEBOUNCE_SECONDS
@@ -104,7 +116,18 @@ def is_debounced(alert_key: str) -> bool:
 def set_debounce(alert_key: str) -> None:
     """Mark this alert as processed with a TTL equal to the debounce window."""
     if REDIS_AVAILABLE:
-        _redis_client.set(f"debounce:{alert_key}", "1", ex=ALERT_DEBOUNCE_SECONDS)
+
+        def _set_redis():
+            _redis_client.set(f"debounce:{alert_key}", "1", ex=ALERT_DEBOUNCE_SECONDS)
+
+        try:
+            CircuitBreakers.redis.execute(_set_redis)
+        except Exception as e:
+            logger.warning(
+                f"[!] Redis circuit open or failed: {e}. Using in-memory fallback."
+            )
+            # Fallback to in-memory
+            _in_memory_debounce[alert_key] = time.time()
     else:
         _in_memory_debounce[alert_key] = time.time()
 
@@ -197,29 +220,37 @@ def retrieve_context(query: str, k: int = 2) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Utility: Ollama with backoff
+# Utility: Ollama with backoff and circuit breaker
 # ---------------------------------------------------------------------------
+from circuit_breaker import CircuitBreakers
+
+
 def query_ollama_with_backoff(
     prompt: str, max_retries: int = 3, base_wait: float = 2.0
 ) -> str:
-    """Jittered exponential backoff for Ollama inference."""
-    for attempt in range(max_retries):
-        try:
-            res = requests.post(
-                OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-                timeout=120,
-            )
-            if res.status_code == 200:
-                return res.json().get("response", "")
-            logger.error(f"[!] Ollama HTTP {res.status_code}. Retrying...")
-        except requests.exceptions.RequestException as e:
-            logger.error(
-                f"[!] Ollama error: {e}. Retrying ({attempt + 1}/{max_retries})..."
-            )
-        wait = (base_wait * (2**attempt)) + random.uniform(0, 1)
-        time.sleep(wait)
-    return "Error: Maximum retries exceeded."
+    """Jittered exponential backoff for Ollama inference with circuit breaker."""
+
+    def _query_ollama():
+        for attempt in range(max_retries):
+            try:
+                res = requests.post(
+                    OLLAMA_URL,
+                    json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+                    timeout=120,
+                )
+                if res.status_code == 200:
+                    return res.json().get("response", "")
+                logger.error(f"[!] Ollama HTTP {res.status_code}. Retrying...")
+            except requests.exceptions.RequestException as e:
+                logger.error(
+                    f"[!] Ollama error: {e}. Retrying ({attempt + 1}/{max_retries})..."
+                )
+            wait = (base_wait * (2**attempt)) + random.uniform(0, 1)
+            time.sleep(wait)
+        return "Error: Maximum retries exceeded."
+
+    # Execute with circuit breaker protection
+    return CircuitBreakers.ollama.execute(_query_ollama)
 
 
 def query_ollama_structured(
@@ -287,28 +318,37 @@ def is_action_safe(action: RemediationAction) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Kubernetes helpers
+# Kubernetes helpers with circuit breaker
 # ---------------------------------------------------------------------------
 def get_target_type(name: str, namespace: str):
+    """Get target deployment/rollout type with circuit breaker protection"""
+
+    def _check_k8s():
+        try:
+            ro = k8s_custom_api.get_namespaced_custom_object(
+                group="argoproj.io",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="rollouts",
+                name=name,
+            )
+            return "rollout", ro
+        except client.ApiException as e:
+            if e.status != 404:
+                print(f"[!] Error checking Rollout: {e}", flush=True)
+        try:
+            dep = k8s_apps_v1.read_namespaced_deployment(name=name, namespace=namespace)
+            return "deployment", dep
+        except client.ApiException as e:
+            if e.status != 404:
+                print(f"[!] Error checking Deployment: {e}", flush=True)
+        return None, None
+
     try:
-        ro = k8s_custom_api.get_namespaced_custom_object(
-            group="argoproj.io",
-            version="v1alpha1",
-            namespace=namespace,
-            plural="rollouts",
-            name=name,
-        )
-        return "rollout", ro
-    except client.ApiException as e:
-        if e.status != 404:
-            print(f"[!] Error checking Rollout: {e}", flush=True)
-    try:
-        dep = k8s_apps_v1.read_namespaced_deployment(name=name, namespace=namespace)
-        return "deployment", dep
-    except client.ApiException as e:
-        if e.status != 404:
-            print(f"[!] Error checking Deployment: {e}", flush=True)
-    return None, None
+        return CircuitBreakers.k8s_api.execute(_check_k8s)
+    except Exception as e:
+        logger.error(f"[!] K8s API circuit open or failed: {e}")
+        return None, None
 
 
 def verify_health(dep_name: str, namespace: str) -> bool:

@@ -34,14 +34,19 @@ import hashlib
 try:
     import chromadb
     from chromadb.utils import embedding_functions
+
     CHROMA_AVAILABLE = True
 except ImportError:
     CHROMA_AVAILABLE = False
-    print("[!] ChromaDB not installed. Run: pip install chromadb sentence-transformers", flush=True)
+    print(
+        "[!] ChromaDB not installed. Run: pip install chromadb sentence-transformers",
+        flush=True,
+    )
 
 try:
     import boto3
     from botocore.exceptions import ClientError
+
     BOTO3_AVAILABLE = True
 except ImportError:
     BOTO3_AVAILABLE = False
@@ -49,14 +54,22 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-MINIO_ENDPOINT     = os.getenv("MINIO_ENDPOINT", "http://minio.minio.svc.cluster.local:9000")
-MINIO_ACCESS_KEY   = os.getenv("MINIO_ACCESS_KEY", "admin")
-MINIO_SECRET_KEY   = os.getenv("MINIO_SECRET_KEY", "password")
-MINIO_BUCKET       = os.getenv("MINIO_BUCKET", "ai4all-sre-post-mortems")
-CHROMA_HOST        = os.getenv("CHROMA_HOST", "chromadb.observability.svc.cluster.local")
-CHROMA_PORT        = int(os.getenv("CHROMA_PORT", "8000"))
-POST_MORTEMS_DIR   = os.getenv("POST_MORTEMS_DIR", "post-mortems")
-EMBED_MODEL        = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")  # ~80MB, fast
+MINIO_ENDPOINT = os.getenv(
+    "MINIO_ENDPOINT", "http://minio.minio.svc.cluster.local:9000"
+)
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "ai4all-sre-post-mortems")
+CHROMA_HOST = os.getenv("CHROMA_HOST", "chromadb.observability.svc.cluster.local")
+CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))
+POST_MORTEMS_DIR = os.getenv("POST_MORTEMS_DIR", "post-mortems")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")  # ~80MB, fast
+
+# Validate required credentials
+if not MINIO_ACCESS_KEY:
+    raise ValueError("MINIO_ACCESS_KEY environment variable is required")
+if not MINIO_SECRET_KEY:
+    raise ValueError("MINIO_SECRET_KEY environment variable is required")
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +112,13 @@ class PostMortemStore:
         results = []
         for page in paginator.paginate(Bucket=MINIO_BUCKET):
             for obj in page.get("Contents", []):
-                results.append({"key": obj["Key"], "size": obj["Size"], "last_modified": str(obj["LastModified"])})
+                results.append(
+                    {
+                        "key": obj["Key"],
+                        "size": obj["Size"],
+                        "last_modified": str(obj["LastModified"]),
+                    }
+                )
         return results
 
     def download_all(self, dest_dir: str) -> list[str]:
@@ -129,19 +148,24 @@ class PostMortemVectorStore:
         if not CHROMA_AVAILABLE:
             raise RuntimeError("chromadb not installed.")
         self.client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
-        self.ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=EMBED_MODEL)
+        self.ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name=EMBED_MODEL
+        )
         self.collection = self.client.get_or_create_collection(
             name=self.COLLECTION,
             embedding_function=self.ef,
             metadata={
                 "hnsw:space": "cosine",
                 "hnsw:construction_ef": 200,  # Higher accuracy during indexing
-                "hnsw:M": 32,                 # More connections for better recall
-                "hnsw:search_ef": 100,        # Higher accuracy during query
-                "hnsw:num_threads": 4         # Parallel indexing
+                "hnsw:M": 32,  # More connections for better recall
+                "hnsw:search_ef": 100,  # Higher accuracy during query
+                "hnsw:num_threads": 4,  # Parallel indexing
             },
         )
-        print(f"[+] ChromaDB collection '{self.COLLECTION}' ready ({self.collection.count()} docs).", flush=True)
+        print(
+            f"[+] ChromaDB collection '{self.COLLECTION}' ready ({self.collection.count()} docs).",
+            flush=True,
+        )
 
     def embed_file(self, path: str) -> bool:
         """Embed a single post-mortem markdown file. Skip if already embedded."""
@@ -164,11 +188,13 @@ class PostMortemVectorStore:
         self.collection.add(
             ids=[doc_id],
             documents=[content],
-            metadatas=[{
-                "filename": filename,
-                "alert_name": alert_name,
-                "embedded_at": datetime.datetime.utcnow().isoformat(),
-            }],
+            metadatas=[
+                {
+                    "filename": filename,
+                    "alert_name": alert_name,
+                    "embedded_at": datetime.datetime.utcnow().isoformat(),
+                }
+            ],
         )
         print(f"  [+] Embedded: {filename}", flush=True)
         return True
@@ -176,9 +202,14 @@ class PostMortemVectorStore:
     def embed_directory(self, directory: str):
         """Embed all .md files in a directory."""
         files = glob.glob(os.path.join(directory, "*.md"))
-        print(f"[*] Embedding {len(files)} post-mortems from {directory}...", flush=True)
+        print(
+            f"[*] Embedding {len(files)} post-mortems from {directory}...", flush=True
+        )
         new_count = sum(1 for f in files if self.embed_file(f))
-        print(f"[+] Done. {new_count} new embeddings added. Total: {self.collection.count()}", flush=True)
+        print(
+            f"[+] Done. {new_count} new embeddings added. Total: {self.collection.count()}",
+            flush=True,
+        )
 
     def query(self, incident_description: str, n_results: int = 3) -> list[dict]:
         """
@@ -192,12 +223,14 @@ class PostMortemVectorStore:
         )
         hits = []
         for i, doc in enumerate(results["documents"][0]):
-            hits.append({
-                "rank": i + 1,
-                "distance": results["distances"][0][i],
-                "metadata": results["metadatas"][0][i],
-                "excerpt": doc[:500] + "..." if len(doc) > 500 else doc,
-            })
+            hits.append(
+                {
+                    "rank": i + 1,
+                    "distance": results["distances"][0][i],
+                    "metadata": results["metadatas"][0][i],
+                    "excerpt": doc[:500] + "..." if len(doc) > 500 else doc,
+                }
+            )
         return hits
 
     def format_context_for_llm(self, query: str, n_results: int = 3) -> str:
@@ -254,6 +287,7 @@ def run_server():
     try:
         from fastapi import FastAPI
         import uvicorn
+
         rag_app = FastAPI(title="AI4ALL-SRE RAG Server")
         vector_store = PostMortemVectorStore()
 
@@ -277,8 +311,12 @@ def run_server():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI4ALL-SRE RAG Pipeline")
-    parser.add_argument("command", choices=["embed", "query", "serve"], help="Pipeline command")
-    parser.add_argument("query_text", nargs="?", default=None, help="Query text (for 'query' command)")
+    parser.add_argument(
+        "command", choices=["embed", "query", "serve"], help="Pipeline command"
+    )
+    parser.add_argument(
+        "query_text", nargs="?", default=None, help="Query text (for 'query' command)"
+    )
     args = parser.parse_args()
 
     if args.command == "embed":

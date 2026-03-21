@@ -47,6 +47,18 @@ resource "kubernetes_service" "redis" {
   }
 }
 
+# Generate random passwords for security
+resource "random_password" "minio_access_key" {
+  length  = 16
+  special = false
+}
+
+resource "random_password" "minio_secret_key" {
+  length           = 32
+  special          = true
+  override_special = "_%@"
+}
+
 # AI Agent Credentials — Fix: Provides necessary ENV vars for the autonomous logic
 resource "kubernetes_secret" "ai_agent_credentials" {
   metadata {
@@ -55,8 +67,8 @@ resource "kubernetes_secret" "ai_agent_credentials" {
   }
   data = {
     redis_url        = "redis://redis.${kubernetes_namespace.observability.metadata[0].name}.svc.cluster.local:6379/0"
-    minio_access_key = "admin"
-    minio_secret_key = "password123!"
+    minio_access_key = random_password.minio_access_key.result
+    minio_secret_key = random_password.minio_secret_key.result
   }
 }
 
@@ -69,10 +81,10 @@ resource "kubernetes_secret" "minio_credentials" {
     namespace = kubernetes_namespace.minio.metadata[0].name
   }
   data = {
-    root_user     = "admin"
-    root_password = "password123!"
-    access_key    = "admin"
-    secret_key    = "password123!"
+    root_user     = random_password.minio_access_key.result
+    root_password = random_password.minio_secret_key.result
+    access_key    = random_password.minio_access_key.result
+    secret_key    = random_password.minio_secret_key.result
   }
 }
 

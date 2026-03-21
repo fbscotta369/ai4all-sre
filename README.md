@@ -1,17 +1,20 @@
 # 🤖 AI4ALL-SRE: The Autonomous Engineering Laboratory
-> **Tier-1 Technical Documentation: v4.2.0**
+> **Tier-1 Technical Documentation: v5.1.0**
 
 [![SRE: Tier-1](https://img.shields.io/badge/SRE-Tier--1-blue.svg)](https://google.github.io/sre/)
 [![DevSecOps: Hardened](https://img.shields.io/badge/DevSecOps-Hardened-green.svg)](https://www.devsecops.org/)
 [![AI: Agentic](https://img.shields.io/badge/AI-Agentic-orange.svg)](https://ollama.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Security: Enhanced](https://img.shields.io/badge/Security-Enhanced-brightgreen.svg)](#security--compliance)
 
 AI4ALL-SRE is an enterprise-grade laboratory and **Internal Developer Platform (IDP)** for researching the intersection of SRE, DevSecOps, and Autonomous AI Agents.
 
-### 🆕 New in v5.0.0
-- **🧠 Contextual Memory**: HNSW-indexed vector memory for historical incident RAG.
-- **🚀 Dynamic Scaling**: Just-in-time node provisioning via Karpenter integration.
-- **🛡️ Enhanced VDP**: Standardized security disclosure program (RFC 9116).
+### 🆕 New in v5.1.0
+- **🔐 Zero Hardcoded Credentials**: All secrets now use random generation via Terraform's random provider
+- **🔄 Circuit Breaker Pattern**: Resilient external dependency management with automatic fallbacks
+- **📊 Enhanced Load Generator**: Prometheus metrics, chaos injection, and realistic traffic simulation
+- **🧠 Unified RAG Interface**: Consolidated vector storage with automatic backend fallback
+- **🧪 Integration Testing**: Full autonomous loop validation with comprehensive test suite
 
 ---
 
@@ -162,10 +165,10 @@ Our documentation hub is designed for professional engineering onboarding.
 
 | Category | Description | Key Documents |
 | :--- | :--- | :--- |
-| **🚀 Tutorials** | Guided onboarding for new engineers. | [Quickstart Guide](docs/tutorials/01-quickstart.md) |
-| **🛠️ How-To** | Practical SOPs for operational tasks. | [Disaster Recovery](docs/how-to/disaster-recovery-dry-runs.md), [Remote State Migration](docs/how-to/remote-state-migration.md) |
-| **🏗️ Reference** | Technical specifications and C4 models. | [System Architecture](docs/reference/system-architecture.md) |
-| **🧠 Explanation** | Deep-dives into our engineering philosophy. | [Platform Manifesto](docs/explanation/platform-engineering-manifesto.md) |
+| **🚀 Tutorials** | Guided onboarding for new engineers. | [Quickstart Guide](docs/tutorials/01-quickstart.md), [AI Model Fine-tuning](docs/tutorials/02-ai-model-finetuning.md) |
+| **🛠️ How-To** | Practical SOPs for operational tasks. | [Disaster Recovery](docs/how-to/disaster-recovery-dry-runs.md), [Remote State Migration](docs/how-to/remote-state-migration.md), [Chaos Experiments](docs/how-to/run-chaos-experiments.md) |
+| **🏗️ Reference** | Technical specifications and C4 models. | [System Architecture](docs/reference/system-architecture.md), [Circuit Breaker Pattern](docs/reference/circuit-breaker-pattern.md) |
+| **🧠 Explanation** | Deep-dives into our engineering philosophy. | [Platform Manifesto](docs/explanation/platform-engineering-manifesto.md), [MAS Logic](docs/explanation/mas-logic.md) |
 
 ---
 
@@ -228,23 +231,118 @@ make test-lifecycle
 # Run the comprehensive A-to-Z End-to-End Test Suite against live endpoints
 make test-e2e
 
+# Run integration tests for autonomous loop
+./tests/integration/test_autonomous_loop.sh
+
 # Run specialized Python unit tests
 python3 -m unittest discover tests/
+
+# Run circuit breaker unit tests
+python3 -m unittest tests.test_circuit_breaker
+
+# Run all tests including new integration tests
+python3 -m pytest tests/ -v
 ```
 
 - **Lifecycle reproducibility**: `lifecycle_test.sh` proves that the entire infrastructure and data mesh can be fully destroyed and rebuilt from scratch and validated autonomously.
 - **Specialized AI Tests**: Validates MAS Consensus, Safety Guardrails, and Remediation Edge Cases.
 - **Infrastructure Validation**: Terraform linting and security scanning (Trivy/TFSec).
 - **Operational Scripts**: Unit tests for GoAlert configuration, cert generation, and load generators.
+- **Integration Tests (v5.1.0)**: Full autonomous loop testing including alert injection and remediation verification.
+
+---
+
+## 🚀 Recent Improvements (v5.1.0)
+
+### 🔐 Security Enhancements
+| Component | Previous State | Current State |
+|-----------|---------------|---------------|
+| Terraform Secrets | Hardcoded passwords | Random generation via `random_password` |
+| Python Credentials | Default values | Environment variable validation |
+| Credential Storage | Plain text in config | Kubernetes Secrets only |
+
+### 🔄 Circuit Breaker Pattern
+New resilience layer protecting external dependencies:
+
+```python
+from circuit_breaker import CircuitBreakers
+
+# Pre-configured breakers for all critical dependencies
+result = CircuitBreakers.ollama.execute(query_function)
+result = CircuitBreakers.redis.execute(redis_operation)
+result = CircuitBreakers.k8s_api.execute(k8s_call)
+```
+
+**Features:**
+- Three states: CLOSED → OPEN → HALF_OPEN
+- Automatic recovery after timeout
+- Fallback function support
+- Thread-safe implementation
+
+### 📊 Enhanced Load Generator
+New capabilities for realistic traffic simulation and chaos engineering:
+
+```bash
+# Enable chaos injection
+export CHAOS_ENABLED=true
+export CHAOS_PROBABILITY=0.1
+
+# Run with Prometheus metrics
+export METRICS_PORT=9090
+python3 components/loadgen/behavioral_loadgen.py
+```
+
+**New Features:**
+- Prometheus metrics export (requests, latency, error rates)
+- Chaos injection (HTTP 500, timeouts, slow responses)
+- Multiple simulation modes (NORMAL, FLASH_SALE, BOT_ATTACK, CHAOS_TEST)
+- Realistic think times and user journey simulation
+
+### 🧠 Unified RAG Interface
+Consolidated vector storage with automatic fallback:
+
+```python
+from rag_unified import get_rag_pipeline
+
+# Singleton instance with automatic backend selection
+rag = get_rag_pipeline()
+
+# Embed post-mortems
+rag.embed_post_mortem(content, alert_name)
+
+# Query similar incidents
+results = rag.query_similar_incidents(incident_description)
+
+# Format for LLM consumption
+context = rag.format_context_for_llm(incident_description)
+```
+
+**Backend Fallback Chain:**
+1. ChromaDB (production, persistent via MinIO)
+2. FAISS (local, high-performance)
+3. InMemory (fallback, always available)
 
 ---
 
 ## 🛡️ Security & Compliance
 
-The laboratory implements strict **Governance-as-Code**:
-- **Kyverno**: Admission gaurdrails blocking CVE-exposed images.
-- **Linkerd**: Mandatory mTLS for all machine-to-machine traffic.
-- **CodeQL**: Automated security scanning of the autonomous agent logic.
+The laboratory implements strict **Governance-as-Code** with enhanced security measures:
+
+### 🔐 Secret Management (v5.1.0)
+- **Zero Hardcoded Credentials**: All passwords and secrets are randomly generated using Terraform's `random` provider
+- **Kubernetes Secrets**: Secure storage with automatic rotation capabilities
+- **Environment Validation**: Python modules validate required credentials at startup
+
+### 🛡️ Core Security Controls
+- **Kyverno**: Admission guardrails blocking CVE-exposed images
+- **Linkerd**: Mandatory mTLS for all machine-to-machine traffic
+- **CodeQL**: Automated security scanning of the autonomous agent logic
+- **Trivy**: Container vulnerability scanning in CI/CD pipelines
+
+### 🔄 Resilience Patterns (v5.1.0)
+- **Circuit Breaker**: Protects against cascading failures when dependencies are unavailable
+- **Graceful Degradation**: Automatic fallback strategies when services fail
+- **Health Monitoring**: Real-time circuit state monitoring via `/health` endpoint
 
 ---
 

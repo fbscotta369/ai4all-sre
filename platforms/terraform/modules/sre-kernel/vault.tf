@@ -168,16 +168,30 @@ resource "kubernetes_job" "vault_bootstrap" {
 # NOTE: minio_credentials is defined in control-plane/infrastructure.tf
 # to avoid circular dependency (MinIO deployment needs the secret before governance runs)
 
+# Generate random password for GoAlert database
+resource "random_password" "goalert_db_password" {
+  length           = 24
+  special          = true
+  override_special = "_%@"
+}
+
 resource "kubernetes_secret" "goalert_db_credentials" {
   metadata {
     name      = "goalert-db-credentials"
     namespace = var.alerting_namespace
   }
   data = {
-    postgres_password = "goalertpass"
-    connection_url    = "postgres://postgres:goalertpass@goalert-db-postgresql.incident-management.svc.cluster.local:5432/postgres?sslmode=disable"
+    postgres_password = random_password.goalert_db_password.result
+    connection_url    = "postgres://postgres:${random_password.goalert_db_password.result}@goalert-db-postgresql.incident-management.svc.cluster.local:5432/postgres?sslmode=disable"
   }
   depends_on = [kubernetes_job.vault_bootstrap]
+}
+
+# Generate random password for Grafana admin
+resource "random_password" "grafana_admin_password" {
+  length           = 24
+  special          = true
+  override_special = "_%@"
 }
 
 resource "kubernetes_secret" "grafana_admin" {
@@ -187,7 +201,7 @@ resource "kubernetes_secret" "grafana_admin" {
   }
   data = {
     "admin-user"     = "admin"
-    "admin-password" = "admin123"
+    "admin-password" = random_password.grafana_admin_password.result
   }
   depends_on = [kubernetes_job.vault_bootstrap]
 }

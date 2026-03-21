@@ -1,7 +1,7 @@
 # 🤖 AI4ALL-SRE: The Autonomous Engineering Laboratory
-> **Tier-1 Technical Documentation: v4.2.0**
+> **Tier-1 Technical Documentation: v5.1.0**
 
-AI4ALL-SRE is an enterprise-grade laboratory and **Internal Developer Platform (IDP)** for researching the intersection of SRE, DevSecOps, and Autonomous AI Agents. It provides a full-stack, local-first environment for evolving "Self-Healing" infrastructures.
+AI4ALL-SRE is an enterprise-grade laboratory and **Internal Developer Platform (IDP)** for researching the intersection of SRE, DevSecOps, and Autonomous AI Agents. It provides a full-stack, local-first environment for evolving "Self-Healing" infrastructures with enhanced security and resilience patterns.
 
 ---
 
@@ -16,16 +16,35 @@ The system is built on a **Zero-Trust Data Mesh** and an **Autonomous Multi-Agen
 
 ---
 
+## 🚀 Recent Improvements (v5.1.0)
+
+### 🔐 Security Enhancements
+- **Zero Hardcoded Credentials**: All secrets randomly generated via Terraform
+- **Environment Validation**: Python modules validate required credentials
+- **Kubernetes Secrets**: Secure storage for all sensitive data
+
+### 🔄 Resilience Patterns
+- **Circuit Breaker**: Protects against cascading failures
+- **Graceful Degradation**: Automatic fallback strategies
+- **Health Monitoring**: Real-time circuit state monitoring
+
+### 📊 Enhanced Load Generator
+- **Prometheus Metrics**: Real-time performance monitoring
+- **Chaos Injection**: Simulate HTTP 500, timeouts, slow responses
+- **Realistic Simulation**: Multiple traffic patterns and think times
+
+---
+
 ## 📂 Documentation Structure (Diátaxis Alignment)
 
 Our documentation hub is designed for professional engineering onboarding.
 
 | Category | Description | Key Documents |
 | :--- | :--- | :--- |
-| **🚀 Tutorials** | Guided onboarding for new engineers. | [Quickstart Guide](tutorials/01-quickstart.md) |
-| **🛠️ How-To** | Practical SOPs and Command Reference. | [Command Reference](how-to/command-reference.md) |
-| **🏗️ Reference** | Technical specifications and C4 models. | [Testing Framework](reference/testing-framework.md) |
-| **🧠 Explanation** | Deep-dives into our engineering philosophy. | [MAS Logic](explanation/mas-logic.md) |
+| **🚀 Tutorials** | Guided onboarding for new engineers. | [Quickstart Guide](tutorials/01-quickstart.md), [AI Model Fine-tuning](tutorials/02-ai-model-finetuning.md) |
+| **🛠️ How-To** | Practical SOPs and Command Reference. | [Command Reference](how-to/command-reference.md), [Chaos Experiments](how-to/run-chaos-experiments.md) |
+| **🏗️ Reference** | Technical specifications and C4 models. | [Testing Framework](reference/testing-framework.md), [Circuit Breaker Pattern](reference/circuit-breaker-pattern.md) |
+| **🧠 Explanation** | Deep-dives into our engineering philosophy. | [MAS Logic](explanation/mas-logic.md), [Platform Manifesto](explanation/platform-engineering-manifesto.md) |
 
 ---
 

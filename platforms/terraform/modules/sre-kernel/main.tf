@@ -7,8 +7,8 @@ variable "cluster_name" {
 }
 
 variable "environment" {
-  type        = string
-  default     = "production"
+  type    = string
+  default = "production"
 }
 
 # The Kernel will eventually manage:

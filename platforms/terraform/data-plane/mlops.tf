@@ -30,10 +30,10 @@ resource "kubernetes_deployment" "behavioral_loadgen" {
     template {
       metadata {
         labels = {
-          app           = "behavioral-loadgen"
-          team          = "sre"
-          environment   = "lab"
-          cost-center   = "ai4all"
+          app         = "behavioral-loadgen"
+          team        = "sre"
+          environment = "lab"
+          cost-center = "ai4all"
         }
       }
 

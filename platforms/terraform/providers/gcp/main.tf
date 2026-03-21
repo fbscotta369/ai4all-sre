@@ -16,17 +16,17 @@ module "gke" {
 
   node_pools = [
     {
-      name           = "sre-pool"
-      machine_type   = "n2-standard-4"
-      min_count      = 1
-      max_count      = 3
-      local_ssd_count = 0
-      disk_size_gb   = 100
-      disk_type      = "pd-standard"
-      image_type     = "COS_CONTAINERD"
-      auto_repair    = true
-      auto_upgrade   = true
-      preemptible    = false
+      name               = "sre-pool"
+      machine_type       = "n2-standard-4"
+      min_count          = 1
+      max_count          = 3
+      local_ssd_count    = 0
+      disk_size_gb       = 100
+      disk_type          = "pd-standard"
+      image_type         = "COS_CONTAINERD"
+      auto_repair        = true
+      auto_upgrade       = true
+      preemptible        = false
       initial_node_count = 1
     },
   ]

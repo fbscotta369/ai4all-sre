@@ -4,8 +4,8 @@ resource "helm_release" "chaos_mesh" {
   namespace        = kubernetes_namespace.chaos.metadata[0].name
   create_namespace = true
   repository       = "https://charts.chaos-mesh.org"
-  chart      = "chaos-mesh"
-  version    = "2.7.0"
+  chart            = "chaos-mesh"
+  version          = "2.7.0"
 
   set {
     name  = "dashboard.create"
