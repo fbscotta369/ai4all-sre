@@ -1,9 +1,8 @@
 #!/bin/bash
+set -euo pipefail
 
 # AI Laboratory Environment Creator 🚀
 # Automates the creation of the 'sre-ai-lab' environment with optimized ML dependencies.
-
-set -e
 
 ENV_NAME="sre-ai-lab"
 PYTHON_VERSION="3.10"
@@ -17,7 +16,10 @@ if ! command -v conda &> /dev/null; then
     FOR_PROBE=("$HOME/miniconda3/bin/conda" "$HOME/anaconda3/bin/conda" "/opt/conda/bin/conda")
     for probe in "${FOR_PROBE[@]}"; do
         if [ -f "$probe" ]; then
-            eval "$($probe shell.bash hook)"
+            # Use eval with caution - ensure the command is safe
+            if [[ "$probe" =~ ^/[-a-zA-Z0-9_./]+$ ]]; then
+                eval "$("$probe" shell.bash hook)"
+            fi
             break
         fi
     done
@@ -64,14 +66,21 @@ conda run -n "$ENV_NAME" pip install --no-cache-dir --no-deps "unsloth_zoo @ git
 conda run -n "$ENV_NAME" pip uninstall -y torchao 2>/dev/null || true
 
 echo "[*] Applying Surgical Stability Patch to Unsloth-Zoo..."
+# Get the actual environment path
+ENV_PATH=$(conda info --envs | grep "^$ENV_NAME " | awk '{print $2}')
+if [ -z "$ENV_PATH" ]; then
+    echo "❌ Could not find environment path for $ENV_NAME"
+    exit 1
+fi
+
 # 1. Bypassing Inductor Config check
-PATCH_FILE="/home/fb/miniconda3/envs/$ENV_NAME/lib/python3.10/site-packages/unsloth_zoo/temporary_patches/common.py"
+PATCH_FILE="$ENV_PATH/lib/python3.10/site-packages/unsloth_zoo/temporary_patches/common.py"
 if [ -f "$PATCH_FILE" ]; then
     sed -i "s/inspect.getsource(torch._inductor.config)/'# Bypassed by SRE-Kernel Patch'/" "$PATCH_FILE"
 fi
 
 # 2. Monkey-patching Torch to support int1 if needed by transformers
-TORCH_INIT="/home/fb/miniconda3/envs/$ENV_NAME/lib/python3.10/site-packages/torch/__init__.py"
+TORCH_INIT="$ENV_PATH/lib/python3.10/site-packages/torch/__init__.py"
 if [ -f "$TORCH_INIT" ] && ! grep -q "int1 = int" "$TORCH_INIT"; then
     echo "torch.int1 = torch.int8 # SRE-Kernel Patch" >> "$TORCH_INIT"
 fi

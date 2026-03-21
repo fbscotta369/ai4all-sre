@@ -3,7 +3,7 @@
 # AI4ALL-SRE AI Laboratory Doctor 🩺
 # This script ensures your environment is ready for Model Fine-Tuning.
 
-set -e
+set -euo pipefail
 
 echo "Starting AI Laboratory Prerequisites Check..."
 echo "------------------------------------------------"
@@ -79,9 +79,9 @@ doctor_check() {
                     brew install "$cmd"
                 else
                     if [ "$use_sudo" = true ]; then
-                        sudo bash -c 'eval "$1"' -- "$install_cmd"
+                        sudo bash -c "$install_cmd"
                     else
-                        bash -c 'eval "$1"' -- "$install_cmd"
+                        bash -c "$install_cmd"
                     fi
                 fi
                 

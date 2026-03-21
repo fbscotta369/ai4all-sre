@@ -1,7 +1,26 @@
 #!/bin/bash
+set -euo pipefail
+
+# Check dependencies
+require_command() {
+    if ! command -v "$1" &> /dev/null; then
+        echo "Error: $1 is required but not installed." >&2
+        exit 1
+    fi
+}
+
+require_command kubectl
+require_command lsof
+require_command fuser
 
 # Ensure KUBECONFIG is set locally for this script
-export KUBECONFIG=~/.kube/config
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+
+# Check if kubectl can connect to cluster
+if ! kubectl cluster-info &> /dev/null; then
+    echo "Error: Cannot connect to Kubernetes cluster. Check KUBECONFIG." >&2
+    exit 1
+fi
 
 # Retrieve Chaos Mesh Token proactively
 CHAOS_TOKEN=$(kubectl get secret chaos-mesh-token -n default -o jsonpath='{.data.token}' | base64 --decode 2>/dev/null || echo "PENDING")
@@ -22,13 +41,20 @@ start_port_forward() {
     # Check for existing process on this port and kill it
     if lsof -i ":$local_port" -t &> /dev/null; then
         echo "[*] Port $local_port is busy. Releasing..."
-        fuser -k "$local_port/tcp" &> /dev/null || true
-        sleep 1
+        if fuser -k "$local_port/tcp" &> /dev/null; then
+            sleep 1
+        else
+            echo "Warning: Could not kill process on port $local_port" >&2
+        fi
     fi
 
     echo "Forwarding $name to http://localhost:$local_port"
-    kubectl port-forward svc/$service -n $namespace $local_port:$remote_port > /dev/null 2>&1 &
-    PIDS+=($!)
+    if kubectl port-forward "svc/$service" -n "$namespace" "$local_port:$remote_port" > /dev/null 2>&1 & then
+        PIDS+=($!)
+    else
+        echo "Error: Failed to start port-forward for $name" >&2
+        return 1
+    fi
 }
 
 # 1. ArgoCD

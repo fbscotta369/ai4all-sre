@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # AI4ALL-SRE Pipeline Validation Script 🛡️
-set -e
+set -euo pipefail
 
 echo "Starting Pipeline Validation..."
 echo "------------------------------------------------"

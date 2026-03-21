@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # ==============================================================================
 # SRE-Kernel Specialization Orchestrator
@@ -24,7 +24,10 @@ if ! command -v conda &> /dev/null; then
     FOR_PROBE=("$HOME/miniconda3/bin/conda" "$HOME/anaconda3/bin/conda" "/opt/conda/bin/conda")
     for probe in "${FOR_PROBE[@]}"; do
         if [ -f "$probe" ]; then
-            eval "$($probe shell.bash hook)"
+            # Use eval with caution - ensure the command is safe
+            if [[ "$probe" =~ ^/[-a-zA-Z0-9_./]+$ ]]; then
+                eval "$("$probe" shell.bash hook)"
+            fi
             break
         fi
     done

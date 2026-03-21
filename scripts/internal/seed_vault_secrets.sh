@@ -9,6 +9,24 @@ set -euo pipefail
 VAULT_ADDR="${VAULT_ADDR:-http://vault.vault.svc.cluster.local:8200}"
 VAULT_TOKEN="${VAULT_TOKEN:-root}"
 
+# Generate secure random passwords if not provided via environment variables
+generate_password() {
+    local length="${1:-32}"
+    openssl rand -base64 "$length" | tr -dc 'a-zA-Z0-9!@#$%^&*()_+-=' | head -c "$length"
+}
+
+# MinIO credentials
+MINIO_ROOT_USER="${MINIO_ROOT_USER:-admin}"
+MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-$(generate_password 32)}"
+MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-admin}"
+MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-$(generate_password 32)}"
+
+# GoAlert/PostgreSQL credentials
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(generate_password 32)}"
+
+# Grafana admin password
+GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-$(generate_password 24)}"
+
 echo "═══════════════════════════════════════════════════════════"
 echo "  Vault Secret Seeder — AI4ALL SRE Platform"
 echo "  Vault: ${VAULT_ADDR}"
@@ -29,19 +47,19 @@ vault secrets enable -version=2 -path=secret kv 2>/dev/null || true
 echo ""
 echo "── Seeding MinIO Credentials ──"
 vault kv put secret/minio/credentials \
-  root_user="admin" \
-  root_password="password123!" \
-  access_key="admin" \
-  secret_key="password123!"
+  root_user="${MINIO_ROOT_USER}" \
+  root_password="${MINIO_ROOT_PASSWORD}" \
+  access_key="${MINIO_ACCESS_KEY}" \
+  secret_key="${MINIO_SECRET_KEY}"
 
 echo "── Seeding GoAlert/PostgreSQL Credentials ──"
 vault kv put secret/goalert/database \
-  postgres_password="goalertpass" \
-  connection_url="postgres://postgres:goalertpass@goalert-db-postgresql.incident-management.svc.cluster.local:5432/postgres?sslmode=disable"
+  postgres_password="${POSTGRES_PASSWORD}" \
+  connection_url="postgres://postgres:${POSTGRES_PASSWORD}@goalert-db-postgresql.incident-management.svc.cluster.local:5432/postgres?sslmode=disable"
 
 echo "── Seeding Grafana Credentials ──"
 vault kv put secret/grafana/admin \
-  password="admin123"
+  password="${GRAFANA_ADMIN_PASSWORD}"
 
 echo "── Seeding Redis Configuration ──"
 vault kv put secret/redis/connection \

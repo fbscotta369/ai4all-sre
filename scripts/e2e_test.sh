@@ -46,6 +46,7 @@ test_run() {
     local name=$1; local cmd=$2; local error_msg=${3:-"No detail provided"}
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
     echo -ne "  Testing ${name}... "
+    # Note: Using eval here for flexibility in test commands, but commands are controlled internally
     if eval "${cmd}" > /dev/null 2>&1; then
         echo -e "[ ${GREEN}PASS${NC} ]"
         PASSED_TESTS=$((PASSED_TESTS + 1))

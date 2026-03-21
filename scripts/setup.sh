@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # AI4ALL-SRE Master Setup Script 🚀
-set -e
+set -euo pipefail
 
 echo "Starting AI4ALL-SRE Laboratory Setup..."
 echo "------------------------------------------------"
@@ -146,8 +146,8 @@ doctor_check() {
                         fi
                     else
                         if [ "$use_sudo" = true ]; then
-                            # Use robust pattern to pass complex strings into shell
-                            if sudo bash -c 'eval "$1"' -- "$install_cmd"; then
+                            # Execute the install command directly without eval
+                            if sudo bash -c "$install_cmd"; then
                                 if command -v "$cmd" &> /dev/null; then
                                     echo "✅ $cmd installed successfully."
                                     # Re-source PATH
@@ -156,7 +156,7 @@ doctor_check() {
                                 fi
                             fi
                         else
-                            if bash -c 'eval "$1"' -- "$install_cmd"; then
+                            if bash -c "$install_cmd"; then
                                 if command -v "$cmd" &> /dev/null; then
                                     echo "✅ $cmd installed successfully."
                                     return 0
