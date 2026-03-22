@@ -59,19 +59,23 @@ else
 fi
 
 # 4. Test S3 access
-echo -n "4. S3 access? "
-if aws s3 ls &> /dev/null; then
-    echo -e "${GREEN}✅ YES${NC}"
+echo ""
+echo "4. S3 Buckets (aws s3 ls):"
+echo "────────────────────────────────────────────────────"
+if aws s3 ls 2>&1; then
+    echo -e "${GREEN}✅ S3 access working${NC}"
 else
-    echo -e "${YELLOW}⚠️  NO (may need s3:ListAllMyBuckets permission)${NC}"
+    echo -e "${YELLOW}⚠️  S3 access failed (may need s3:ListAllMyBuckets permission)${NC}"
 fi
 
 # 5. Test DynamoDB access
-echo -n "5. DynamoDB access? "
-if aws dynamodb list-tables &> /dev/null; then
-    echo -e "${GREEN}✅ YES${NC}"
+echo ""
+echo "5. DynamoDB Tables (aws dynamodb list-tables --region us-east-1):"
+echo "────────────────────────────────────────────────────"
+if aws dynamodb list-tables --region us-east-1 2>&1; then
+    echo -e "${GREEN}✅ DynamoDB access working${NC}"
 else
-    echo -e "${YELLOW}⚠️  NO (may need dynamodb:ListTables permission)${NC}"
+    echo -e "${YELLOW}⚠️  DynamoDB access failed (may need dynamodb:ListTables permission)${NC}"
 fi
 
 echo ""
