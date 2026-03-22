@@ -260,6 +260,6 @@ The architecture implements **Governance-as-Code (GaC)** via Kyverno and Linkerd
 
 ---
 
-*Document Version: v5.0.0 — Lead Senior SRE DevSecGitOps*
-*Last Updated: $(date +%Y-%m-%d)*
-*Next Review: $(date -d "+3 months" +%Y-%m-%d)*
+*Document Version: v5.1.0 — Lead Senior SRE DevSecGitOps*
+*Last Updated: 2026-03-22*
+*Next Review: 2026-06-22*

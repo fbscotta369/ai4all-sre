@@ -18,6 +18,12 @@ Step-by-step procedures for testing infrastructure resilience under catastrophic
 ### 📈 [Performance & Scaling: Optimizing the Stack](performance-and-scaling.md)
 Guidelines for scaling the frontend microservices and optimizing the local inference engine.
 
+### ⏸️ [Pause and Resume the Laboratory](pause-and-resume-laboratory.md)
+Save compute resources by pausing all workloads and quickly restoring to previous state.
+
+### 🔐 [Remote State Migration](remote-state-migration.md)
+Migrate from local Terraform state to enterprise S3/DynamoDB backend.
+
 ---
 
 ## 🏗️ Technical Competencies

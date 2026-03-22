@@ -67,6 +67,8 @@ nav:
     - Performance & Scaling: how-to/performance-and-scaling.md
     - Chaos Experiments: how-to/run-chaos-experiments.md
     - Integrations: how-to/slack-and-goalert-integrations.md
+    - Pause and Resume: how-to/pause-and-resume-laboratory.md
+    - Remote State Migration: how-to/remote-state-migration.md
   - Reference:
     - Overview: reference/index.md
     - Incident Governance: reference/incident-lifecycle-governance.md
@@ -74,9 +76,14 @@ nav:
     - Kyverno Policies: reference/kyverno-policies.md
     - MLOps SOPs: reference/mlops-standard-operating-procedures.md
     - Architecture: reference/system-architecture.md
+    - Architecture Deep Dive: reference/ARCHITECTURE.md
     - Testing Framework: reference/testing-framework.md
     - Hardware Optimizations: reference/hardware-optimizations.md
     - Dependencies: reference/dependencies.md
+    - DevSecOps Pipeline: reference/devsecops-pipeline.md
+    - Unified RAG Interface: reference/unified-rag-interface.md
+    - Circuit Breaker Pattern: reference/circuit-breaker-pattern.md
+    - SLO Standards: reference/slo-standards.md
   - Explanation:
     - Overview: explanation/index.md
     - Compliance: explanation/devsecops-and-compliance.md

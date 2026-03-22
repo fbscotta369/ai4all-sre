@@ -377,6 +377,14 @@ graph TB
 | **bootstrap_vault_pki.sh** | `./scripts/bootstrap_vault_pki.sh` | Full Vault PKI bootstrap | kubectl, vault |
 | **generate_certs.sh** | `./scripts/generate_certs.sh` | Linkerd mTLS certificates | openssl |
 | **provision_agent.sh** | `./scripts/provision_agent.sh` | AI agent secrets + Redis | kubectl, openssl |
+| **bootstrap-backend.sh** | `./scripts/bootstrap-backend.sh` | S3/DynamoDB backend setup | aws cli |
+
+### Lab Lifecycle
+
+| Script | Command | Purpose | Dependencies |
+|--------|---------|---------|--------------|
+| **pause.sh** | `./scripts/pause.sh` | Pause workloads to save compute | kubectl |
+| **resume.sh** | `./scripts/resume.sh` | Restore paused workloads | kubectl |
 
 ### Dashboard & Monitoring
 
@@ -414,6 +422,10 @@ make destroy            # Clean teardown of all resources
 # Enterprise Mode
 make enterprise-on      # Enable remote state (S3/DynamoDB)
 make enterprise-off     # Revert to local lab mode
+
+# Lab Lifecycle
+make pause              # Pause workloads to save compute resources
+make resume             # Resume paused workloads to previous state
 
 # Testing
 make test-lifecycle     # Zero-to-hero lifecycle test

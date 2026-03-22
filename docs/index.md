@@ -63,6 +63,7 @@ graph TB
 | [Remote State Migration](how-to/remote-state-migration.md)] | Migrate to enterprise backend |
 | [Chaos Experiments](how-to/run-chaos-experiments.md)] | Run controlled failure injection |
 | [Observability Stack](reference/observability-stack.md)] | Prometheus/Grafana/Loki setup |
+| [Pause and Resume](how-to/pause-and-resume-laboratory.md)] | Save compute by pausing workloads |
 
 ---
 

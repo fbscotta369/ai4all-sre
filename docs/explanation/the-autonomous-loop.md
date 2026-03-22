@@ -224,5 +224,5 @@ If all guardrails permit, the script executes the `PATCH` command against the AP
 4. **"The Signal and the Noise"** by Nate Silver - Prediction in complex systems
 
 ---
-*Last Updated: $(date +%Y-%m-%d)*
-*Next Review: $(date -d "+3 months" +%Y-%m-%d)*
+*Last Updated: 2026-03-22*
+*Next Review: 2026-06-22*

@@ -3,9 +3,9 @@
 ## Supported Versions
 
 | Version | Supported          |
-| ------- | ------------------ |
-| 4.x+    | ✅ Active           |
-| < 4.0   | ❌ Not supported    |
+| ------- | ------------------|
+| 5.x+    | ✅ Active           |
+| < 5.0   | ❌ Not supported    |
 
 ## Vulnerability Disclosure Program (VDP)
 
