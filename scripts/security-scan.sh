@@ -63,7 +63,7 @@ run_check_warn() {
 echo -e "${BOLD}${CYAN}"
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║        🔒 AI4ALL-SRE — Local Security Scan                  ║"
-echo "║        Fortune-500 Grade DevSecOps Validation               ║"
+echo "║        Tier-1 Enterprise Grade DevSecOps Validation         ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 

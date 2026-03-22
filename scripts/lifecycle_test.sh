@@ -105,7 +105,7 @@ terraform import module.platform.module.sre_kernel.kubernetes_role_binding.keda_
 terraform import module.platform.module.sre_kernel.kubernetes_secret.ai_agent_credentials observability/ai-agent-credentials || true
 terraform import module.platform.module.sre_kernel.kubernetes_secret.grafana_admin observability/grafana-admin || true
 
-# Fortune 500 Automation: Enable AUTO_BOOTSTRAP for non-interactive remote state setup
+# Tier-1 Enterprise Automation: Enable AUTO_BOOTSTRAP for non-interactive remote state setup
 export AUTO_BOOTSTRAP=true
 ./scripts/setup.sh
 echo -e "${GREEN}✅ Phase 2 (Provisioning) Complete.${NC}"

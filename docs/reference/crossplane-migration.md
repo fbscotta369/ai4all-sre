@@ -8,7 +8,7 @@
 
 ## Context
 
-Fortune 5000 platform engineering teams increasingly adopt [Crossplane](https://crossplane.io/) to manage cloud resources (S3, RDS, IAM, VPC) directly via Kubernetes Custom Resources. This unifies the control plane — everything is a `kubectl apply`.
+Tier-1 Enterprise platform engineering teams increasingly adopt [Crossplane](https://crossplane.io/) to manage cloud resources (S3, RDS, IAM, VPC) directly via Kubernetes Custom Resources. This unifies the control plane — everything is a `kubectl apply`.
 
 However, our AI4ALL-SRE Laboratory is a **local-first, single-cluster** environment running on K3s. The tradeoffs are different here.
 

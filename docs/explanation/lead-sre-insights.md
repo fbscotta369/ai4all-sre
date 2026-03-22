@@ -9,7 +9,7 @@ While most see Terraform and GitOps, the real magic is in the **Hybrid State Bri
 The Specialist Swarm isn't just a collection of scripts; it's a **Consensus Engine**. By using Redis as a debouncing layer and state mesh, the agents avoid "split-brain" scenarios during an alert storm. If the `Network Specialist` and `Compute Specialist` both see a failure, they don't fight over remediation; the `Director Agent` acts as a Raft leader, ensuring only one idempotent change is committed to Git.
 
 ## 3. Data Sovereignty via Local-First AI
-The use of Ollama and local HNSW (FAISS) vector memory is a massive security "hidden gem." In a Fortune 500 company, sending infrastructure logs to a public LLM API is often a compliance violation. By keeping inference local, this project achieves **Data Sovereignty**—sensitive incident context never leaves the private network, satisfying strict ZTA (Zero-Trust Architecture) requirements.
+The use of Ollama and local HNSW (FAISS) vector memory is a massive security "hidden gem." In a Tier-1 Enterprise, sending infrastructure logs to a public LLM API is often a compliance violation. By keeping inference local, this project achieves **Data Sovereignty**—sensitive incident context never leaves the private network, satisfying strict ZTA (Zero-Trust Architecture) requirements.
 
 ## 4. Idempotency as a Security Guardrail
 Notice that every remediation is a **GitOps Commit**, not a direct `kubectl` command. This turns the AI's "fixes" into auditable, reversible, and declarative state changes. This is the difference between a "script kiddie" bot and an "Enterprise AI SRE." It enforces the principle of **Least Privilege** for the AI agent.

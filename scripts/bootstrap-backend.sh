@@ -9,7 +9,7 @@ TABLE_NAME="ai4all-sre-tf-lock"
 REGION=${AWS_REGION:-"us-east-1"}
 
 echo "----------------------------------------------------"
-echo "🛠️  Initializing Fortune 500 IaC Backend Assets..."
+echo "🛠️  Initializing Tier-1 Enterprise IaC Backend Assets..."
 echo "----------------------------------------------------"
 
 # 1. Create S3 Bucket
