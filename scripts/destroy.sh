@@ -81,6 +81,10 @@ for RES in "${STRICT_RESOURCES[@]}"; do
     terraform state rm "$RES" 2>/dev/null || true
 done
 
+# Ensure modules are installed before running destroy. If init fails (e.g., locked backend),
+# the force-cleanup steps below will still handle namespace/CRD removal.
+terraform init || true
+
 # Terraform might fail if CRDs are missing, but that's okay, we force-clean in Step 3.
 terraform destroy -auto-approve || echo -e "${YELLOW}⚠️  Terraform destroy encountered errors, continuing to force-cleanup...${NC}"
 echo -e "${GREEN}✅ Terraform resources destroyed (or bypassed).${NC}"
