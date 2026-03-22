@@ -107,6 +107,7 @@ NAMESPACES=(
     ollama
     keda
     ai-lab
+    docs-portal
 )
 for NS in "${NAMESPACES[@]}"; do
     if kubectl get namespace "$NS" &>/dev/null; then
