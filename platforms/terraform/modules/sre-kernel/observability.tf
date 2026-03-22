@@ -314,15 +314,7 @@ resource "kubernetes_cluster_role_binding" "ai_agent_healing_binding" {
   }
 }
 
-resource "kubernetes_config_map" "ai_agent_script" {
-  metadata {
-    name      = "ai-agent-script"
-    namespace = kubernetes_namespace.observability.metadata[0].name
-  }
-  data = {
-    "ai_agent.py" = file("${path.root}/components/ai-agent/ai_agent.py")
-  }
-}
+
 
 resource "kubernetes_deployment" "ai_agent" {
   metadata {
@@ -351,10 +343,9 @@ resource "kubernetes_deployment" "ai_agent" {
       spec {
         service_account_name = kubernetes_service_account.ai_agent.metadata[0].name
         container {
-          name    = "ai-agent"
-          image   = "python:3.11-slim"
-          command = ["/bin/sh", "-c"]
-          args    = ["pip install requests fastapi uvicorn kubernetes redis pydantic && python /app/ai_agent.py"]
+          name              = "ai-agent"
+          image             = var.ai_agent_image
+          image_pull_policy = "IfNotPresent"
           port {
             container_port = 8000
           }
@@ -414,10 +405,7 @@ resource "kubernetes_deployment" "ai_agent" {
               }
             }
           }
-          volume_mount {
-            name       = "script-volume"
-            mount_path = "/app"
-          }
+
           volume_mount {
             name       = "workspace"
             mount_path = "/workspace"
@@ -434,12 +422,7 @@ resource "kubernetes_deployment" "ai_agent" {
             mount_path = "/workspace"
           }
         }
-        volume {
-          name = "script-volume"
-          config_map {
-            name = kubernetes_config_map.ai_agent_script.metadata[0].name
-          }
-        }
+
         volume {
           name = "workspace"
           empty_dir {}

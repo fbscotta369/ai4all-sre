@@ -11,6 +11,7 @@ Fixes Applied:
 import os
 import re
 import json
+import yaml
 import time
 import random
 import datetime
@@ -28,49 +29,20 @@ from pydantic import BaseModel, ValidationError
 from loguru import logger
 
 # Import centralized configuration
-from . import agent_config
+import agent_config
+from rag_unified import get_rag_pipeline
 
 # ---------------------------------------------------------------------------
-# AI/ML Memory: HNSW Vector Store with persistence
+# AI/ML Memory: Unified RAG Pipeline
 # ---------------------------------------------------------------------------
 try:
-    import faiss
-    import numpy as np
-    from sentence_transformers import SentenceTransformer
-    import os
-    import pickle
-
-    EMBED_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
-    VECTOR_DIM = 384
-    _index = None
-    _pm_metadata = []
-
-    # Define persistence directory and files
-    VECTOR_STORE_DIR = os.path.join(
-        os.path.dirname(__file__), "..", "..", "data", "vector_store"
+    _rag_pipeline = get_rag_pipeline()
+    logger.info(
+        f"[+] Unified RAG pipeline initialized using {_rag_pipeline.primary_backend.__class__.__name__ if _rag_pipeline.primary_backend else 'none'}"
     )
-    INDEX_FILE = os.path.join(VECTOR_STORE_DIR, "faiss_index.bin")
-    METADATA_FILE = os.path.join(VECTOR_STORE_DIR, "metadata.pkl")
-
-    # Try to load existing index and metadata
-    if os.path.exists(INDEX_FILE) and os.path.exists(METADATA_FILE):
-        _index = faiss.read_index(INDEX_FILE)
-        with open(METADATA_FILE, "rb") as f:
-            _pm_metadata = pickle.load(f)
-        logger.info(
-            f"[+] Loaded HNSW Vector Memory from disk ({len(_pm_metadata)} entries)."
-        )
-    else:
-        # Create new index if none exists
-        _index = faiss.IndexHNSWFlat(VECTOR_DIM, 32)
-        logger.info("[+] HNSW Vector Memory initialized (new).")
-
-    # Ensure the persistence directory exists
-    os.makedirs(VECTOR_STORE_DIR, exist_ok=True)
-
 except Exception as e:
-    logger.error(f"[!] Vector memory unavailable ({e}).")
-    _index = None
+    logger.error(f"[!] RAG pipeline initialization failed ({e}).")
+    _rag_pipeline = None
 
 # ---------------------------------------------------------------------------
 # FIX 3: Redis-backed distributed debounce state (replaces /tmp)
@@ -132,6 +104,34 @@ def set_debounce(alert_key: str) -> None:
         _in_memory_debounce[alert_key] = time.time()
 
 
+def is_rate_limited(alert_key: str, limit: int = 10, window: int = 60) -> bool:
+    """Return True if alert_key exceeds limit within window seconds."""
+    if not REDIS_AVAILABLE:
+        # In-memory fallback (simple)
+        # For simplicity, we'll use the debounce dict for rate limiting too
+        # Not ideal but works for lab
+        return False
+    try:
+        current = _redis_client.incr(f"ratelimit:{alert_key}")
+        if current == 1:
+            _redis_client.expire(f"ratelimit:{alert_key}", window)
+        return current > limit
+    except Exception as e:
+        logger.warning(f"[!] Rate limit Redis error: {e}")
+        return False
+
+
+def alert_priority(alert: dict) -> int:
+    """Return integer priority (lower is higher priority)."""
+    severity = alert.get("labels", {}).get("severity", "warning")
+    if severity == "critical":
+        return 0
+    elif severity == "warning":
+        return 1
+    else:
+        return 2
+
+
 # ---------------------------------------------------------------------------
 # FIX 9: Pydantic schema for structured LLM output (eliminates regex + injection)
 # ---------------------------------------------------------------------------
@@ -183,39 +183,36 @@ k8s_custom_api = client.CustomObjectsApi()
 
 def index_post_mortems():
     """Index historical post-mortems for RAG."""
-    if _index is None:
+    if _rag_pipeline is None:
         return
     pm_dir = os.path.join(GIT_REPO_DIR, POST_MORTEMS_DIR)
     if not os.path.exists(pm_dir):
         return
+    count = 0
     for f in os.listdir(pm_dir):
         if f.endswith(".md"):
             with open(os.path.join(pm_dir, f), "r") as file:
                 content = file.read()
-                embedding = EMBED_MODEL.encode([content])[0].astype("float32")
-                _index.add(np.array([embedding]))
-                _pm_metadata.append(content)
-    print(f"[*] Indexed {len(_pm_metadata)} post-mortems.", flush=True)
-    # Persist the index and metadata to disk
-    try:
-        faiss.write_index(_index, INDEX_FILE)
-        with open(METADATA_FILE, "wb") as f:
-            pickle.dump(_pm_metadata, f)
-        print(f"[+] Persisted HNSW Vector Memory to disk.", flush=True)
-    except Exception as e:
-        print(f"[!] Failed to persist vector memory: {e}", flush=True)
+                # Try to extract alert_name and timestamp from filename
+                # Format: {timestamp}-{alert_name}.md
+                parts = f[:-3].split("-", 1)  # remove .md, split on first '-'
+                timestamp = parts[0] if len(parts) >= 2 else ""
+                alert_name = parts[1] if len(parts) >= 2 else f
+                if _rag_pipeline.embed_post_mortem(content, alert_name, timestamp):
+                    count += 1
+    print(f"[*] Indexed {count} new post-mortems via Unified RAG pipeline.", flush=True)
 
 
 def retrieve_context(query: str, k: int = 2) -> str:
     """Retrieve relevant post-mortems."""
-    if _index is None or _index.ntotal == 0:
+    if _rag_pipeline is None:
         return "No historical context available."
-    query_vec = EMBED_MODEL.encode([query])[0].astype("float32")
-    distances, indices = _index.search(np.array([query_vec]), k)
+    hits = _rag_pipeline.query_similar_incidents(query, n_results=k)
+    if not hits:
+        return "No historical context available."
     context = []
-    for idx in indices[0]:
-        if idx != -1:
-            context.append(_pm_metadata[idx])
+    for hit in hits:
+        context.append(hit.content)
     return "\n---\n".join(context)
 
 
@@ -384,101 +381,157 @@ def gitops_remediate(dep_name: str, namespace: str, action: RemediationAction) -
     """
     manifest_path = os.path.join(GIT_REPO_DIR, MANIFEST_FILE)
     if not os.path.exists(manifest_path):
-        print(f"[GitOps] Manifest not found at {manifest_path}", flush=True)
+        logger.error(f"[GitOps] Manifest not found at {manifest_path}")
         return False
 
     try:
         with open(manifest_path, "r") as f:
-            content = f.read()
+            docs = list(yaml.safe_load_all(f))
 
-        manifests = content.split("---")
-        target_idx = next(
-            (
-                i
-                for i, m in enumerate(manifests)
-                if f"name: {dep_name}" in m and "kind: Deployment" in m
-            ),
-            -1,
-        )
-        if target_idx == -1:
-            print(f"[GitOps] Target {dep_name} not found in manifest.", flush=True)
+        target_doc = None
+        target_idx = -1
+        for i, doc in enumerate(docs):
+            if doc is None:
+                continue
+            if (
+                doc.get("kind") == "Deployment"
+                and doc.get("metadata", {}).get("name") == dep_name
+            ):
+                target_doc = doc
+                target_idx = i
+                break
+
+        if target_doc is None:
+            logger.error(f"[GitOps] Target {dep_name} not found in manifest.")
             return False
 
-        target_manifest = manifests[target_idx]
-
+        # Modify the document based on action
         if action.action == "SCALE" and action.replicas is not None:
-            if "replicas:" in target_manifest:
-                target_manifest = re.sub(
-                    r"(replicas: )\d+",
-                    rf"\g<1>{action.replicas}",
-                    target_manifest,
-                    count=1,
-                )
-            else:
-                target_manifest = re.sub(
-                    r"(spec:\n)",
-                    rf"\g<1>  replicas: {action.replicas}\n",
-                    target_manifest,
-                    count=1,
-                )
+            if "spec" not in target_doc:
+                target_doc["spec"] = {}
+            target_doc["spec"]["replicas"] = action.replicas
 
         elif action.action == "RESTART":
             now = datetime.datetime.utcnow().isoformat() + "Z"
-            annotation = f'kubectl.kubernetes.io/restartedAt: "{now}"'
-            if "kubectl.kubernetes.io/restartedAt:" in target_manifest:
-                target_manifest = re.sub(
-                    r"(kubectl\.kubernetes\.io/restartedAt: ).*",
-                    rf'\g<1>"{now}"',
-                    target_manifest,
-                    count=1,
-                )
-            elif "annotations:" in target_manifest:
-                target_manifest = re.sub(
-                    r"(annotations:\n)",
-                    rf"\g<1>        {annotation}\n",
-                    target_manifest,
-                    count=1,
-                )
-            else:
-                target_manifest = re.sub(
-                    r"(template:\n\s+metadata:\n)",
-                    rf"\g<1>      annotations:\n        {annotation}\n",
-                    target_manifest,
-                    count=1,
-                )
+            # Ensure template and metadata.annotations exist
+            if "spec" not in target_doc:
+                target_doc["spec"] = {}
+            if "template" not in target_doc["spec"]:
+                target_doc["spec"]["template"] = {}
+            if "metadata" not in target_doc["spec"]["template"]:
+                target_doc["spec"]["template"]["metadata"] = {}
+            if "annotations" not in target_doc["spec"]["template"]["metadata"]:
+                target_doc["spec"]["template"]["metadata"]["annotations"] = {}
+            target_doc["spec"]["template"]["metadata"]["annotations"][
+                "kubectl.kubernetes.io/restartedAt"
+            ] = now
 
-        manifests[target_idx] = target_manifest
+        # Write back all documents
         with open(manifest_path, "w") as f:
-            f.write("---".join(manifests))
+            yaml.dump_all(docs, f, default_flow_style=False, sort_keys=False)
 
-        # REAL Git commit + push (not a print statement)
+        # -----------------------------
+        # Git operations with hardening
+        # -----------------------------
+        # Ensure git user config (required for commits)
+        git_config_cmds = [
+            [
+                "git",
+                "-C",
+                GIT_REPO_DIR,
+                "config",
+                "user.email",
+                "ai-agent@ai4all-sre.local",
+            ],
+            ["git", "-C", GIT_REPO_DIR, "config", "user.name", "AI SRE Agent"],
+        ]
+        for cfg_cmd in git_config_cmds:
+            subprocess.run(cfg_cmd, capture_output=True, timeout=10)
+
+        # Set up remote authentication if token provided
+        if GITHUB_TOKEN:
+            # Replace remote URL with token authentication
+            remote_url = f"https://{GITHUB_TOKEN}@github.com/{GIT_REMOTE.replace('https://', '').replace('http://', '')}"
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    GIT_REPO_DIR,
+                    "remote",
+                    "set-url",
+                    GIT_REMOTE,
+                    remote_url,
+                ],
+                capture_output=True,
+                timeout=10,
+            )
+
+        # Check repo is clean before starting
+        status_result = subprocess.run(
+            ["git", "-C", GIT_REPO_DIR, "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if status_result.stdout.strip():
+            logger.warning(
+                f"[GitOps] Git repository has uncommitted changes: {status_result.stdout.strip()}"
+            )
+            # We could stash, but for safety we abort
+            logger.error("[GitOps] Aborting due to dirty repository.")
+            return False
+
+        # Stage the manifest file
+        add_result = subprocess.run(
+            ["git", "-C", GIT_REPO_DIR, "add", MANIFEST_FILE],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if add_result.returncode != 0:
+            logger.error(f"[GitOps] Git add failed: {add_result.stderr}")
+            return False
+
+        # Commit
         commit_msg = (
             f"ai-remediation({action.action.lower()}): {dep_name} in {namespace}"
         )
-        cmds = [
-            ["git", "-C", GIT_REPO_DIR, "add", MANIFEST_FILE],
+        commit_result = subprocess.run(
             ["git", "-C", GIT_REPO_DIR, "commit", "--allow-empty", "-m", commit_msg],
-            ["git", "-C", GIT_REPO_DIR, "push", GIT_REMOTE, GIT_BRANCH],
-        ]
-        for cmd in cmds:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            if result.returncode != 0:
-                print(
-                    f"[GitOps] Git command failed: {' '.join(cmd)}\n{result.stderr}",
-                    flush=True,
-                )
-                # Attempt git reset to avoid dirty state
-                subprocess.run(
-                    ["git", "-C", GIT_REPO_DIR, "reset", "HEAD~1", "--soft"],
-                    capture_output=True,
-                )
-                return False
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if commit_result.returncode != 0:
+            logger.error(f"[GitOps] Git commit failed: {commit_result.stderr}")
+            # No commit to rollback
+            return False
 
-        print(f"[GitOps] ✅ Committed and pushed: '{commit_msg}'", flush=True)
+        # Push
+        push_result = subprocess.run(
+            ["git", "-C", GIT_REPO_DIR, "push", GIT_REMOTE, GIT_BRANCH],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if push_result.returncode != 0:
+            logger.error(f"[GitOps] Git push failed: {push_result.stderr}")
+            # Rollback the commit
+            rollback = subprocess.run(
+                ["git", "-C", GIT_REPO_DIR, "reset", "--soft", "HEAD~1"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if rollback.returncode != 0:
+                logger.error(f"[GitOps] Failed to rollback commit: {rollback.stderr}")
+            return False
+
+        logger.info(f"[GitOps] ✅ Committed and pushed: '{commit_msg}'")
         return True
 
     except Exception as e:
-        print(f"[GitOps] Exception: {e}", flush=True)
+        logger.exception(f"[GitOps] Exception: {e}")
         return False
 
 
@@ -567,24 +620,44 @@ def handle_autonomous_lifecycle(
 
     # Post-mortem
     pm_path = os.path.join(pm_dir, f"{timestamp}-{alert_name}.md")
+    # Post-mortem content as string
+    pm_content = f"""# Post-Mortem: {alert_name}
+
+**Timestamp**: {timestamp} UTC
+**Status**: Resolved (Self-Healed)
+
+## Alert
+- **Summary**: {annotations.get("summary")}
+- **Description**: {annotations.get("description")}
+- **Labels**: {labels}
+
+## AI Root Cause Analysis
+{action.rca}
+
+## Remediation Executed
+- **Action**: `{action.action}`
+- **Deployment**: `{action.deployment}` in `{action.namespace}`
+- **Result**: {remediation_result}
+
+"""
+    if action.gitops_patch_yaml:
+        pm_content += f"""## GitOps Declarative Patch
+```yaml
+{action.gitops_patch_yaml}
+```
+
+"""
+    if action.preventive_steps:
+        pm_content += f"""## Preventive Steps
+{action.preventive_steps}
+"""
     with open(pm_path, "w") as f:
-        f.write(f"# Post-Mortem: {alert_name}\n\n")
-        f.write(f"**Timestamp**: {timestamp} UTC\n")
-        f.write(f"**Status**: Resolved (Self-Healed)\n\n")
-        f.write(f"## Alert\n- **Summary**: {annotations.get('summary')}\n")
-        f.write(f"- **Description**: {annotations.get('description')}\n")
-        f.write(f"- **Labels**: {labels}\n\n")
-        f.write(f"## AI Root Cause Analysis\n{action.rca}\n\n")
-        f.write(f"## Remediation Executed\n- **Action**: `{action.action}`\n")
-        f.write(f"- **Deployment**: `{action.deployment}` in `{action.namespace}`\n")
-        f.write(f"- **Result**: {remediation_result}\n\n")
-        if action.gitops_patch_yaml:
-            f.write(
-                f"## GitOps Declarative Patch\n```yaml\n{action.gitops_patch_yaml}\n```\n\n"
-            )
-        if action.preventive_steps:
-            f.write(f"## Preventive Steps\n{action.preventive_steps}\n")
+        f.write(pm_content)
     print(f"[*] Post-mortem: {pm_path}", flush=True)
+
+    # Embed post-mortem into RAG pipeline
+    if _rag_pipeline is not None:
+        _rag_pipeline.embed_post_mortem(pm_content, alert_name, timestamp)
 
     # Runbook (create once, don't overwrite)
     rb_path = os.path.join(rb_dir, f"{alert_name}.md")
@@ -704,14 +777,27 @@ Output a JSON object with exactly these fields:
 # ---------------------------------------------------------------------------
 @app.get("/health")
 async def health():
-    vector_store_status = (
-        "loaded" if _index is not None and _index.ntotal > 0 else "empty or failed"
-    )
-    # Check Ollama connectivity with a short timeout
+    # Vector store status
+    if _rag_pipeline and _rag_pipeline.primary_backend:
+        doc_count = _rag_pipeline.primary_backend.get_document_count()
+        vector_store_status = (
+            f"{type(_rag_pipeline.primary_backend).__name__} ({doc_count} docs)"
+        )
+    else:
+        vector_store_status = "unavailable"
+
+    # Redis connectivity
+    redis_status = "unavailable"
+    if REDIS_AVAILABLE:
+        try:
+            _redis_client.ping()
+            redis_status = "ok"
+        except Exception as e:
+            redis_status = f"error: {e}"
+
+    # Ollama connectivity
     ollama_status = "unknown"
     try:
-        # Use a GET request to the Ollama version endpoint (if available) or just check if the server is up.
-        # Ollama's /api/tags endpoint returns a list of models.
         ollama_response = requests.get(
             f"{OLLAMA_URL.replace('/api/generate', '')}/api/tags", timeout=2
         )
@@ -722,16 +808,20 @@ async def health():
     except Exception as e:
         ollama_status = f"unreachable: {e}"
 
+    # Circuit breaker states
+    cb_states = CircuitBreakers.get_all_states()
+
     logger.debug(
-        f"Health check - Vector store: {vector_store_status}, Redis: {REDIS_AVAILABLE}, Ollama: {ollama_status}"
+        f"Health check - Vector store: {vector_store_status}, Redis: {redis_status}, Ollama: {ollama_status}"
     )
 
     return {
         "status": "ok",
         "version": agent_config.config.version,
-        "redis": REDIS_AVAILABLE,
+        "redis": redis_status,
         "vector_store": vector_store_status,
         "ollama": ollama_status,
+        "circuit_breakers": cb_states,
     }
 
 
@@ -741,9 +831,34 @@ async def handle_alert(request: Request, background_tasks: BackgroundTasks):
     alerts = payload.get("alerts", [])
     if not alerts:
         return {"status": "no_alerts"}
-    for alert in alerts:
+
+    # Sort alerts by priority (critical first)
+    alerts_sorted = sorted(alerts, key=alert_priority)
+
+    processed = 0
+    for alert in alerts_sorted:
+        # Create alert key for rate limiting
+        labels = alert.get("labels", {})
+        alert_name = labels.get("alertname", "UnknownAlert")
+        deployment_name = (
+            labels.get("deployment")
+            or labels.get("app")
+            or labels.get("service", "frontend")
+        )
+        namespace = labels.get("namespace", "online-boutique")
+        alert_key = f"{alert_name}-{deployment_name}-{namespace}"
+
+        # Rate limit
+        if is_rate_limited(alert_key, limit=10, window=60):
+            logger.warning(
+                f"[RateLimited] Skipping alert {alert_key} due to rate limit"
+            )
+            continue
+
         background_tasks.add_task(process_alert_background, alert)
-    return {"status": "accepted", "count": len(alerts)}
+        processed += 1
+
+    return {"status": "accepted", "count": processed, "total": len(alerts)}
 
 
 if __name__ == "__main__":

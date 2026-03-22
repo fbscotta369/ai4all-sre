@@ -21,7 +21,7 @@ RUN groupadd -g 10001 sre-group && \
 
 # Copy installed packages from builder
 COPY --from=builder /root/.local /home/sre-user/.local
-COPY ai_agent.py .
+COPY ai_agent.py agent_config.py circuit_breaker.py rag_unified.py rag_pipeline.py ./
 
 # Ensure permissions
 RUN chown -R sre-user:sre-group /app /home/sre-user
@@ -32,6 +32,6 @@ ENV PATH="/home/sre-user/.local/bin:${PATH}"
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 CMD ["python", "ai_agent.py"]

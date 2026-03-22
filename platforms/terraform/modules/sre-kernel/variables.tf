@@ -28,6 +28,12 @@ variable "loadgen_image" {
   default = "python:3.11-slim"
 }
 
+variable "ai_agent_image" {
+  type        = string
+  default     = "ai4all-sre/ai-agent:latest"
+  description = "Container image for the AI agent. Build with `docker build -t ai4all-sre/ai-agent:latest -f components/ai-agent/Dockerfile.agent .`"
+}
+
 variable "vault_namespace" {
   type    = string
   default = "vault"

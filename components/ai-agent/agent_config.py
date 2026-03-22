@@ -6,6 +6,7 @@ Loads configuration from environment variables with sensible defaults.
 import os
 from typing import List, Optional
 from pydantic import BaseModel
+from loguru import logger
 
 
 class DatabaseConfig(BaseModel):
@@ -91,5 +92,22 @@ class AppConfig(BaseModel):
     version: str = "5.0.0"
 
 
+def validate_config(config: AppConfig) -> None:
+    """Validate configuration for security and operational readiness."""
+    if (
+        config.database.redis_url
+        == "redis://redis.observability.svc.cluster.local:6379/0"
+    ):
+        logger.warning("Using default Redis URL; ensure Redis is reachable.")
+    if not config.gitops.github_token:
+        logger.warning("GitHub token not set; Git push may fail.")
+    if config.gitops.mode and not config.gitops.github_token:
+        logger.error(
+            "GitOps mode enabled but no GitHub token provided; push will fail."
+        )
+    # Add more checks as needed
+
+
 # Global configuration instance
 config = AppConfig()
+validate_config(config)

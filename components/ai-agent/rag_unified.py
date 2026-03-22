@@ -155,17 +155,40 @@ class FAISSBackend(BaseRAGBackend):
         self._available = False
         self._vector_dim = 384
 
+        # Persistence paths
+        self._persist_dir = os.path.join(
+            os.path.dirname(__file__), "..", "..", "data", "vector_store"
+        )
+        self._index_file = os.path.join(self._persist_dir, "faiss_index.bin")
+        self._metadata_file = os.path.join(self._persist_dir, "metadata.pkl")
+
         try:
             import faiss
             import numpy as np
             from sentence_transformers import SentenceTransformer
+            import os
+            import pickle
 
             self.embed_model = SentenceTransformer("all-MiniLM-L6-v2")
-            self.index = faiss.IndexHNSWFlat(self._vector_dim, 32)
             self.np = np
             self.faiss = faiss
+            self.pickle = pickle
+
+            # Load existing index and metadata if available
+            if os.path.exists(self._index_file) and os.path.exists(self._metadata_file):
+                self.index = faiss.read_index(self._index_file)
+                with open(self._metadata_file, "rb") as f:
+                    self.metadata = pickle.load(f)
+                logger.info(
+                    f"[+] FAISS backend loaded from disk ({len(self.metadata)} entries)"
+                )
+            else:
+                self.index = faiss.IndexHNSWFlat(self._vector_dim, 32)
+                logger.info("[+] FAISS backend initialized (new)")
+
+            # Ensure persist directory exists
+            os.makedirs(self._persist_dir, exist_ok=True)
             self._available = True
-            logger.info("[+] FAISS backend initialized")
 
         except Exception as e:
             logger.warning(f"[!] FAISS unavailable: {e}")
@@ -186,14 +209,25 @@ class FAISSBackend(BaseRAGBackend):
             embedding = self.embed_model.encode([content])[0].astype("float32")
             self.index.add(self.np.array([embedding]))
 
-            # Store metadata
-            full_metadata = {"doc_id": doc_id, **metadata}
+            # Store metadata including content
+            full_metadata = {"doc_id": doc_id, "content": content, **metadata}
             self.metadata.append(full_metadata)
 
+            # Persist to disk
+            self._persist()
             return True
         except Exception as e:
             logger.error(f"[!] FAISS embed error: {e}")
             return False
+
+    def _persist(self):
+        """Save index and metadata to disk."""
+        try:
+            self.faiss.write_index(self.index, self._index_file)
+            with open(self._metadata_file, "wb") as f:
+                self.pickle.dump(self.metadata, f)
+        except Exception as e:
+            logger.error(f"[!] FAISS persistence error: {e}")
 
     def query(self, text: str, n_results: int = 3) -> List[RAGResult]:
         if not self._available or self.index.ntotal == 0:
