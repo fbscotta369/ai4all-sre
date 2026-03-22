@@ -30,7 +30,7 @@ echo -e "${YELLOW}   To recreate it, run: ./setup.sh${NC}"
 echo ""
 
 # ── Confirm (skip with -y flag) ─────────────────────────────
-if [[ "$1" != "-y" ]]; then
+if [[ "${1:-}" != "-y" ]]; then
     read -r -p "Are you sure? Type 'yes' to confirm: " CONFIRM
     if [[ "$CONFIRM" != "yes" ]]; then
         echo "Aborted."
